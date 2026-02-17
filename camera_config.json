@@ -1,0 +1,633 @@
+{
+  "_comment": "ROI polygons per camera. Pixel [x, y] in native resolution (1280×720). Cameras not listed here use full-frame fallback.",
+  "cameras": {
+    "SE_STA_CAMERA_Orion_412": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              3,
+              361
+            ],
+            [
+              457,
+              159
+            ],
+            [
+              458,
+              148
+            ],
+            [
+              376,
+              147
+            ],
+            [
+              3,
+              301
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    },
+    "SE_STA_CAMERA_Orion_466": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              678,
+              716
+            ],
+            [
+              627,
+              449
+            ],
+            [
+              610,
+              322
+            ],
+            [
+              604,
+              256
+            ],
+            [
+              549,
+              178
+            ],
+            [
+              547,
+              151
+            ],
+            [
+              601,
+              146
+            ],
+            [
+              617,
+              159
+            ],
+            [
+              653,
+              188
+            ],
+            [
+              712,
+              230
+            ],
+            [
+              799,
+              299
+            ],
+            [
+              942,
+              434
+            ],
+            [
+              1148,
+              643
+            ],
+            [
+              1204,
+              717
+            ]
+          ],
+          "road_id": "E4_Southbound",
+          "direction_relative_to_camera": "towards",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        },
+        {
+          "polygon": [
+            [
+              1258,
+              716
+            ],
+            [
+              1027,
+              483
+            ],
+            [
+              906,
+              375
+            ],
+            [
+              770,
+              262
+            ],
+            [
+              688,
+              209
+            ],
+            [
+              623,
+              161
+            ],
+            [
+              608,
+              148
+            ],
+            [
+              672,
+              144
+            ],
+            [
+              701,
+              164
+            ],
+            [
+              808,
+              217
+            ],
+            [
+              923,
+              278
+            ],
+            [
+              1105,
+              386
+            ],
+            [
+              1276,
+              501
+            ],
+            [
+              1276,
+              699
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 4000,
+          "num_lanes": 2
+        }
+      ]
+    },
+    "SE_STA_CAMERA_Orion_417": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              573,
+              149
+            ],
+            [
+              621,
+              234
+            ],
+            [
+              819,
+              481
+            ],
+            [
+              1021,
+              716
+            ],
+            [
+              553,
+              716
+            ],
+            [
+              500,
+              462
+            ],
+            [
+              470,
+              273
+            ],
+            [
+              467,
+              176
+            ],
+            [
+              474,
+              148
+            ]
+          ],
+          "road_id": "E4_Southbound",
+          "direction_relative_to_camera": "towards",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        },
+        {
+          "polygon": [
+            [
+              1055,
+              717
+            ],
+            [
+              765,
+              388
+            ],
+            [
+              629,
+              231
+            ],
+            [
+              586,
+              163
+            ],
+            [
+              578,
+              146
+            ],
+            [
+              675,
+              147
+            ],
+            [
+              732,
+              196
+            ],
+            [
+              896,
+              314
+            ],
+            [
+              1279,
+              615
+            ],
+            [
+              1276,
+              717
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 4000,
+          "num_lanes": 2
+        }
+      ]
+    },
+    "SE_STA_CAMERA_Pacific_530": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              421,
+              150
+            ],
+            [
+              601,
+              718
+            ],
+            [
+              1277,
+              719
+            ],
+            [
+              1276,
+              698
+            ],
+            [
+              1273,
+              676
+            ],
+            [
+              676,
+              197
+            ],
+            [
+              610,
+              148
+            ]
+          ],
+          "road_id": "E4_Southbound",
+          "direction_relative_to_camera": "towards",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        },
+        {
+          "polygon": [
+            [
+              1279,
+              634
+            ],
+            [
+              732,
+              226
+            ],
+            [
+              622,
+              148
+            ],
+            [
+              774,
+              145
+            ],
+            [
+              1277,
+              391
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    },
+    "SE_STA_CAMERA_Orion_437": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              1142,
+              716
+            ],
+            [
+              456,
+              145
+            ],
+            [
+              585,
+              148
+            ],
+            [
+              848,
+              294
+            ],
+            [
+              1276,
+              570
+            ],
+            [
+              1275,
+              687
+            ],
+            [
+              1262,
+              714
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    },
+    "SE_STA_CAMERA_Pacific_529": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              1275,
+              566
+            ],
+            [
+              978,
+              367
+            ],
+            [
+              603,
+              149
+            ],
+            [
+              732,
+              149
+            ],
+            [
+              957,
+              245
+            ],
+            [
+              1124,
+              332
+            ],
+            [
+              1275,
+              416
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    },
+    "SE_STA_CAMERA_Orion_436": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              1133,
+              716
+            ],
+            [
+              804,
+              449
+            ],
+            [
+              633,
+              298
+            ],
+            [
+              556,
+              211
+            ],
+            [
+              531,
+              172
+            ],
+            [
+              526,
+              148
+            ],
+            [
+              606,
+              148
+            ],
+            [
+              638,
+              188
+            ],
+            [
+              839,
+              320
+            ],
+            [
+              1116,
+              482
+            ],
+            [
+              1276,
+              577
+            ],
+            [
+              1275,
+              697
+            ],
+            [
+              1262,
+              715
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    },
+    "SE_STA_CAMERA_Pacific_528": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              1238,
+              715
+            ],
+            [
+              955,
+              437
+            ],
+            [
+              776,
+              286
+            ],
+            [
+              623,
+              171
+            ],
+            [
+              591,
+              150
+            ],
+            [
+              695,
+              148
+            ],
+            [
+              847,
+              229
+            ],
+            [
+              1050,
+              353
+            ],
+            [
+              1238,
+              484
+            ],
+            [
+              1275,
+              511
+            ],
+            [
+              1276,
+              701
+            ],
+            [
+              1264,
+              712
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    },
+    "SE_STA_CAMERA_0_50438294": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              1276,
+              685
+            ],
+            [
+              890,
+              443
+            ],
+            [
+              572,
+              255
+            ],
+            [
+              390,
+              149
+            ],
+            [
+              542,
+              148
+            ],
+            [
+              739,
+              248
+            ],
+            [
+              973,
+              361
+            ],
+            [
+              1163,
+              468
+            ],
+            [
+              1276,
+              537
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    },
+    "SE_STA_CAMERA_0_50438290": {
+      "rois": [
+        {
+          "polygon": [
+            [
+              1275,
+              655
+            ],
+            [
+              1114,
+              472
+            ],
+            [
+              926,
+              314
+            ],
+            [
+              726,
+              173
+            ],
+            [
+              687,
+              146
+            ],
+            [
+              814,
+              148
+            ],
+            [
+              977,
+              240
+            ],
+            [
+              1146,
+              363
+            ],
+            [
+              1276,
+              474
+            ]
+          ],
+          "road_id": "E4_Northbound",
+          "direction_relative_to_camera": "away",
+          "capacity_vph": 6000,
+          "num_lanes": 3
+        }
+      ]
+    }
+  }
+}

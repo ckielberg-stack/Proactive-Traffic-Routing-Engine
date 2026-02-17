@@ -1,0 +1,11 @@
+.env
+data/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+discovered_cameras.json
+README.md
+*.md

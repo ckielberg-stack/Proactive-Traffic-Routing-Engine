@@ -1,0 +1,33 @@
+services:
+  collector:
+    build: .
+    container_name: trafik-collector
+    restart: always
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  dashboard:
+    build: .
+    container_name: trafik-dashboard
+    restart: always
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./static:/app/static
+    command: [ "python", "-u", "dashboard.py" ]
+    entrypoint: []
+    depends_on:
+      - collector
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

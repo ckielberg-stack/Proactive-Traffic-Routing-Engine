@@ -1,0 +1,262 @@
+"""
+Pydantic domain models for the Proactive Traffic Routing Engine (PTRE).
+
+These models define the data contracts passed between the Vision, Physics,
+and Routing modules.
+"""
+
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+
+# ---------------------------------------------------------------------------
+# Input models
+# ---------------------------------------------------------------------------
+
+
+class SensorReading(BaseModel):
+    """Upstream radar / loop-detector sensor data."""
+
+    timestamp: datetime
+    inflow_volume_vph: float = Field(
+        ge=0, description="Vehicles per hour measured upstream of the camera"
+    )
+    average_speed_kmh: float = Field(
+        ge=0, description="Mean speed (km/h) measured upstream of the camera"
+    )
+
+
+class CameraMetadata(BaseModel):
+    """Static metadata mapping a camera to the road network."""
+
+    camera_id: str
+    name: str
+    lat: float
+    lng: float
+    num_lanes: int = Field(default=2, ge=1)
+    road: str = "E4"
+
+
+# ---------------------------------------------------------------------------
+# Output models
+# ---------------------------------------------------------------------------
+
+
+class CapacityState(BaseModel):
+    """Output of the vision engine for one analysed frame.
+
+    Downstream consumers (physics engine, geo-mapper) use this to compute
+    shockwave propagation and routing penalties.
+    """
+
+    timestamp: datetime
+    camera_id: str
+    vehicle_count: int = Field(ge=0, description="Vehicles detected in ROI")
+    blocked_lanes: int = Field(ge=0, description="Lanes blocked by anomaly")
+    total_lanes: int = Field(ge=1, description="Total drivable lanes")
+    estimated_capacity_vph: float = Field(
+        ge=0, description="Estimated throughput at the bottleneck"
+    )
+    is_anomaly: bool = False
+    anomaly_reason: str | None = None
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        default=0.0,
+        description="Model confidence (mean of detection confidences)",
+    )
+
+
+class RoadSegmentState(BaseModel):
+    """Per-road-segment capacity output from multi-ROI analysis."""
+
+    road_id: str
+    direction: str = Field(description="'towards' or 'away' relative to camera")
+    vehicle_count: int = Field(ge=0)
+    capacity_vph: float = Field(ge=0)
+    num_lanes: int = Field(ge=1, default=2)
+    is_anomaly: bool = False
+    anomaly_reason: str | None = None
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        default=0.0,
+        description="Mean detection confidence for this segment",
+    )
+
+
+class MultiSegmentCapacity(BaseModel):
+    """Aggregated multi-ROI output for one camera frame.
+
+    When a camera has ROI definitions, the vision engine produces one
+    ``RoadSegmentState`` per defined region.  Detections outside all
+    ROIs are counted in ``unmatched_detections`` and discarded from
+    capacity calculations.
+    """
+
+    timestamp: datetime
+    camera_id: str
+    segments: list[RoadSegmentState]
+    unmatched_detections: int = Field(
+        ge=0,
+        default=0,
+        description="Detections outside all ROI polygons (discarded)",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Physics Engine output
+# ---------------------------------------------------------------------------
+
+
+class QueuePrediction(BaseModel):
+    """Output of the Shockwave Prediction Engine (Phase 3).
+
+    Describes the backward-propagating queue from a bottleneck.
+    ``lengths_at_minutes`` maps future time offsets (minutes) to predicted
+    queue length in kilometres.
+    """
+
+    timestamp: datetime
+    camera_id: str
+    origin_lat: float = Field(description="Latitude of the bottleneck origin")
+    origin_lng: float = Field(description="Longitude of the bottleneck origin")
+    origin_chainage_km: float = Field(
+        description="Linear reference (km) along the highway from a fixed datum"
+    )
+    growth_speed_kmh: float = Field(
+        description="Speed at which the queue tail moves upstream (km/h)"
+    )
+    lengths_at_minutes: dict[int, float] = Field(
+        description="Mapping of T+N minutes → predicted queue length in km"
+    )
+
+
+# ---------------------------------------------------------------------------
+# VMS Status Polling (ground-truth log)
+# ---------------------------------------------------------------------------
+
+
+class VMSStatusSnapshot(BaseModel):
+    """Polled VMS sign status — records what the human operator has set.
+
+    These snapshots are persisted to JSONL so we can build a historical
+    ground-truth log of when operators actually activated VMS signs.
+    """
+
+    timestamp: datetime
+    vms_id: str
+    vms_name: str
+    is_active: bool = Field(
+        description="True if the sign is currently displaying a message"
+    )
+    displayed_message: str | None = Field(
+        default=None,
+        description="Current text on the sign, e.g. 'KÖVARNING 70'",
+    )
+    speed_limit: int | None = Field(
+        default=None,
+        description="Advisory or mandatory speed limit shown (km/h)",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: VMS Orchestrator models
+# ---------------------------------------------------------------------------
+
+
+class VMSGantry(BaseModel):
+    """Static configuration for a single Variable Message Sign gantry."""
+
+    vms_id: str
+    name: str
+    lat: float
+    lng: float
+    road: str = "E4"
+    direction: str = Field(
+        default="northbound",
+        description="Traffic direction this VMS serves",
+    )
+    chainage_km: float = Field(
+        description="Linear reference (km) along the highway from a fixed datum"
+    )
+
+
+class VMSRecommendation(BaseModel):
+    """A recommendation to activate a specific VMS gantry."""
+
+    timestamp: datetime
+    vms_id: str
+    vms_name: str
+    recommended_message: str = Field(
+        description="Message text, e.g. 'KÖVARNING 70 km/h'"
+    )
+    urgency: str = Field(
+        description="'immediate', 'soon', or 'advisory'",
+    )
+    queue_growth_speed_kmh: float
+    distance_queue_tail_to_vms_km: float = Field(
+        description="Current distance from predicted queue tail to this VMS"
+    )
+    estimated_activation_minutes: float = Field(
+        description="Minutes until queue tail reaches this VMS position"
+    )
+    triggering_camera_id: str
+    current_vms_status: str | None = Field(
+        default=None,
+        description="Current real-world sign state, e.g. 'OFF', '70 km/h'",
+    )
+    summary: str = Field(
+        description="Human-readable narrative for the operator"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Operator API models
+# ---------------------------------------------------------------------------
+
+
+class IncidentReport(BaseModel):
+    """AI-verified incident report for operator decision support."""
+
+    timestamp: datetime
+    camera_id: str
+    incident_type: str = Field(
+        description="e.g. 'vehicle_stopped', 'accident', 'debris', 'congestion'"
+    )
+    lanes_affected: int = Field(ge=0)
+    total_lanes: int = Field(ge=1)
+    capacity_drop_percentage: float = Field(
+        ge=0.0,
+        le=100.0,
+        description="Percentage drop in capacity vs. free-flow",
+    )
+    thumbnail_base64: str | None = Field(
+        default=None,
+        description="Base64-encoded JPEG with YOLO bounding boxes drawn",
+    )
+    confidence: float = Field(ge=0.0, le=1.0, default=0.0)
+    lat: float | None = None
+    lng: float | None = None
+
+
+# ---------------------------------------------------------------------------
+# Tick-based orchestration output
+# ---------------------------------------------------------------------------
+
+
+class TickResult(BaseModel):
+    """Aggregated output of one 60-second tick cycle.
+
+    Serves as the data contract between the main loop and downstream
+    consumers (dashboard, operator API, JSONL persistence).
+    """
+
+    tick_number: int = Field(ge=0)
+    timestamp: datetime
+    capacity_states: list[CapacityState] = []
+    sensor_readings: list[SensorReading] = []
+    vms_statuses: list[VMSStatusSnapshot] = []
+    queue_predictions: list[QueuePrediction] = []
+    vms_recommendations: list[VMSRecommendation] = []

@@ -1,0 +1,3675 @@
+[
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Fruängen och är riktad mot Stockholm.",
+    "Direction": 92,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438288",
+    "Name": "Fruängen norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:09.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636172.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (669203 6576037)",
+      "WGS84": "POINT (17.970691 59.289282)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Nybohov och är riktad mot Uppsala.",
+    "Direction": 300,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438734",
+    "Name": "Tpl Nybohov Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638066.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671618 6578026)",
+      "WGS84": "POINT (18.014602 59.306146)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.876Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Johanneshovsbron i höjd med infarten till Söderledstunneln och är riktad mot Norrtull.",
+    "Direction": 352,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000112",
+    "Location": "Kameran är placerad på Johanneshovsbron i höjd med infarten till Söderledstunneln och är riktad mot Norrtull.",
+    "Name": "Johanneshovsbron N ",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636182.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675095 6578166)",
+      "WGS84": "POINT (18.07569 59.305975)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 73 Nynäsvägen i höjd med trafikplats Farsta och är riktad mot Stockholm.",
+    "Direction": 345,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_333",
+    "Location": "Kameran är placerad på väg 73 Nynäsvägen i höjd med trafikplats Farsta och är riktad mot Stockholm.",
+    "Name": "Tpl Farsta",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:35.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626460.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (676735.41 6571902.65)",
+      "WGS84": "POINT (18.099344 59.249128)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:39.806Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Centralbron i höjd med Söder Mälarstrand och är riktad mot Norrtull.",
+    "Direction": 350,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000114",
+    "Location": "Kameran är placerad på Centralbron i höjd med Söder Mälarstrand och är riktad mot Norrtull.",
+    "Name": "Centralbron S",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636183.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (674593 6579848)",
+      "WGS84": "POINT (18.068247 59.321265)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.612Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 73 Nynäsvägen i höjd med trafikplats Gubbängen och är riktad mot Stockholm.",
+    "Direction": 344,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_334",
+    "Location": "Kameran är placerad på väg 73 Nynäsvägen i höjd med trafikplats Gubbängen och är riktad mot Stockholm.",
+    "Name": "Tpl Gubbängen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:25.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626461.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (676677.04 6573201.29)",
+      "WGS84": "POINT (18.099381 59.260797)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:31.532Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Solberga och är riktad mot Stockholm.",
+    "Direction": 83,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438278",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Hägersten och är riktad mot Uppsala.",
+    "Name": "Solberga",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:20.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636177.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670345.56 6576146.86)",
+      "WGS84": "POINT (17.990805 59.289808)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:24.900Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Fredhäll och är riktad mot Södertälje.",
+    "Direction": 195,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438708",
+    "Name": "Tpl Fredhäll Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638072.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671239 6580657)",
+      "WGS84": "POINT (18.010042 59.329894)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.612Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Norra länken i höjd med trafikplats Tomteboda och är riktad mot Södertälje.\n",
+    "Direction": 217,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_598",
+    "Location": "Kameran är placerad på E4/E20 Norra länken i höjd med trafikplats Tomteboda och är riktad mot Södertälje.",
+    "Name": "Tpl Tomteboda Östra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635985.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671212 6582304)",
+      "WGS84": "POINT (18.010876 59.344675)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.596Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Gullmarsplan och är riktad mot Stockholm.",
+    "Direction": 350,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000107",
+    "Location": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Gullmarsplan och är riktad mot Stockholm.",
+    "Name": "Gullmarsplan",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636180.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675530 6577340)",
+      "WGS84": "POINT (18.082648 59.298387)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Globen och är riktad mot Nynäshamn.",
+    "Direction": 172,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000105",
+    "Location": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Globen och är riktad mot Nynäshamn.",
+    "Name": "Globen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636189.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675680 6576840)",
+      "WGS84": "POINT (18.084872 59.293841)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.612Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Västberga och trafikplats Nyboda och är riktad mot Uppsala.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438752",
+    "Name": "Västberga Allé Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39637923.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671391 6577195)",
+      "WGS84": "POINT (18.009962 59.298785)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.373Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i trafikplats Nyboda (Nybodakurvan) och är riktad mot Uppsala. Trafik i mitten av bilden är på väg till respektive från Södra länken.",
+    "Direction": 320,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438738",
+    "Name": "Nybodahöjden",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39637919.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671992 6577675)",
+      "WGS84": "POINT (18.020882 59.302846)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.373Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden mellan trafikplats Nybohov och trafikplats Gröndal och är riktad mot Uppsala.",
+    "Direction": 330,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438728",
+    "Location": "ny",
+    "Name": "Kontrollplats Gröndal",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638063.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671077 6578703)",
+      "WGS84": "POINT (18.00565 59.312436)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.372Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i trafikplats Västberga (i höjd med Lerkroksvägen) och är riktad mot Uppsala.",
+    "Direction": 25,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438758",
+    "Name": "Tpl Västberga Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39637925.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670891 6576591)",
+      "WGS84": "POINT (18.000718 59.293571)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.372Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i trafikplats Västberga och är riktad mot Uppsala.",
+    "Direction": 42,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438754",
+    "Name": "Tpl Västberga Norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638054.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671157 6577006)",
+      "WGS84": "POINT (18.005709 59.297185)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.373Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Lilla Essingen och är riktad mot Uppsala. I horisonten syns Fredhällstunnelns mynning.",
+    "Direction": 50,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438714",
+    "Location": "ny",
+    "Name": "Tpl Lilla Essingen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:06.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638060.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670917 6580150)",
+      "WGS84": "POINT (18.003989 59.325477)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.876Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Gröndal och är riktad mot Uppsala. I bilden syns Gröndalsbron.",
+    "Direction": 310,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438724",
+    "Location": "ny",
+    "Name": "Tpl Gröndal Norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638062.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670778 6579223)",
+      "WGS84": "POINT (18.000817 59.31722)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.372Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i trafikplats Västberga (i höjd med Västbergavägen) och är riktad mot Uppsala.",
+    "Direction": 30,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438756",
+    "Name": "Tpl Västberga",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39637924.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671074 6576869)",
+      "WGS84": "POINT (18.004146 59.29599)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.875Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden mellan trafikplats Stora Essingen och Lilla Essingen och är riktad mot Uppsala. I bilden syns Essingebron.",
+    "Direction": 30,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438718",
+    "Location": "ny",
+    "Name": "Tpl Stora Essingen Norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:06.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638061.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670601 6579837)",
+      "WGS84": "POINT (17.998197 59.322798)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.372Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Kristineberg och är riktad mot Södertälje.",
+    "Direction": 177,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438700",
+    "Location": "ny",
+    "Name": "Tpl Kristineberg",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:06.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638059.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671215 6581121)",
+      "WGS84": "POINT (18.009989 59.334064)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:08.372Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är på placerad på väg 75 Södra länken i höjd med trafikplats Nyboda och är riktad E4/E20 Essingeleden.",
+    "Direction": 286,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438740",
+    "Name": "Tpl Nyboda Östra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638055.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672168 6577465)",
+      "WGS84": "POINT (18.023801 59.300891)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.876Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Tomteboda och trafikplats Kristineberg och är riktad mot Södertälje.",
+    "Direction": 150,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438690",
+    "Name": "Tpl Tomteboda",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:55.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638057.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671099 6582159)",
+      "WGS84": "POINT (18.008777 59.34342)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:01.903Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Nyboda och är riktad mot Uppsala.",
+    "Direction": 300,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438736",
+    "Name": "Midsommarkransens Gymnasium",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39637918.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671890 6577835)",
+      "WGS84": "POINT (18.01922 59.304322)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.876Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i trafikplats Nyboda (i höjd med Nybodapåfarten) och är riktad mot Uppsala.",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438748",
+    "Name": "Tpl Nyboda Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39637922.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671787 6577350)",
+      "WGS84": "POINT (18.017028 59.300015)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.875Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden mellan trafikplats Tomteboda och trafikplats Kristineberg och är riktad mot Södertälje.",
+    "Direction": 185,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438694",
+    "Name": "Hornsberg",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:06.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638058.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671270 6581660)",
+      "WGS84": "POINT (18.011382 59.338876)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.876Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden mellan trafikplats Kristineberg och trafikplats Fredhäll och är riktad mot Södertälje.",
+    "Direction": 180,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438702",
+    "Name": "Tpl Fredhäll Norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638073.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671238 6580961)",
+      "WGS84": "POINT (18.010266 59.33262)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Centralbron i höjd med Gamla stans tunnelbanestation och är riktad mot Nynäshamn.",
+    "Direction": 175,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000116",
+    "Location": "Kameran är placerad på Centralbron i höjd med Gamla stans tunnelbanestation och är riktad mot Nynäshamn.",
+    "Name": "Centralbron N",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636184.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (674489 6580145)",
+      "WGS84": "POINT (18.066662 59.323972)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Klarastrandsleden i höjd med Klarabergsviadukten och är riktad mot Uppsala.",
+    "Direction": 315,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000120",
+    "Location": "Kameran är placerad på Klarastrandsleden i höjd med Klarabergsviadukten och är riktad mot Nynäshamn.",
+    "Name": "Tegelbacken N",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636186.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (673761 6580735)",
+      "WGS84": "POINT (18.054364 59.329563)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.612Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden mellan trafikplats Gröndal och trafikplats Stora Essingen och är riktad mot Uppsala.",
+    "Direction": 320,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438722",
+    "Name": "Tpl Stora Essingen Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638071.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670628 6579414)",
+      "WGS84": "POINT (17.998336 59.318994)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Kristineberg och är riktad mot Södertälje.\n",
+    "Direction": 190,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438696",
+    "Name": "Tpl Kristineberg Norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638074.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671265 6581430)",
+      "WGS84": "POINT (18.011112 59.336815)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Stora Essingen och är riktad mot Uppsala.",
+    "Direction": 10,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438720",
+    "Location": "Kameran är placerad på E4/E20  Essingeleden i höjd med trafikplats Stora Essingen och är riktad mot Södertälje.",
+    "Name": "Tpl Stora Essingen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638068.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670538 6579653)",
+      "WGS84": "POINT (17.996946 59.321174)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Nybohov och är riktad mot Uppsala.",
+    "Direction": 315,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438732",
+    "Location": "ny",
+    "Name": "Tpl Nybohov ",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638064.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671387 6578211)",
+      "WGS84": "POINT (18.010697 59.307898)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:07.876Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Nybohov och är riktad mot Uppsala.",
+    "Direction": 330,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438730",
+    "Name": "Tpl Nybohov Norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638067.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671247 6578380)",
+      "WGS84": "POINT (18.008376 59.309471)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 226 Dalvägen i höjd med Tumba centrum och är riktad mot Stockholm.",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Pacific_594",
+    "Location": "Kamera är placerad på väg 226 Huddingevägen i höjd med Tumba centrum och är riktad mot Stockholm.",
+    "Name": "Tumba centrum",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635844.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (661770 6565336)",
+      "WGS84": "POINT (17.832403 59.19621)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden och är riktad mot Södertälje.",
+    "Direction": 190,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438704",
+    "Name": "Tpl Fredhäll ",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:06.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638070.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671248 6580808)",
+      "WGS84": "POINT (18.01032 59.331244)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden mellan trafikplats Tomteboda och trafikplats Kristineberg och är riktad mot Södertälje.\n",
+    "Direction": 180,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438692",
+    "Name": "Karlbergskanalen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638075.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671247 6581894)",
+      "WGS84": "POINT (18.011164 59.340984)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Lilla Essingen och är riktad mot Uppsala.",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438716",
+    "Name": "Tpl Lilla Essingen Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638069.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670768 6580036)",
+      "WGS84": "POINT (18.001284 59.324515)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:09.615Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Vårby och är riktad mot Stockholm.",
+    "Direction": 95,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Pacific_528",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Vårby och är riktad mot Stockholm.",
+    "Name": "Trafikplats Vårby",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:05.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626993.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (663914 6571911)",
+      "WGS84": "POINT (17.874847 59.254359)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Centralbron i höjd med Tegelbacken och är riktad mot Uppsala.",
+    "Direction": 270,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000118",
+    "Location": "Kameran är placerad på Centralbron i höjd med Tegelbacken och är riktad mot Nynäshamn.",
+    "Name": "Tegelbacken S",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636185.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (674012 6580687)",
+      "WGS84": "POINT (18.05873 59.329029)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats FIttja och är riktad mot Stockholm.",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Pacific_529",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats FIttja och är riktad mot Stockholm.",
+    "Name": "Trafikplats Fittja",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:15.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626994.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (662878 6571654)",
+      "WGS84": "POINT (17.85651 59.252454)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:20.241Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Fruängen (tunnelbanebron) och är riktad mot Stockholm.",
+    "Direction": 92,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438290",
+    "Location": "Kameran är placerad på E4/E20 i höjd med Fruängen och är riktad mot Stockholm.",
+    "Name": "Fruängen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636179.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (669000.49 6576013.27)",
+      "WGS84": "POINT (17.967122 59.28915)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.790Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 226 Huddingevägen i höjd med Årstafältet och är riktad mot Södra länkens tunnelmynning.",
+    "Direction": 24,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_329",
+    "Location": "Kameran är placerad på väg 226 Huddingevägen i höjd med Årstafältet och är riktad mot Södra länkens tunnelmynning.",
+    "Name": "Årstafältet",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626456.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (673576.81 6576014.3)",
+      "WGS84": "POINT (18.047339 59.287306)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.449Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i trafikplats Nyboda (Nybodakurvan) och är riktad mot Uppsala.",
+    "Direction": 355,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438746",
+    "Name": "Tpl Nyboda",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636112.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671970 6577487)",
+      "WGS84": "POINT (18.020346 59.301169)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.789Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.\n",
+    "Direction": 40,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_553",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Hagaberg norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:34.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636083.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651694 6564427)",
+      "WGS84": "POINT (17.655577 59.191777)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:39.806Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Fruängen och är riktad mot Stockholm.",
+    "Direction": 90,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438292",
+    "Name": "Fruängen södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:14.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636170.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (668558 6576019)",
+      "WGS84": "POINT (17.95937 59.289378)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad vid infarten till Södra länken från trafikplats Sofielundsplan och visar infarten till Södra länken. Till vänster i bilden syns trafik på väg 73 Nynäsvägen.",
+    "Direction": 344,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_330",
+    "Location": "Kameran är placerad vid infarten till Södra länken från trafikplats Sofielundsplan och visar infarten till Södra länken. Till vänster i bilden syns trafik på väg 73 Nynäsvägen.",
+    "Name": "Tpl Sofielundsplan",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626457.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675888.23 6576266.39)",
+      "WGS84": "POINT (18.088056 59.288611)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.449Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är på placerad på väg 75 Södra länken i höjd med Årstalänken och är riktad Nacka.",
+    "Direction": 130,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_564",
+    "Location": "Kameran är på placerad på väg 75 Södra länken i höjd med Årstalänken och är riktad Nacka.",
+    "Name": "Årstalänken",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635198.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672489 6577159)",
+      "WGS84": "POINT (18.029185 59.298016)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.596Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4 Nyköpingsvägen i höjd med trafikplats Saltskog och är riktad mot Stockholm.",
+    "Direction": 355,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_568",
+    "Location": "Kameran är placerad på E4 Nyköpingsvägen i höjd med trafikplats Saltskog och är riktad mot Stockholm.",
+    "Name": "Tpl Saltskog norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:35.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635202.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (650995 6562974)",
+      "WGS84": "POINT (17.642349 59.178992)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:39.806Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Motorvägsbrons norra fäste och är riktad mot Stockholm.",
+    "Direction": 10,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_389",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Motorvägsbrons norra fäste och är riktad mot Stockholm.",
+    "Name": "Motorvägsbron Norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:47.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626509.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651005 6563737)",
+      "WGS84": "POINT (17.643052 59.185833)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.353Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_559",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Viksängen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:25.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635193.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651144 6564023)",
+      "WGS84": "POINT (17.645681 59.188349)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:31.532Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen söder om trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 70,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_418",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen söder om trafikplats Hallunda och är riktad mot Stockholm.",
+    "Name": "Eriksberg",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:16.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626615.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (661175 6570060)",
+      "WGS84": "POINT (17.825502 59.238808)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.361Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i trafikplats Nyboda (i höjd med Västberga allé) och är riktad mot Uppsala.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438750",
+    "Name": "Västberga Allé",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636510.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671563 6577271)",
+      "WGS84": "POINT (18.013038 59.299397)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.790Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Hallunda och trafikplats Fittja och är riktad mot Stockholm.",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Pacific_530",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Hallunda och trafikplats Fittja och är riktad mot Stockholm.",
+    "Name": "Brunna",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:43.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626995.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (662157 6571081)",
+      "WGS84": "POINT (17.843455 59.247591)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:49.447Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 35,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_551",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Fornhöjden norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:35.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635188.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651883 6564783)",
+      "WGS84": "POINT (17.65913 59.194903)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:39.806Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4 Nyköpingsvägen i höjd med trafikplats Saltskog och är riktad mot Stockholm.",
+    "Direction": 350,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_569",
+    "Location": "Kameran är placerad på E4 Nyköpingsvägen i höjd med trafikplats Saltskog och är riktad mot Stockholm.",
+    "Name": "Trafikplats Saltskog",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:42.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635203.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651085 6562764)",
+      "WGS84": "POINT (17.643776 59.177076)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:49.446Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad vid infarten till Södra länken från Gullmarsplan. Till höger om tunnelmynningenses trafik på väg till Årsta på Johanneshovsvägen.",
+    "Direction": 241,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_328",
+    "Location": "Kameran är placerad vid infarten till Södra länken från Gullmarsplan. Till höger om tunnelmynningenses trafik på väg till Årsta på Johanneshovsvägen.",
+    "Name": "Talltunneln mynning",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626455.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675234.55 6577420.76)",
+      "WGS84": "POINT (18.077533 59.299234)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.790Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Kungens kurva är riktad mot Stockholm.",
+    "Direction": 20,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_412",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Kungens kurva är riktad mot Stockholm.",
+    "Name": "Tpl Kungens kurva",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626609.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (666069 6574029)",
+      "WGS84": "POINT (17.91421 59.272515)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.136Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E20 Strängnäsvägen i höjd med trafikplats Saltskog (strax innan påfarten till E4) och är riktad mot Stockholm.",
+    "Direction": 345,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_570",
+    "Location": "Kameran är placerad på E20 Strängnäsvägen i höjd med trafikplats Saltskog (strax innan påfarten till E4) och är riktad mot Stockholm.",
+    "Name": "Tpl Saltskog östra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:07.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635204.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651154 6562929)",
+      "WGS84": "POINT (17.645097 59.178532)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.302Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Fittja och trafikplats Vårby och är riktad mot Stockholm.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_436",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Fittja och trafikplats Vårby och är riktad mot Stockholm.",
+    "Name": "Fittja",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:14.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626633.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (663175 6571875)",
+      "WGS84": "POINT (17.861878 59.254322)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E20 Strängnäsvägen i höjd med trafikplats Saltskog (där E4 passerar på bro ovanför) och är riktad mot Strängnäs.",
+    "Direction": 255,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_571",
+    "Location": "Kameran är placerad på E20 Strängnäsvägen i höjd med trafikplats Saltskog (där E4 passerar på bro ovanför) och är riktad mot Strängnäs.",
+    "Name": "Tpl Saltskog västra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:08.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635205.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651028 6562765)",
+      "WGS84": "POINT (17.642781 59.177105)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Salem och trafikplats Hallunda, i höjd med Bornsjön (Söderby Gårds väg) och är riktad mot Stockholm.",
+    "Direction": 30,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_430",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Salem och trafikplats Hallunda, i höjd med Bornsjön (Söderby Gårds väg) och är riktad mot Stockholm.",
+    "Name": "Nedre Söderby",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626627.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (658639 6567500)",
+      "WGS84": "POINT (17.779236 59.216803)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.136Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Bornsjön och sjön Aspen och är riktad mot Stockholm.",
+    "Direction": 30,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_428",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Bornsjön och sjön Aspen och är riktad mot Stockholm.",
+    "Name": "Getryggen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:12.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626625.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (658888 6568190)",
+      "WGS84": "POINT (17.784097 59.222899)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.361Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Gröndal och är riktad mot Uppsala.",
+    "Direction": 320,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438726",
+    "Location": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Gröndal och är riktad mot Uppsala.",
+    "Name": "Tpl Gröndal",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636115.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670931 6578982)",
+      "WGS84": "POINT (18.00331 59.314997)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.596Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_415",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Hallunda och är riktad mot Södertälje.",
+    "Name": "Hallunda södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:25.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626612.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (661411 6570092)",
+      "WGS84": "POINT (17.829657 59.239006)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:31.532Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med sjön Aspen och är riktad mot Stockholm.",
+    "Direction": 55,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_423",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med sjön Aspen och är riktad mot Stockholm.",
+    "Name": "Aspen N",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:05.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626620.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (659819 6569115)",
+      "WGS84": "POINT (17.801068 59.230846)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.302Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_420",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Name": "Botkyrkabacken",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:06.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626617.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (660616 6569863)",
+      "WGS84": "POINT (17.81557 59.237254)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda, i höjd med Botkyrka kyrka och är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_419",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda, i höjd med Botkyrka kyrka och är riktad mot Stockholm.",
+    "Name": "Botkyrka kyrka",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:38.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626616.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (660758 6569931)",
+      "WGS84": "POINT (17.818106 59.23781)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:49.446Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Salem och Bornsjön och är riktad mot Stockholm.",
+    "Direction": 70,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_432",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Salem och Bornsjön och är riktad mot Stockholm.",
+    "Name": "Salems kyrka",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:18.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626629.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (658157 6567112)",
+      "WGS84": "POINT (17.770521 59.213503)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:24.900Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Årstalänken i höjd med trafikplats Åbyvägen och är riktad mot E4/E20 Essingeleden.",
+    "Direction": 270,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_326",
+    "Location": "Kameran är placerad på Årstalänken i höjd med trafikplats Åbyvägen och är riktad mot E4/E20 Essingeleden.",
+    "Name": "Tpl Åbyvägen mot E4/E20",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626454.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672922.08 6576998.53)",
+      "WGS84": "POINT (18.03665 59.2964)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.301Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_495",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Igelsjön",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:31.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626670.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (655016 6566552)",
+      "WGS84": "POINT (17.715172 59.209639)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:36.189Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.\n",
+    "Direction": 35,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_552",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Fornhöjden södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:05.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636084.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651812 6564602)",
+      "WGS84": "POINT (17.657763 59.193305)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.789Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Bornsjön och är riktad mot Stockholm.",
+    "Direction": 20,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_429",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Bornsjön och är riktad mot Stockholm.",
+    "Name": "Bornsjön",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:44.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626626.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (658806 6567863)",
+      "WGS84": "POINT (17.782423 59.219996)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.354Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Motorvägsbrons södra fäste och är riktad mot Stockholm.",
+    "Direction": 5,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_390",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Motorvägsbrons södra fäste och är riktad mot Stockholm.",
+    "Name": "Motorvägsbron",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:26.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626510.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (650997 6563551)",
+      "WGS84": "POINT (17.642784 59.184167)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:31.532Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_489",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Ersboda",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626664.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (654575 6566356)",
+      "WGS84": "POINT (17.707318 59.208042)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.449Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 90,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_493",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Hallinge",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626668.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (655501 6566731)",
+      "WGS84": "POINT (17.723783 59.211067)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.449Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 50,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_554",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Hagaberg södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:49.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635191.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651524 6564277)",
+      "WGS84": "POINT (17.652501 59.190492)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.354Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på 261 Ekerövägen i höjd med Tappströmsbron och är riktad mot Ekerö centrum.",
+    "Direction": 200,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_451",
+    "Location": "Kameran är placerad på 261 Ekerövägen i höjd med Tappströmsbron och är riktad mot Ekerö.",
+    "Name": "Tappströmsbron",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626647.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (660097 6576096)",
+      "WGS84": "POINT (17.81109 59.293357)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.450Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 95,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_503",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Tullan södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:16.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626678.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (653824 6566161)",
+      "WGS84": "POINT (17.694044 59.206566)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:20.241Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 95,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_499",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Rönninge",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:08.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626674.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (655711 6566747)",
+      "WGS84": "POINT (17.727468 59.211134)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.302Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 30,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_417",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Hallunda och är riktad mot Stockholm.",
+    "Name": "Hallunda norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:22.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626614.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (661858 6570568)",
+      "WGS84": "POINT (17.837837 59.243104)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:25.859Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 275 Drottningholmsvägen i höjd med Traneberg och är riktad mot Kungsholmen.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_507",
+    "Location": "Kameran är placerad på väg 275 Drottningholmsvägen i höjd med Traneberg och är riktad mot Kungsholmen.",
+    "Name": "Traneberg mot Kungsholmen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626682.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (669880 6580913)",
+      "WGS84": "POINT (17.986393 59.332738)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.136Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 65,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_497",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Moraberg norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:05.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626672.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (652261 6565487)",
+      "WGS84": "POINT (17.666232 59.201083)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.450Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen strax norr om trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_505",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen strax norr om trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Tuvängen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:29.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626680.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (652735 6565749)",
+      "WGS84": "POINT (17.674706 59.203263)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:36.189Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_490",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Getan",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:22.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626665.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (652934 6565854)",
+      "WGS84": "POINT (17.67826 59.204133)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:31.532Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_421",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Name": "Hammarby prästgård",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:55.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626618.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (660356 6569652)",
+      "WGS84": "POINT (17.810863 59.23546)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:01.784Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Fittja och är riktad mot Stockholm.",
+    "Direction": 50,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_437",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Fittja och är riktad mot Stockholm.",
+    "Name": "Slagsta",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:07.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626634.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (662608 6571438)",
+      "WGS84": "POINT (17.85162 59.25062)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.302Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Salem och trafikplats Hallunda, i höjd med Bornsjön och är riktad mot Stockholm.",
+    "Direction": 55,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_431",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Salem och trafikplats Hallunda, i höjd med Bornsjön och är riktad mot Stockholm.",
+    "Name": "Övre Söderby",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:24.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626628.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (658400 6567248)",
+      "WGS84": "POINT (17.774871 59.214632)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:31.532Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 88,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_433",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Salem norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:36.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626630.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (657758 6567018)",
+      "WGS84": "POINT (17.763473 59.212808)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:39.806Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 25,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_506",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Moraberg södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:38.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626681.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651958 6565096)",
+      "WGS84": "POINT (17.66066 59.197684)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:49.446Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_494",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Hallsta",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:34.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626669.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (656424 6566801)",
+      "WGS84": "POINT (17.73998 59.211356)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:39.806Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på 75 Södra länken i höjd med trafikplats Åbyvägen och är riktad mot Södra länken",
+    "Direction": 90,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_461",
+    "Location": "Kameran är placerad på 75 Södra länken i höjd med trafikplats Åbyvägen och är riktad mot Södra länken",
+    "Name": "Tpl Åbyvägen mot Södra länken",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626656.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672823 6576952)",
+      "WGS84": "POINT (18.034876 59.296023)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.136Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_500",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Salem södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626675.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (656888 6566906)",
+      "WGS84": "POINT (17.748172 59.212126)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.136Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_496",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Korpberget",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:58.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626671.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (656168 6566753)",
+      "WGS84": "POINT (17.735467 59.211019)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.449Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem, i höjd med Trafikverkets trafikinformationsskylt. Kameran är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_498",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem, i höjd med Trafikverkets trafikinformationsskylt. Kameran är riktad mot Stockholm.",
+    "Name": "Nytorp",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:43.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626673.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (655298 6566676)",
+      "WGS84": "POINT (17.720193 59.210648)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:49.447Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 40,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_466",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Hallunda och är riktad mot Stockholm.",
+    "Name": "Tpl Hallunda",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:37.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626659.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (661795 6570412)",
+      "WGS84": "POINT (17.836618 59.241729)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:41.087Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_504",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Tullen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:17.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626679.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (654333 6566239)",
+      "WGS84": "POINT (17.703002 59.20708)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:24.901Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 40,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_501",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Tpl Moraberg",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:36.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626676.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (652074 6565300)",
+      "WGS84": "POINT (17.662831 59.199473)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:39.806Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 90,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_491",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Getasjön norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:40.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626666.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (653510 6566153)",
+      "WGS84": "POINT (17.688546 59.206607)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:49.446Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 259 Botkyrkaleden i höjd med Myrstuguberget och är riktad mot Fittja",
+    "Direction": 290,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_438",
+    "Location": "Kameran är placerad på väg 259 Botkyrkaleden i höjd med Myrstuguberget och är riktad mot Fittja",
+    "Name": "Masmo",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626635.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (664339 6571304)",
+      "WGS84": "POINT (17.88183 59.24875)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.450Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Bornsjön och sjön Aspen och är riktad mot Stockholm.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_425",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Bornsjön och sjön Aspen och är riktad mot Stockholm.",
+    "Name": "Fårberget",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626622.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (659256 6568799)",
+      "WGS84": "POINT (17.790982 59.228223)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.136Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_502",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Tullan norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:14.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626677.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (654100 6566171)",
+      "WGS84": "POINT (17.698878 59.206555)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_492",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan trafikplats Moraberg och trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Getasjön södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:37.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626667.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (653253 6566065)",
+      "WGS84": "POINT (17.683988 59.205911)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:41.087Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Salem och är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_434",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Salem och är riktad mot Stockholm.",
+    "Name": "Tpl Salem",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:18.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626631.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (657248 6566955)",
+      "WGS84": "POINT (17.754505 59.212432)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:25.758Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Västertorp och är riktad mot Stockholm.",
+    "Direction": 94,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438284",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Västertorp och är riktad mot Uppsala. Till höger i bild syns trafik från Älvsjö.",
+    "Name": "Tpl Västertorp",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:08.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636174.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (669819 6576061)",
+      "WGS84": "POINT (17.981508 59.28925)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.302Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 226 Huddingevägen i höjd med Pålamalmsvägen (Flaggplan) och är riktad mot Stockholm",
+    "Direction": 70,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_602",
+    "Location": "Kameran är placerad på väg 226 Huddingevägen i höjd med Pålamalmsvägen (Flaggplan) och är riktad mot Stockholm",
+    "Name": "Flaggplan",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:10:04.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635989.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (666636 6567055)",
+      "WGS84": "POINT (17.918791 59.209745)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.790Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Skogskyrkogården och är riktad mot Stockholm. Avfarten till höger i bilden leder mot Sockenvägen.",
+    "Direction": 345,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_335",
+    "Location": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Skogskyrkogården och är riktad mot Stockholm. Avfarten till höger i bilden leder mot Sockenvägen.",
+    "Name": "Skogskyrkogården",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:04.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626462.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (676295.05 6574516.79)",
+      "WGS84": "POINT (18.093761 59.272753)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.789Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 226 Huddingevägen i höjd med trafikplats Storängsleden och är riktad mot Stockholm.",
+    "Direction": 15,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438241",
+    "Name": "Tpl Storängsleden",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636165.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (669684 6570056)",
+      "WGS84": "POINT (17.97444 59.235451)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.789Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad vid betalstationen på Skansbron och är riktad mot Södermalm.",
+    "Direction": 330,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Pacific_595",
+    "Location": "Kameran är placerad vid betalstationen på Skansbron och är riktad mot Hammarby sjöstad.",
+    "Name": "Skansbron",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:41.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635845.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675328 6577962)",
+      "WGS84": "POINT (18.079611 59.304049)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:49.447Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Klarastrandsleden vid betalstationen och är riktad mot Nynäshamn",
+    "Direction": 115,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_298",
+    "Name": "Betalstation Klarastrandsleden",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:10:07.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626719.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672360 6581688)",
+      "WGS84": "POINT (18.030539 59.338683)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.301Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_558",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Motorvägsbron och trafikplats Moraberg och är riktad mot Stockholm.",
+    "Name": "Sofiehill",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:10:17.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635192.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (651320 6564154)",
+      "WGS84": "POINT (17.648849 59.189462)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:25.859Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Västertorp och är riktad mot Stockholm.",
+    "Direction": 92,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438286",
+    "Name": "Tpl Västertorp södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:49.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636173.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (669513 6576042)",
+      "WGS84": "POINT (17.976129 59.289202)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.354Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Solberga och är riktad mot Stockholm.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438276",
+    "Name": "Solberga norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:07.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636178.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670620 6576325)",
+      "WGS84": "POINT (17.995757 59.291295)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Norra länken i höjd med Tomteboda postterminal och är riktad mot Södertälje.\n",
+    "Direction": 275,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_599",
+    "Location": "Kameran är placerad på E4/E20 Norra länken i höjd med Tomteboda postterminal och är riktad mot Södertälje.",
+    "Name": "Tomteboda Postterminal",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:44.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635986.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671391 6582372)",
+      "WGS84": "POINT (18.014073 59.345212)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.354Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Västertorp och är riktad mot Stockholm.",
+    "Direction": 87,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438282",
+    "Name": "Tpl Västertorp norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:59.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636175.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670035 6576057)",
+      "WGS84": "POINT (17.985291 59.289127)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.789Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med trafikplats Bredäng och är riktad mot Stockholm.",
+    "Direction": 88,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438294",
+    "Name": "Tpl Bredäng norra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636169.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (668266 6575959)",
+      "WGS84": "POINT (17.954205 59.288956)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.596Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Drottningholmsvägen vid Nockebybron och är riktad mot Stockholm.",
+    "Direction": 55,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50450479",
+    "Name": "Nockebybron",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:31.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638156.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (665230 6579970)",
+      "WGS84": "POINT (17.90405 59.326127)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:36.189Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Norra länken i höjd med trafikplats Karlberg och är riktad mot Södertälje.\n",
+    "Direction": 258,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_601",
+    "Location": "Kameran är placerad på E4/E20 Norra länken i höjd med trafikplats Karlberg och är riktad mot Södertälje.",
+    "Name": "Tpl Karlberg",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:48.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635988.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672083 6582312)",
+      "WGS84": "POINT (18.026174 59.344392)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.354Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Tomteboda och är riktad mot Södertälje.\n",
+    "Direction": 165,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_597",
+    "Location": "Kameran är placerad på E4/E20 Essingeleden i höjd med trafikplats Tomteboda och är riktad mot Södertälje.",
+    "Name": "Tpl Tomteboda Södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:10:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635984.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671163 6582107)",
+      "WGS84": "POINT (18.009859 59.342928)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.789Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Motorvägsbron / norrgående påfart från E20 och är riktad mot Stockholm.",
+    "Direction": 5,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_567",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Motorvägsbron / norrgående påfart från E20 och är riktad mot Stockholm.",
+    "Name": "Motorvägsbron södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:56.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635201.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (650971 6563171)",
+      "WGS84": "POINT (17.642066 59.180768)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:01.903Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Sockenvägen och är riktad mot Stockholm.",
+    "Direction": 347,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_336",
+    "Location": "Kameran är placerad på väg 73 Nynäsvägen i höjd med Sockenvägen och är riktad mot Stockholm. Längst upp i bilden skymtar Globen.",
+    "Name": "Sockenvägen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:00.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626463.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (676134.33 6575307.91)",
+      "WGS84": "POINT (18.091589 59.279914)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:12.449Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Norra länken i höjd med trafikplats och är riktad mot Södertälje.\n",
+    "Direction": 295,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_600",
+    "Location": "Kameran är placerad på E4/E20 Norra länken i höjd med trafikplats och är riktad mot Södertälje.",
+    "Name": "Tpl Karlberg Västra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:45.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39635987.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671682 6582261)",
+      "WGS84": "POINT (18.019093 59.344098)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.353Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 55,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_422",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan sjön Aspen och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Name": "Asptuna",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:15.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626619.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (659983 6569242)",
+      "WGS84": "POINT (17.804032 59.231923)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:20.241Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen mellan Bornsjön och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_427",
+    "Location": "Kameran är placerad på E4/E20 Södertäljevägen mellan Bornsjön och trafikplats Hallunda och är riktad mot Stockholm.",
+    "Name": "Hovsta",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:49.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626624.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (658949 6568374)",
+      "WGS84": "POINT (17.785299 59.224526)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:54.354Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på 226 Huddingevägen i höjd med Glömstavägen och är riktad mot Stockholm",
+    "Direction": 45,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438190",
+    "Location": "Placerad på 226 Huddingevägen i höjd med Glömstavägen ",
+    "Name": "Rosenhill",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:10:08.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636068.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (669351 6569621)",
+      "WGS84": "POINT (17.968273 59.231683)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:18.360Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Sveavägen i höjd med Odengatan och är riktad mot Sveaplan.",
+    "Direction": 335,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_308",
+    "Location": "Kameran är placerad på Sveavägen i höjd med Odengatan och är riktad mot Sveaplan.",
+    "Name": "Sveavägen norrut",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:06:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626726.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (673738.1 6582333.7)",
+      "WGS84": "POINT (18.05525 59.343908)"
+    },
+    "ModifiedTime": "2026-02-15T21:07:10.646Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Medborgarplatsen.",
+    "Direction": 350,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_322",
+    "Location": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Medborgarplatsen.",
+    "Name": "Götgatan-Ringvägen mot Medborgarplatsen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:07:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626450.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675149.78 6578349.78)",
+      "WGS84": "POINT (18.0768 59.3076)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:11.053Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS201",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4187_K1",
+    "Name": "Hallunda",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:04:44.880+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39638207.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (662139 6571064)",
+      "WGS84": "POINT (17.843127 59.247446)"
+    },
+    "ModifiedTime": "2026-02-15T21:05:02.759Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Renstiernas gata.",
+    "Direction": 80,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_325",
+    "Location": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Renstiernas gata.",
+    "Name": "Götgatan-Ringvägen mot Renstiernas gata",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626453.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675167.46 6578378.48)",
+      "WGS84": "POINT (18.077133 59.30785)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.612Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad vid Hornstull på Långholmsgatan och är riktad mot Liljeholmsbron.",
+    "Direction": 175,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_321",
+    "Location": "Kameran är placerad vid Hornstull på Långholmsgatan och är riktad mot Liljeholmsbron.",
+    "Name": "Hornsg.-Långholmsg. mot Liljeholmsbron",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:06:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626449.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672658.96 6579104.34)",
+      "WGS84": "POINT (18.033719 59.315392)"
+    },
+    "ModifiedTime": "2026-02-15T21:07:11.669Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad i korsningen Hornsgatan/Långholmsgatan och är riktad mot Liljeholmsbadet.",
+    "Direction": 255,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_318",
+    "Location": "Kameran är placerad i korsningen Hornsgatan/Långholmsgatan och är riktad mot Liljeholmsbadet.",
+    "Name": "Hornsg-Långholmsg. mot Liljeholmsbadet",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626446.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672685.37 6579112.05)",
+      "WGS84": "POINT (18.034189 59.31545)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Södersjukhuset.",
+    "Direction": 260,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_324",
+    "Location": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Södersjukhuset.",
+    "Name": "Götgatan-Ringvägen mot SÖS",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626452.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675167.46 6578378.48)",
+      "WGS84": "POINT (18.077133 59.30785)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad vid korsningen Hornsgatan/Långholmsgatan och är riktad mot Västerbron.",
+    "Direction": 355,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_320",
+    "Location": "Kameran är placerad vid korsningen Hornsgatan/Långholmsgatan och är riktad mot Västerbron.",
+    "Name": "Hornsg.-Långholmsg. mot Västerbron",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626448.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (672658.96 6579104.34)",
+      "WGS84": "POINT (18.033719 59.315392)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:11.053Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på E4/E20 Södertäljevägen i höjd med Solberga och är riktad mot Stockholm.",
+    "Direction": 85,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50438280",
+    "Name": "Solberga södra",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:07.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636176.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (670202 6576100)",
+      "WGS84": "POINT (17.988252 59.289446)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:14.302Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Johanneshovsbron och är riktad mot Norrtull.",
+    "Direction": 345,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_368000110",
+    "Location": "Kameran är placerad på Johanneshovsbron och är riktad mot Norrtull.",
+    "Name": "Johanneshovsbron S",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:03.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39636181.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675305 6577740)",
+      "WGS84": "POINT (18.079028 59.302068)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på väg 226 Huddingevägen i höjd med Flemingsbergs station och är riktad mot Stockholm",
+    "Direction": 40,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_0_50450326",
+    "Name": "Tpl Flemingsberg",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:09:01.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39638112.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (668139 6568211)",
+      "WGS84": "POINT (17.945971 59.21952)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:10.493Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Sveavägen i höjd med Odengatan och är riktad mot Sergels torg. Närmast i bild syns korsningen Sveavägen/Odengatan.",
+    "Direction": 145,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_310",
+    "Location": "Kameran är placerad på Sveavägen i höjd med Odengatan och är riktad mot Sergels torg. Närmast i bild syns korsningen Sveavägen/Odengatan.",
+    "Name": "Sveavägen söderut",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:02:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626439.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (673738.1 6582333.7)",
+      "WGS84": "POINT (18.05525 59.343908)"
+    },
+    "ModifiedTime": "2026-02-15T21:03:08.967Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Gullmarsplan. Bilden visar Skanstullsbron.",
+    "Direction": 170,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_323",
+    "Location": "Kameran är placerad i korsningen Götgatan/Ringvägen och är riktad mot Gullmarsplan. Bilden visar Skanstullsbron.",
+    "Name": "Götgatan-Ringvägen mot Skanstullsbron",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626451.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (675149.78 6578349.78)",
+      "WGS84": "POINT (18.0768 59.3076)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:09.977Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Odengatan i höjd med Sveavägen och är riktad mot Odenplan.",
+    "Direction": 235,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_311",
+    "Location": "Kameran är placerad på Odengatan i höjd med Sveavägen och är riktad mot Odenplan.",
+    "Name": "Odengatan/Sveavägen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:08:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626727.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (673738.1 6582333.7)",
+      "WGS84": "POINT (18.05525 59.343908)"
+    },
+    "ModifiedTime": "2026-02-15T21:10:11.789Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS236",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4549_K1",
+    "Name": "Essingeleden - Västberga",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:04:53.050+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635412.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671998 6577705)",
+      "WGS84": "POINT (18.021011 59.303112)"
+    },
+    "ModifiedTime": "2026-02-15T21:04:58.957Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS207",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4073_K1",
+    "Name": "Salem",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:04:52.897+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635388.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (657690 6566948)",
+      "WGS84": "POINT (17.762232 59.212205)"
+    },
+    "ModifiedTime": "2026-02-15T21:04:58.757Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS240",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4872_K1",
+    "Name": "Drottningholm",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:04:52.340+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635730.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (662502 6577213)",
+      "WGS84": "POINT (17.854098 59.302458)"
+    },
+    "ModifiedTime": "2026-02-15T21:05:01.764Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS241",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4762_K1",
+    "Name": "Ekerö",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:04:46.840+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635622.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (657232 6574254)",
+      "WGS84": "POINT (17.759514 59.27791)"
+    },
+    "ModifiedTime": "2026-02-15T21:04:58.757Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS237",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4149_K1",
+    "Name": "Essingeleden, Karlb.",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:04:53.120+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39638162.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (671249 6581885)",
+      "WGS84": "POINT (18.011192 59.340902)"
+    },
+    "ModifiedTime": "2026-02-15T21:05:02.164Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS203",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4566_K1",
+    "Name": "Södertälje",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:09:19.063+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635428.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (650983 6563586)",
+      "WGS84": "POINT (17.642563 59.184486)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:27.168Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS209",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4571_K1",
+    "Name": "Tullinge",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:04:56.010+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635433.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (666586 6567030)",
+      "WGS84": "POINT (17.917897 59.209541)"
+    },
+    "ModifiedTime": "2026-02-15T21:05:08.756Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS208",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4810_K1",
+    "Name": "Tumba",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:09:21.233+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635670.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (660407 6563116)",
+      "WGS84": "POINT (17.806937 59.176815)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:33.409Z"
+  },
+  {
+    "Active": true,
+    "CameraGroup": "SE_STA_VVIS206",
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": false,
+    "IconId": "roadConditionCamera",
+    "Id": "SE_STA_CAMERA_Geni_4567_K1",
+    "Name": "Moraberg",
+    "Type": "Väglagskamera",
+    "PhotoTime": "2026-02-15T22:09:20.703+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/RoadConditionCamera_39635429.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (652097 6565264)",
+      "WGS84": "POINT (17.663208 59.199142)"
+    },
+    "ModifiedTime": "2026-02-15T21:09:32.890Z"
+  },
+  {
+    "Active": true,
+    "ContentType": "Jpeg",
+    "CountyNo": [
+      1
+    ],
+    "Deleted": false,
+    "Description": "Kameran är placerad på Odengatan i höjd med Stadsbiblioteket och är riktad mot Valhallavägen.",
+    "Direction": 60,
+    "HasFullSizePhoto": true,
+    "HasSketchImage": true,
+    "IconId": "trafficCamera",
+    "Id": "SE_STA_CAMERA_Orion_307",
+    "Location": "Kameran är placerad på Odengatan i höjd med Stadsbiblioteket och är riktad mot Valhallavägen.",
+    "Name": "Odengatan-Sveavägen mot Valhallavägen",
+    "Type": "Trafikflödeskamera",
+    "PhotoTime": "2026-02-15T22:00:02.000+01:00",
+    "PhotoUrl": "https://api.trafikinfo.trafikverket.se/v2/Images/data/road.infrastructure.camera/TrafficFlowCamera_39626725.jpg",
+    "Status": "videoOrImagesAvailable",
+    "Geometry": {
+      "SWEREF99TM": "POINT (673667 6582288)",
+      "WGS84": "POINT (18.053965 59.343528)"
+    },
+    "ModifiedTime": "2026-02-15T21:02:09.597Z"
+  }
+]

@@ -1,0 +1,77 @@
+{
+    "_comment": "Variable Message Sign (VMS) gantry positions along E4 Hallunda → Stockholm. Chainage measured in km from Hallunda (datum 0.0) heading northbound.",
+    "gantries": [
+        {
+            "vms_id": "VMS-4001",
+            "name": "Hallunda södra",
+            "lat": 59.2420,
+            "lng": 17.8370,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 0.5
+        },
+        {
+            "vms_id": "VMS-4002",
+            "name": "Fittja",
+            "lat": 59.2540,
+            "lng": 17.8610,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 2.3
+        },
+        {
+            "vms_id": "VMS-4003",
+            "name": "Kungens Kurva",
+            "lat": 59.2720,
+            "lng": 17.9140,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 5.1
+        },
+        {
+            "vms_id": "VMS-4004",
+            "name": "Västberga",
+            "lat": 59.2960,
+            "lng": 18.0040,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 8.6
+        },
+        {
+            "vms_id": "VMS-4005",
+            "name": "Nyboda",
+            "lat": 59.3010,
+            "lng": 18.0200,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 10.0
+        },
+        {
+            "vms_id": "VMS-4006",
+            "name": "Gröndal",
+            "lat": 59.3150,
+            "lng": 18.0033,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 12.2
+        },
+        {
+            "vms_id": "VMS-4007",
+            "name": "Essingen",
+            "lat": 59.3210,
+            "lng": 17.9970,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 13.5
+        },
+        {
+            "vms_id": "VMS-4008",
+            "name": "Kristineberg",
+            "lat": 59.3340,
+            "lng": 18.0100,
+            "road": "E4",
+            "direction": "northbound",
+            "chainage_km": 15.8
+        }
+    ]
+}
