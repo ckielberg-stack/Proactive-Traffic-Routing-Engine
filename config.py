@@ -1,0 +1,201 @@
+"""
+Konfiguration för Trafikverkets kamera- och sensordata-insamling.
+
+Sträcka: E4/E20 Hallunda → Stockholm (Tomteboda)
+53 trafikflödeskameror längs sträckan.
+"""
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# --- API ---
+API_KEY = os.getenv("TRAFIKVERKET_API_KEY")
+API_URL = "https://api.trafikinfo.trafikverket.se/v2/data.json"
+
+# --- Bounding box: Hallunda → Stockholm (E4/E20) ---
+BBOX = {
+    "min_lat": 59.24,   # Hallunda
+    "max_lat": 59.35,   # Tomteboda / Karlberg
+    "min_lng": 17.83,
+    "max_lng": 18.04,
+}
+
+# --- Kamera-IDs att övervaka ---
+# Alla 53 E4/E20 trafikflödeskameror Hallunda → Stockholm
+# Sorterade syd → nord efter latitud
+CAMERA_IDS: list[str] = [
+    # — Hallunda / Fittja / Vårby —
+    "SE_STA_CAMERA_Orion_466",       # Tpl Hallunda
+    "SE_STA_CAMERA_Orion_417",       # Hallunda norra
+    "SE_STA_CAMERA_Pacific_530",     # Brunna
+    "SE_STA_CAMERA_Orion_437",       # Slagsta
+    "SE_STA_CAMERA_Pacific_529",     # Trafikplats Fittja
+    "SE_STA_CAMERA_Orion_436",       # Fittja
+    "SE_STA_CAMERA_Pacific_528",     # Trafikplats Vårby
+    # — Kungens kurva / Bredäng —
+    "SE_STA_CAMERA_Orion_412",       # Tpl Kungens kurva
+    "SE_STA_CAMERA_0_50438294",      # Tpl Bredäng norra
+    # — Fruängen / Västertorp / Solberga —
+    "SE_STA_CAMERA_0_50438290",      # Fruängen
+    "SE_STA_CAMERA_0_50438292",      # Fruängen södra
+    "SE_STA_CAMERA_0_50438288",      # Fruängen norra
+    "SE_STA_CAMERA_0_50438286",      # Tpl Västertorp södra
+    "SE_STA_CAMERA_0_50438284",      # Tpl Västertorp
+    "SE_STA_CAMERA_0_50438282",      # Tpl Västertorp norra
+    "SE_STA_CAMERA_0_50438280",      # Solberga södra
+    "SE_STA_CAMERA_0_50438278",      # Solberga
+    "SE_STA_CAMERA_0_50438276",      # Solberga norra
+    # — Västberga —
+    "SE_STA_CAMERA_0_50438758",      # Tpl Västberga Södra
+    "SE_STA_CAMERA_0_50438756",      # Tpl Västberga
+    "SE_STA_CAMERA_0_50438754",      # Tpl Västberga Norra
+    "SE_STA_CAMERA_0_50438752",      # Västberga Allé Södra
+    "SE_STA_CAMERA_0_50438750",      # Västberga Allé
+    # — Åbyvägen (ramp mot E4/E20) —
+    "SE_STA_CAMERA_Orion_326",       # Tpl Åbyvägen mot E4/E20
+    # — Nyboda —
+    "SE_STA_CAMERA_0_50438748",      # Tpl Nyboda Södra
+    "SE_STA_CAMERA_0_50438746",      # Tpl Nyboda
+    "SE_STA_CAMERA_0_50438740",      # Tpl Nyboda Östra
+    "SE_STA_CAMERA_0_50438738",      # Nybodahöjden
+    # — Midsommarkransen / Nybohov —
+    "SE_STA_CAMERA_0_50438736",      # Midsommarkransens Gymnasium
+    "SE_STA_CAMERA_0_50438734",      # Tpl Nybohov Södra
+    "SE_STA_CAMERA_0_50438732",      # Tpl Nybohov
+    "SE_STA_CAMERA_0_50438730",      # Tpl Nybohov Norra
+    # — Gröndal —
+    "SE_STA_CAMERA_0_50438728",      # Kontrollplats Gröndal
+    "SE_STA_CAMERA_0_50438726",      # Tpl Gröndal
+    "SE_STA_CAMERA_0_50438724",      # Tpl Gröndal Norra
+    # — Essingen —
+    "SE_STA_CAMERA_0_50438722",      # Tpl Stora Essingen Södra
+    "SE_STA_CAMERA_0_50438720",      # Tpl Stora Essingen
+    "SE_STA_CAMERA_0_50438718",      # Tpl Stora Essingen Norra
+    "SE_STA_CAMERA_0_50438716",      # Tpl Lilla Essingen Södra
+    "SE_STA_CAMERA_0_50438714",      # Tpl Lilla Essingen
+    # — Fredhäll —
+    "SE_STA_CAMERA_0_50438708",      # Tpl Fredhäll Södra
+    "SE_STA_CAMERA_0_50438704",      # Tpl Fredhäll
+    "SE_STA_CAMERA_0_50438702",      # Tpl Fredhäll Norra
+    # — Kristineberg —
+    "SE_STA_CAMERA_0_50438700",      # Tpl Kristineberg
+    "SE_STA_CAMERA_0_50438696",      # Tpl Kristineberg Norra
+    # — Hornsberg / Karlberg / Tomteboda —
+    "SE_STA_CAMERA_0_50438694",      # Hornsberg
+    "SE_STA_CAMERA_0_50438692",      # Karlbergskanalen
+    "SE_STA_CAMERA_0_597",           # Tpl Tomteboda Södra
+    "SE_STA_CAMERA_0_50438690",      # Tpl Tomteboda
+    "SE_STA_CAMERA_0_600",           # Tpl Karlberg Västra
+    "SE_STA_CAMERA_0_601",           # Tpl Karlberg
+    "SE_STA_CAMERA_0_598",           # Tpl Tomteboda Östra
+    "SE_STA_CAMERA_0_599",           # Tomteboda Postterminal
+]
+
+# Camera coordinates for dashboard map (lat, lng) — south to north
+CAMERA_COORDS: dict[str, tuple[float, float]] = {
+    "SE_STA_CAMERA_Orion_466":      (59.2417, 17.8366),
+    "SE_STA_CAMERA_Orion_417":      (59.2431, 17.8378),
+    "SE_STA_CAMERA_Pacific_530":    (59.2476, 17.8435),
+    "SE_STA_CAMERA_Orion_437":      (59.2506, 17.8516),
+    "SE_STA_CAMERA_Pacific_529":    (59.2525, 17.8565),
+    "SE_STA_CAMERA_Orion_436":      (59.2543, 17.8619),
+    "SE_STA_CAMERA_Pacific_528":    (59.2544, 17.8748),
+    "SE_STA_CAMERA_Orion_412":      (59.2725, 17.9142),
+    "SE_STA_CAMERA_0_50438294":     (59.2890, 17.9542),
+    "SE_STA_CAMERA_0_50438290":     (59.2891, 17.9671),
+    "SE_STA_CAMERA_0_50438292":     (59.2894, 17.9594),
+    "SE_STA_CAMERA_0_50438288":     (59.2893, 17.9707),
+    "SE_STA_CAMERA_0_50438286":     (59.2892, 17.9761),
+    "SE_STA_CAMERA_0_50438284":     (59.2893, 17.9815),
+    "SE_STA_CAMERA_0_50438282":     (59.2891, 17.9853),
+    "SE_STA_CAMERA_0_50438280":     (59.2894, 17.9883),
+    "SE_STA_CAMERA_0_50438278":     (59.2898, 17.9908),
+    "SE_STA_CAMERA_0_50438276":     (59.2913, 17.9958),
+    "SE_STA_CAMERA_0_50438758":     (59.2936, 18.0007),
+    "SE_STA_CAMERA_0_50438756":     (59.2960, 18.0041),
+    "SE_STA_CAMERA_0_50438754":     (59.2972, 18.0057),
+    "SE_STA_CAMERA_0_50438752":     (59.2988, 18.0100),
+    "SE_STA_CAMERA_0_50438750":     (59.2994, 18.0130),
+    "SE_STA_CAMERA_Orion_326":      (59.2964, 18.0367),
+    "SE_STA_CAMERA_0_50438748":     (59.3000, 18.0170),
+    "SE_STA_CAMERA_0_50438746":     (59.3012, 18.0203),
+    "SE_STA_CAMERA_0_50438740":     (59.3009, 18.0238),
+    "SE_STA_CAMERA_0_50438738":     (59.3028, 18.0209),
+    "SE_STA_CAMERA_0_50438736":     (59.3043, 18.0192),
+    "SE_STA_CAMERA_0_50438734":     (59.3061, 18.0146),
+    "SE_STA_CAMERA_0_50438732":     (59.3079, 18.0107),
+    "SE_STA_CAMERA_0_50438730":     (59.3095, 18.0084),
+    "SE_STA_CAMERA_0_50438728":     (59.3124, 18.0056),
+    "SE_STA_CAMERA_0_50438726":     (59.3150, 18.0033),
+    "SE_STA_CAMERA_0_50438724":     (59.3172, 18.0008),
+    "SE_STA_CAMERA_0_50438722":     (59.3190, 17.9983),
+    "SE_STA_CAMERA_0_50438720":     (59.3212, 17.9969),
+    "SE_STA_CAMERA_0_50438718":     (59.3228, 17.9982),
+    "SE_STA_CAMERA_0_50438716":     (59.3245, 18.0013),
+    "SE_STA_CAMERA_0_50438714":     (59.3255, 18.0040),
+    "SE_STA_CAMERA_0_50438708":     (59.3299, 18.0100),
+    "SE_STA_CAMERA_0_50438704":     (59.3312, 18.0103),
+    "SE_STA_CAMERA_0_50438702":     (59.3326, 18.0103),
+    "SE_STA_CAMERA_0_50438700":     (59.3341, 18.0100),
+    "SE_STA_CAMERA_0_50438696":     (59.3368, 18.0111),
+    "SE_STA_CAMERA_0_50438694":     (59.3389, 18.0114),
+    "SE_STA_CAMERA_0_50438692":     (59.3410, 18.0112),
+    "SE_STA_CAMERA_0_597":          (59.3429, 18.0099),
+    "SE_STA_CAMERA_0_50438690":     (59.3434, 18.0088),
+    "SE_STA_CAMERA_0_600":          (59.3441, 18.0191),
+    "SE_STA_CAMERA_0_601":          (59.3444, 18.0262),
+    "SE_STA_CAMERA_0_598":          (59.3447, 18.0109),
+    "SE_STA_CAMERA_0_599":          (59.3452, 18.0141),
+}
+
+# --- Insamling ---
+INTERVAL_SECONDS = 60  # Hur ofta bilder och sensordata hämtas
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+MAX_RETRIES = 3
+RETRY_BACKOFF = 2  # Sekunder, multipliceras exponentiellt
+
+# --- TrafficFlow Sensor SiteIds ---
+# Curated northbound E4 measurement stations along the Hallunda → Kristineberg
+# corridor.  Each SiteId has 1-4 lane entries in the API.
+# Discovered via bbox query (lat 59.24–59.35, lng 17.83–18.04) and filtered
+# to northBound / northWestBound / northEastBound stations.
+# Sorted south → north by latitude.
+SENSOR_SITE_IDS: list[int] = [
+    # — Hallunda / Kungens Kurva (lat ~59.25) —
+    1274,   # lat 59.2549, northbound approach
+    1286,   # lat 59.2549, northbound
+    # — Bredäng / Mälarhöjden (lat ~59.29) —
+    2851,   # lat 59.2937, northBound
+    2842,   # lat 59.2961, northBound
+    2603,   # lat 59.2972, northBound
+    2631,   # lat 59.2980, northBound
+    2634,   # lat 59.2981, northBound
+    2629,   # lat 59.2989, northBound
+    2612,   # lat 59.2994, northBound
+    2610,   # lat 59.2995, northBound
+    2625,   # lat 59.2997, northBound
+    2626,   # lat 59.2998, northBound
+    # — Liljeholmen / Gullmarsplan (lat ~59.30) —
+    2651,   # lat 59.3007, northBound
+    2653,   # lat 59.3010, northBound
+    2654,   # lat 59.3011, northBound
+    2645,   # lat 59.3021, northBound
+    2648,   # lat 59.3026, northBound
+    2619,   # lat 59.3027, northBound
+    2659,   # lat 59.3042, northBound
+    2663,   # lat 59.3061, northWestBound
+    # — Årsta / Johanneshov (lat ~59.31) —
+    2682,   # lat 59.3150, northWestBound
+    2694,   # lat 59.3212, northBound
+    2706,   # lat 59.3256, northEastBound
+    # — Essingeleden / Kristineberg (lat ~59.33) —
+    2768,   # lat 59.3272, northBound
+    2767,   # lat 59.3272, northBound
+    2766,   # lat 59.3272, northBound
+    2790,   # lat 59.3321, northBound
+    2786,   # lat 59.3326, northBound
+    2788,   # lat 59.3341, northBound
+    2817,   # lat 59.3389, northBound
+]
+

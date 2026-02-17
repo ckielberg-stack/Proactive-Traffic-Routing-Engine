@@ -1,0 +1,306 @@
+"""
+VMS & Queue Tail Predictor (Phase 5).
+
+Predicts when the backward-propagating tail of a traffic jam will reach
+upstream Variable Message Sign (VMS) gantries.  Generates preemptive
+activation recommendations so operators can display speed warnings
+(e.g. "KÖVARNING 70 km/h") *before* drivers encounter the queue.
+
+Algorithm
+---------
+1. Load VMS gantry positions from ``vms_config.json`` (chainage-based).
+2. Given a ``QueuePrediction`` from the Physics Engine, project the queue
+   tail position at T+1, T+3, T+5 minutes using linear extrapolation.
+3. For each time step, find the nearest VMS gantry that is ≥1000 m
+   upstream of the predicted queue tail.
+4. Produce ``VMSRecommendation`` objects with message text, urgency, and
+   estimated time before the queue reaches the sign.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+
+from src.models import QueuePrediction, VMSGantry, VMSRecommendation, VMSStatusSnapshot
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+#: Minimum distance (km) the VMS must be *upstream* of the queue tail
+#: to allow drivers enough reaction time.
+MIN_UPSTREAM_DISTANCE_KM: float = 1.0
+
+#: Default time horizons to evaluate (minutes).
+DEFAULT_TIME_HORIZONS: list[int] = [1, 3, 5]
+
+#: Default VMS config path relative to project root.
+DEFAULT_VMS_CONFIG: Path = Path(__file__).resolve().parent.parent / "vms_config.json"
+
+
+# ---------------------------------------------------------------------------
+# VMS Orchestrator
+# ---------------------------------------------------------------------------
+
+
+class VMSOrchestrator:
+    """Predicts queue tail reach and recommends VMS activations.
+
+    Parameters
+    ----------
+    config_path:
+        Path to the ``vms_config.json`` file.  Defaults to project root.
+    """
+
+    def __init__(self, config_path: Path | str | None = None) -> None:
+        self._config_path = Path(config_path) if config_path else DEFAULT_VMS_CONFIG
+        self._gantries: list[VMSGantry] = []
+        self._load_config()
+
+    # ------------------------------------------------------------------
+    # Config loading
+    # ------------------------------------------------------------------
+
+    def _load_config(self) -> None:
+        """Parse ``vms_config.json`` into a sorted list of ``VMSGantry``."""
+        if not self._config_path.exists():
+            logger.warning("VMS config not found at %s — no gantries loaded", self._config_path)
+            return
+
+        with open(self._config_path, "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+
+        gantries_raw = raw.get("gantries", [])
+        self._gantries = [VMSGantry(**g) for g in gantries_raw]
+        # Sort by chainage ascending (south → north along E4)
+        self._gantries.sort(key=lambda g: g.chainage_km)
+        logger.info("Loaded %d VMS gantries from %s", len(self._gantries), self._config_path)
+
+    @property
+    def gantries(self) -> list[VMSGantry]:
+        return list(self._gantries)
+
+    # ------------------------------------------------------------------
+    # Queue tail projection
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def predict_queue_tail_chainage(
+        prediction: QueuePrediction,
+        time_minutes: int,
+    ) -> float:
+        """Calculate the chainage (km) of the queue tail at T+``time_minutes``.
+
+        The queue tail moves *upstream* (decreasing chainage) from the
+        bottleneck origin at ``growth_speed_kmh``.
+
+        Parameters
+        ----------
+        prediction:
+            Physics engine output describing the bottleneck.
+        time_minutes:
+            Future offset in minutes.
+
+        Returns
+        -------
+        float
+            Chainage (km) of the predicted queue tail.
+        """
+        distance_km = prediction.growth_speed_kmh * (time_minutes / 60.0)
+        return prediction.origin_chainage_km - distance_km
+
+    # ------------------------------------------------------------------
+    # Upstream VMS selection
+    # ------------------------------------------------------------------
+
+    def find_upstream_vms(
+        self,
+        queue_tail_chainage_km: float,
+    ) -> VMSGantry | None:
+        """Find the nearest VMS that is ≥ ``MIN_UPSTREAM_DISTANCE_KM`` ahead
+        of (i.e. lower chainage than) the queue tail.
+
+        "Upstream" means *before* the queue tail in the direction of travel,
+        i.e. at a *lower* chainage on the northbound E4.  Drivers approaching
+        from the south see this VMS before they reach the queue.
+
+        Returns ``None`` if no qualifying gantry exists.
+        """
+        threshold = queue_tail_chainage_km - MIN_UPSTREAM_DISTANCE_KM
+        candidates = [g for g in self._gantries if g.chainage_km <= threshold]
+        if not candidates:
+            return None
+        # Nearest upstream = highest chainage among candidates
+        return max(candidates, key=lambda g: g.chainage_km)
+
+    # ------------------------------------------------------------------
+    # Recommendation generation
+    # ------------------------------------------------------------------
+
+    def generate_recommendations(
+        self,
+        prediction: QueuePrediction,
+        time_horizons: list[int] | None = None,
+        now: datetime | None = None,
+        vms_statuses: list[VMSStatusSnapshot] | None = None,
+    ) -> list[VMSRecommendation]:
+        """Produce VMS activation recommendations for each time horizon.
+
+        Parameters
+        ----------
+        prediction:
+            Physics engine queue prediction.
+        time_horizons:
+            List of T+N minute offsets to evaluate.  Defaults to [1, 3, 5].
+        now:
+            Override for current timestamp (useful in tests).
+        vms_statuses:
+            Current polled VMS sign statuses — used to include real-world
+            sign state in recommendations and narrative summaries.
+
+        Returns
+        -------
+        list[VMSRecommendation]
+            One recommendation per triggered VMS (deduplicated by vms_id).
+        """
+        if now is None:
+            now = datetime.now()
+        if time_horizons is None:
+            time_horizons = DEFAULT_TIME_HORIZONS
+
+        # Build a lookup for current VMS statuses
+        status_lookup: dict[str, VMSStatusSnapshot] = {}
+        if vms_statuses:
+            for s in vms_statuses:
+                status_lookup[s.vms_id] = s
+
+        seen_vms: set[str] = set()
+        recommendations: list[VMSRecommendation] = []
+
+        for t_min in sorted(time_horizons):
+            tail_km = self.predict_queue_tail_chainage(prediction, t_min)
+            vms = self.find_upstream_vms(tail_km)
+
+            if vms is None or vms.vms_id in seen_vms:
+                continue
+
+            seen_vms.add(vms.vms_id)
+
+            distance_to_vms = tail_km - vms.chainage_km
+            if prediction.growth_speed_kmh > 0:
+                eta_minutes = (distance_to_vms / prediction.growth_speed_kmh) * 60.0
+            else:
+                eta_minutes = float("inf")
+
+            urgency = _classify_urgency(eta_minutes)
+            message = _build_message(urgency)
+
+            # Resolve current VMS sign state (None = not polled)
+            current_status = status_lookup.get(vms.vms_id)
+            current_status_str = (
+                current_status.displayed_message if current_status.is_active else "OFF"
+            ) if current_status is not None else None
+
+            # Build operator-facing narrative summary
+            summary = _build_narrative(
+                prediction=prediction,
+                vms=vms,
+                eta_minutes=eta_minutes,
+                current_status_str=current_status_str,
+            )
+
+            recommendations.append(
+                VMSRecommendation(
+                    timestamp=now,
+                    vms_id=vms.vms_id,
+                    vms_name=vms.name,
+                    recommended_message=message,
+                    urgency=urgency,
+                    queue_growth_speed_kmh=prediction.growth_speed_kmh,
+                    distance_queue_tail_to_vms_km=round(distance_to_vms, 2),
+                    estimated_activation_minutes=round(eta_minutes, 1),
+                    triggering_camera_id=prediction.camera_id,
+                    current_vms_status=current_status_str,
+                    summary=summary,
+                )
+            )
+
+        return recommendations
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _classify_urgency(eta_minutes: float) -> str:
+    """Map ETA to urgency level."""
+    if eta_minutes <= 2.0:
+        return "immediate"
+    if eta_minutes <= 5.0:
+        return "soon"
+    return "advisory"
+
+
+def _build_message(urgency: str) -> str:
+    """Generate the Swedish VMS display message."""
+    messages = {
+        "immediate": "KÖVARNING 50 km/h",
+        "soon": "KÖVARNING 70 km/h",
+    }
+    return messages.get(urgency, "VARNING — Köbildning framför")
+
+
+def _build_narrative(
+    prediction: QueuePrediction,
+    vms: VMSGantry,
+    eta_minutes: float,
+    current_status_str: str | None,
+) -> str:
+    """Generate a physics-driven operator narrative.
+
+    Example output::
+
+        Incident verified. Queue tail growing backwards at 12 km/h.
+        Queue will reach VMS-4003 (Kungens Kurva) in 6.5 min.
+        Current VMS status: OFF.
+        Recommendation: Activate 70 km/h warning in 4 min.
+    """
+    parts: list[str] = []
+
+    # 1. Queue growth info
+    parts.append(
+        f"Kö växer bakåt med {prediction.growth_speed_kmh:.0f} km/h."
+    )
+
+    # 2. ETA to this VMS
+    if eta_minutes < float("inf"):
+        parts.append(
+            f"Kön når {vms.name} ({vms.vms_id}) om {eta_minutes:.1f} min."
+        )
+    else:
+        parts.append(
+            f"Kön når {vms.name} ({vms.vms_id}) — ETA okänd (kö stillastående)."
+        )
+
+    # 3. Current VMS status
+    if current_status_str is not None:
+        parts.append(f"Nuvarande VMS-status: {current_status_str}.")
+
+    # 4. Recommendation
+    if eta_minutes <= 2.0:
+        parts.append("Rekommendation: Aktivera KÖVARNING 50 km/h OMEDELBART.")
+    elif eta_minutes <= 5.0:
+        lead_time = max(eta_minutes - 1.0, 0.5)
+        parts.append(
+            f"Rekommendation: Aktivera 70 km/h varning om {lead_time:.0f} min."
+        )
+    else:
+        parts.append("Rekommendation: Bevakning — aktivera vid behov.")
+
+    return " ".join(parts)

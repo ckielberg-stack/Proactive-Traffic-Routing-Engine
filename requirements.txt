@@ -1,0 +1,21 @@
+requests>=2.31.0
+python-dotenv>=1.0.0
+schedule>=1.2.0
+fastapi>=0.115.0
+uvicorn>=0.34.0
+
+# Vision & Capacity Engine (Milestone 2)
+ultralytics>=8.3.0
+opencv-python>=4.9.0
+numpy>=1.26.0
+pydantic>=2.5.0
+
+# Testing
+pytest>=8.0.0
+httpx>=0.27.0
+
+# Spatial awareness (ROI point-in-polygon)
+shapely>=2.0.0
+
+# DATEX II XML generation (Phase 6)
+lxml>=5.0.0
