@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% set active_page = "cameras" %}
+
+{% block title %}PTRE — Camera Grid{% endblock %}
+
+{% block metrics %}
+<div class="metrics-bar">
+    <div class="metrics-inner">
+        <div class="metric-item">
+            <span class="metric-label">Total Cameras</span>
+            <span class="metric-value" id="cam-total">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">OK</span>
+            <span class="metric-value ok" id="cam-ok">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Failed</span>
+            <span class="metric-value" id="cam-failed" style="color: var(--status-failed);">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Anomalies</span>
+            <span class="metric-value" id="cam-anomalies" style="color: var(--urgency-immediate);">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Total Vehicles</span>
+            <span class="metric-value" id="cam-vehicles">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Last Update</span>
+            <span class="metric-value muted" id="cam-updated">—</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="camera-grid" class="camera-grid">
+    <div class="empty-state" style="grid-column: 1 / -1;">Loading camera data...</div>
+</div>
+
+<!-- Camera image viewer modal -->
+<div id="cam-modal" class="cam-modal" style="display:none;">
+    <div class="cam-modal-backdrop"></div>
+    <div class="cam-modal-content">
+        <div class="cam-modal-header">
+            <span class="cam-modal-title" id="cam-modal-title">Camera</span>
+            <button class="cam-modal-close" id="cam-modal-close" title="Close (Esc)">✕</button>
+        </div>
+        <div class="cam-modal-body">
+            <div class="cam-modal-loading" id="cam-modal-loading">
+                <div class="cam-modal-spinner"></div>
+                <span>Fetching live image…</span>
+            </div>
+            <canvas id="cam-modal-canvas"></canvas>
+        </div>
+        <div class="cam-modal-footer" id="cam-modal-footer"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/cameras.js"></script>
+{% endblock %}

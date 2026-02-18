@@ -60,6 +60,7 @@ from src.models import (
     TickResult,
     VMSStatusSnapshot,
 )
+from src.anomaly_store import record_anomaly, get_total_count
 from src.physics_engine import PhysicsEngine
 from src.roi_mapper import ROIMapper
 from src.vision_engine import VisionEngine
@@ -334,6 +335,75 @@ def build_node_inflows(
 # Concurrent data fetchers
 # ---------------------------------------------------------------------------
 
+def _draw_annotated_frame(
+    frame: np.ndarray,
+    engine: VisionEngine,
+    camera_id: str,
+    anomaly_reason: str | None,
+    now: datetime,
+) -> np.ndarray:
+    """Draw YOLO bounding boxes on a copy of the frame for anomaly debugging."""
+    annotated = frame.copy()
+    try:
+        results = engine.model.predict(
+            source=frame, conf=engine._confidence, imgsz=640,
+            verbose=False, save=False,
+        )
+        if results and len(results) > 0:
+            result = results[0]
+            if result.boxes is not None and len(result.boxes) > 0:
+                boxes_xyxy = result.boxes.xyxy.cpu().numpy()
+                confs = result.boxes.conf.cpu().numpy()
+                class_ids = result.boxes.cls.cpu().numpy().astype(int)
+                for i in range(len(boxes_xyxy)):
+                    x1, y1, x2, y2 = [int(v) for v in boxes_xyxy[i]]
+                    cls_id = int(class_ids[i])
+                    label = engine.model.names.get(cls_id, str(cls_id))
+                    conf = float(confs[i])
+                    # Color by type: vehicle=green, other=gray
+                    color = (0, 255, 0) if cls_id in {2, 3, 5, 7} else (128, 128, 128)
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(
+                        annotated, f"{label} {conf:.2f}",
+                        (x1, max(y1 - 6, 12)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1,
+                    )
+        # Stamp anomaly reason on bottom
+        h, w = annotated.shape[:2]
+        cv2.rectangle(annotated, (0, h - 28), (w, h), (0, 0, 0), -1)
+        cv2.putText(
+            annotated,
+            f"ANOMALY: {anomaly_reason or 'unknown'} | {camera_id} | {now.strftime('%H:%M:%S')}",
+            (8, h - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1,
+        )
+    except Exception as e:
+        logger.warning("Could not annotate frame for %s: %s", camera_id, e)
+    return annotated
+
+
+def _save_annotated_image(
+    annotated: np.ndarray,
+    camera_id: str,
+    now: datetime,
+    base_dir: str = ".",
+) -> str | None:
+    """Save an annotated anomaly frame to storage/anomalies/<date>/."""
+    try:
+        date_str = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%H-%M-%S")
+        safe_id = camera_id.replace("/", "_")
+        out_dir = os.path.join(base_dir, "storage", "anomalies", date_str)
+        os.makedirs(out_dir, exist_ok=True)
+        filename = f"{safe_id}_{time_str}_annotated.jpg"
+        path = os.path.join(out_dir, filename)
+        cv2.imwrite(path, annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        logger.debug("Saved annotated anomaly image: %s", path)
+        return path
+    except Exception as e:
+        logger.error("Failed to save annotated image: %s", e)
+        return None
+
+
 def fetch_cameras(camera_ids: list[str], now: datetime) -> tuple[list[dict], list[CapacityState]]:
     """Fetch camera images into RAM, run YOLO, apply retention, return metadata."""
     if not camera_ids:
@@ -432,6 +502,27 @@ def fetch_cameras(camera_ids: list[str], now: datetime) -> tuple[list[dict], lis
         # Smart retention
         retained_path = retention.maybe_retain(raw_bytes, cam_id, now, state)
 
+        # Anomaly persistence: save annotated image + log event
+        annotated_path: str | None = None
+        if state.is_anomaly:
+            annotated_frame = _draw_annotated_frame(
+                frame, engine, cam_id, state.anomaly_reason, now,
+            )
+            annotated_path = _save_annotated_image(
+                annotated_frame, cam_id, now,
+            )
+            record_anomaly(
+                DATA_DIR,
+                timestamp=now,
+                camera_id=cam_id,
+                camera_name=cam_name,
+                anomaly_reason=state.anomaly_reason,
+                confidence=state.confidence,
+                vehicle_count=state.vehicle_count,
+                capacity_vph=state.estimated_capacity_vph,
+                image_path=annotated_path,
+            )
+
         record = {
             "type": "vision_result",
             "timestamp": now.isoformat(),
@@ -444,6 +535,7 @@ def fetch_cameras(camera_ids: list[str], now: datetime) -> tuple[list[dict], lis
             "anomaly_reason": state.anomaly_reason,
             "confidence": state.confidence,
             "retained_path": retained_path,
+            "annotated_path": annotated_path,
             "road_segments": road_segments_data,
         }
         vision_records.append(record)
@@ -870,6 +962,7 @@ def _update_status(
         "tick_count": _tick_count,
         "interval_seconds": INTERVAL_SECONDS,
         "architecture": "tick-based",
+        "total_anomalies": get_total_count(DATA_DIR),
         "last_tick": {
             "cameras_ok": sum(1 for r in vision_records if r.get("status") == "ok"),
             "cameras_failed": sum(1 for r in vision_records if r.get("status") != "ok"),

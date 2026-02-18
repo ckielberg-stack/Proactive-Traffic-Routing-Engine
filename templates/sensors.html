@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% set active_page = "sensors" %}
+
+{% block title %}PTRE — Sensor Data{% endblock %}
+
+{% block metrics %}
+<div class="metrics-bar">
+    <div class="metrics-inner">
+        <div class="metric-item">
+            <span class="metric-label">Active Stations</span>
+            <span class="metric-value" id="sen-total">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Mapped to Cameras</span>
+            <span class="metric-value ok" id="sen-mapped">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Avg Volume</span>
+            <span class="metric-value" id="sen-avg-vol">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Avg Speed</span>
+            <span class="metric-value" id="sen-avg-speed">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Last Update</span>
+            <span class="metric-value muted" id="sen-updated">—</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-dot" style="background: var(--status-online);"></div>
+        <span class="panel-title">TrafficFlow Sensor Stations</span>
+        <span class="panel-subtitle">E4 Corridor — Hallunda → Karlberg</span>
+    </div>
+    <div class="panel-body" style="padding: 0;">
+        <table class="data-table" id="sensor-table">
+            <thead>
+                <tr>
+                    <th>Station ID</th>
+                    <th>Latitude</th>
+                    <th>Volume (VPH)</th>
+                    <th>Speed (km/h)</th>
+                    <th>Mapped Camera</th>
+                </tr>
+            </thead>
+            <tbody id="sensor-tbody">
+                <tr>
+                    <td colspan="5" class="empty-state">Loading sensor data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/sensors.js"></script>
+{% endblock %}

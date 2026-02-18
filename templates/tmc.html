@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% set active_page = "tmc" %}
+
+{% block title %}PTRE — TMC Overview{% endblock %}
+
+{% block metrics %}
+<div class="metrics-bar">
+    <div class="metrics-inner">
+        <div class="metric-item">
+            <span class="metric-label">Incidents</span>
+            <span class="metric-value" id="metric-incidents">0</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">VMS Alerts</span>
+            <span class="metric-value warn" id="metric-vms">0</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Prophecies</span>
+            <span class="metric-value" id="metric-prophecies">0</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Hit Rate</span>
+            <span class="metric-value ok" id="metric-hitrate">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Last Tick</span>
+            <span class="metric-value muted" id="metric-lasttick">—</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; height: calc(100vh - 175px);">
+
+    <!-- ── Column 1: AI-Verified Incidents ── -->
+    <section style="display: flex; flex-direction: column; min-height: 0;">
+        <div class="panel-header" style="border: none; background: none; padding: 0 0 0.75rem 0;">
+            <div class="panel-dot" style="background: var(--urgency-immediate);"></div>
+            <span class="panel-title">AI-Verified Incidents</span>
+            <span class="panel-subtitle">Vision Engine</span>
+        </div>
+        <div style="flex: 1; overflow-y: auto;" class="terminal-scroll" id="incidents-container">
+            <div class="empty-state">No active incidents detected</div>
+        </div>
+    </section>
+
+    <!-- ── Column 2: Predictive VMS Copilot ── -->
+    <section style="display: flex; flex-direction: column; min-height: 0;">
+        <div class="panel-header" style="border: none; background: none; padding: 0 0 0.75rem 0;">
+            <div class="panel-dot" style="background: var(--urgency-soon);"></div>
+            <span class="panel-title">Predictive VMS Copilot</span>
+            <span class="panel-subtitle">Physics Engine</span>
+        </div>
+        <div style="flex: 1; overflow-y: auto;" class="terminal-scroll" id="vms-container">
+            <div class="empty-state">No active VMS recommendations</div>
+        </div>
+    </section>
+
+    <!-- ── Column 3: Prophecy Log ── -->
+    <section style="display: flex; flex-direction: column; min-height: 0;">
+        <div class="panel-header" style="border: none; background: none; padding: 0 0 0.75rem 0;">
+            <div class="panel-dot" style="background: var(--status-verified);"></div>
+            <span class="panel-title">Camera-to-Camera Prophecy Log</span>
+            <span class="panel-subtitle">Golden Metric</span>
+        </div>
+        <div class="panel" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+            <div
+                style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--tmc-border); display: flex; gap: 1rem; font-size: 0.625rem; font-family: 'JetBrains Mono', monospace; color: var(--tmc-muted); background: rgba(10,14,23,0.5);">
+                <span>✅ <span id="log-verified" style="color: var(--status-verified);">0</span></span>
+                <span>❌ <span id="log-failed" style="color: var(--status-failed);">0</span></span>
+                <span>⏳ <span id="log-pending" style="color: var(--status-pending);">0</span></span>
+                <span>🗑 <span id="log-expired" style="color: var(--status-expired);">0</span></span>
+            </div>
+            <div style="flex: 1; overflow-y: auto; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; line-height: 1.6;"
+                class="terminal-scroll" id="prophecy-terminal">
+                <div class="empty-state" style="padding: 0;">$ awaiting prophecy data...</div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- DATEX II Modal -->
+<div id="datex2-modal" style="display: none; position: fixed; inset: 0; z-index: 100;">
+    <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.6);" class="modal-backdrop" id="modal-backdrop">
+    </div>
+    <div class="panel" style="position: absolute; inset: 2rem; display: flex; flex-direction: column;">
+        <div
+            style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--tmc-border);">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <h3 style="font-size: 0.875rem; font-family: 'JetBrains Mono', monospace; font-weight: 600;">DATEX II
+                    Export — NTS Compatible</h3>
+                <span class="badge" style="background: rgba(51,65,85,0.3);">application/xml</span>
+            </div>
+            <button id="modal-close"
+                style="color: var(--tmc-muted); font-size: 1.25rem; background: none; border: none; cursor: pointer;">&times;</button>
+        </div>
+        <pre style="flex: 1; overflow: auto; padding: 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; color: rgba(74,222,128,0.8); line-height: 1.6;"
+            class="terminal-scroll" id="datex2-content">Loading...</pre>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+{% endblock %}
