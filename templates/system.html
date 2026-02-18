@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% set active_page = "system" %}
+
+{% block title %}PTRE — System Health{% endblock %}
+
+{% block content %}
+<!-- Stat cards -->
+<div class="stat-grid" id="stat-grid">
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-tick">&mdash;</div>
+        <div class="stat-card-label">Tick #</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-uptime">&mdash;</div>
+        <div class="stat-card-label">Uptime</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-cameras-ok" style="color: var(--status-online);">&mdash;</div>
+        <div class="stat-card-label">Cameras OK</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-cameras-fail" style="color: var(--status-failed);">&mdash;</div>
+        <div class="stat-card-label">Cameras Failed</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-vehicles">&mdash;</div>
+        <div class="stat-card-label">Vehicles (snapshot)</div>
+    </div>
+    <div class="stat-card clickable" onclick="window.location='/anomalies'" title="View anomaly log">
+        <div class="stat-card-value" id="sys-anomalies" style="color: var(--urgency-immediate);">&mdash;</div>
+        <div class="stat-card-label">Anomalies (Total)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-sensors">&mdash;</div>
+        <div class="stat-card-label">Sensor Readings</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-predictions">&mdash;</div>
+        <div class="stat-card-label">Queue Predictions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-vms-recs">&mdash;</div>
+        <div class="stat-card-label">VMS Recommendations</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-vms-polled">&mdash;</div>
+        <div class="stat-card-label">VMS Statuses Polled</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="sys-interval">&mdash;</div>
+        <div class="stat-card-label">Interval (sec)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value muted" id="sys-last-update">&mdash;</div>
+        <div class="stat-card-label">Last Update</div>
+    </div>
+</div>
+
+<!-- Raw status JSON -->
+<div class="panel" style="margin-top: 1.5rem;">
+    <div class="panel-header">
+        <div class="panel-dot" style="background: var(--urgency-advisory);"></div>
+        <span class="panel-title">Raw Status</span>
+        <span class="panel-subtitle">data/status.json</span>
+    </div>
+    <pre class="panel-body"
+        style="font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; color: rgba(74,222,128,0.8); line-height: 1.6; overflow-x: auto;"
+        id="sys-raw">{}</pre>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/system.js"></script>
+{% endblock %}

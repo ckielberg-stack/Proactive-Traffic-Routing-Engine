@@ -8,13 +8,23 @@ to camera_config.json.
 
 Controls:
 ─────────────────────────────────────────────────────────
-  LEFT CLICK       Add polygon vertex at cursor position
-  RIGHT CLICK      Undo last vertex
-  ENTER / SPACE    Finish current polygon → name it
-  S                Skip to next camera (no changes)
-  R                Restart current polygon (clear vertices)
-  D                Delete all ROIs for current camera
-  Q / ESC          Quit and save
+  DRAW MODE (default):
+    LEFT CLICK       Add polygon vertex at cursor position
+    RIGHT CLICK      Undo last vertex
+    ENTER / SPACE    Finish current polygon → name it
+    E                Switch to Edit mode
+    S                Skip to next camera (no changes)
+    R                Restart current polygon (clear vertices)
+    D                Delete all ROIs for current camera
+    Q / ESC          Quit and save
+
+  EDIT MODE:
+    LEFT CLICK       Grab nearest vertex (≤12px) or insert on edge (≤8px)
+    DRAG             Move grabbed vertex
+    RIGHT CLICK      Delete vertex under cursor (min 3 vertices)
+    E                Switch back to Draw mode
+    S                Skip to next camera
+    Q / ESC          Quit and save
 
 Usage:
     python roi_helper.py                  # All cameras
@@ -24,6 +34,7 @@ Usage:
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -40,6 +51,7 @@ from config import API_KEY, API_URL, CAMERA_IDS, CAMERA_COORDS, MAX_RETRIES, RET
 # ---------------------------------------------------------------------------
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "camera_config.json")
 WINDOW_NAME = "ROI Helper — Click to draw polygon"
+HUD_HEIGHT = 160  # Fixed height for HUD area above the image
 COLORS = [
     (0, 255, 0),    # Green
     (255, 165, 0),  # Orange (BGR)
@@ -49,6 +61,11 @@ COLORS = [
     (128, 255, 128),# Light green
 ]
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+# Edit mode constants
+VERTEX_GRAB_RADIUS = 12  # pixels — how close to grab a vertex
+EDGE_INSERT_RADIUS = 8   # pixels — how close to insert on edge
+VERTEX_HANDLE_RADIUS = 6 # drawn handle size
 
 # Load a TrueType font for Unicode rendering (PIL)
 try:
@@ -71,7 +88,7 @@ def pil_puttext(img: np.ndarray, text: str, org: tuple[int, int],
                 color_bgr: tuple[int, int, int], scale: float = 0.5,
                 thickness: int = 1) -> np.ndarray:
     """Draw Unicode text on an OpenCV image using PIL.
-    
+
     `scale` maps to approximate font size: size = int(scale * 28 + 6).
     `thickness` > 1 renders a bold effect via slight offsets.
     """
@@ -187,13 +204,40 @@ def fetch_camera_image(camera_id: str) -> tuple[np.ndarray | None, dict]:
 
 
 # ---------------------------------------------------------------------------
+# Geometry helpers
+# ---------------------------------------------------------------------------
+
+def _point_to_segment_dist(
+    px: float, py: float,
+    ax: float, ay: float,
+    bx: float, by: float,
+) -> tuple[float, float, float]:
+    """Distance from point (px,py) to line segment (ax,ay)-(bx,by).
+
+    Returns (distance, proj_x, proj_y) where proj is the closest point on segment.
+    """
+    dx, dy = bx - ax, by - ay
+    if dx == 0 and dy == 0:
+        return math.hypot(px - ax, py - ay), ax, ay
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    proj_x = ax + t * dx
+    proj_y = ay + t * dy
+    return math.hypot(px - proj_x, py - proj_y), proj_x, proj_y
+
+
+# ---------------------------------------------------------------------------
 # Interactive polygon drawing
 # ---------------------------------------------------------------------------
 
 # States for the in-window state machine
 STATE_DRAWING = "drawing"
+STATE_EDITING = "editing"
 STATE_SELECT_DIRECTION = "select_direction"
 STATE_SELECT_LANES = "select_lanes"
+STATE_PERSPECTIVE_RULER = "perspective_ruler"
+
+# Road marking reference: Swedish dashed centre line = 3 m dash + 9 m gap = 12 m
+RULER_DASH_SPACING_M = 12.0
 
 
 class PolygonDrawer:
@@ -202,6 +246,9 @@ class PolygonDrawer:
     No terminal input() calls — everything happens in the OpenCV window.
     After completing a polygon (Enter), press 1 or 2 to tag direction,
     then 1-4 to set lane count. All metadata is auto-filled.
+
+    The HUD is rendered ABOVE the image by expanding the canvas. Mouse
+    coordinates are offset so clicks map to actual image pixel positions.
     """
 
     def __init__(self, frame: np.ndarray, camera_id: str, existing_rois: list, meta: dict | None = None):
@@ -210,7 +257,8 @@ class PolygonDrawer:
         self.h, self.w = frame.shape[:2]
         self.rois = list(existing_rois)
         self.current_points: list[list[int]] = []
-        self.mouse_pos = (0, 0)
+        self.mouse_pos = (0, 0)          # In IMAGE coordinate space
+        self.mouse_pos_raw = (0, 0)      # Raw canvas coordinates
         self.meta = meta or {}
         self.state = STATE_DRAWING
         self._pending_roi: dict | None = None  # Partially built ROI
@@ -218,16 +266,166 @@ class PolygonDrawer:
         self._status_msg = ""  # Temporary status message
         self._status_until = 0.0  # When to clear status msg
 
+        # Perspective ruler state
+        self._ruler_points: list[tuple[int, int]] = []  # (x, y) image coords
+        self._perspective_poly: np.poly1d | None = None
+
+        # Edit mode state
+        self._dragging = False
+        self._drag_roi_idx: int = -1
+        self._drag_vert_idx: int = -1
+        self._hover_roi_idx: int = -1    # Which ROI has nearest vertex/edge
+        self._hover_vert_idx: int = -1   # Nearest vertex (-1 if edge is closer)
+        self._hover_edge_idx: int = -1   # Nearest edge
+        self._hover_proj: tuple[float, float] = (0, 0)  # Projection point on edge
+
     def mouse_callback(self, event, x, y, flags, param):
-        self.mouse_pos = (x, y)
+        # Convert from canvas coords to image coords (subtract HUD offset)
+        img_x = x
+        img_y = y - HUD_HEIGHT
+        self.mouse_pos_raw = (x, y)
+        self.mouse_pos = (img_x, max(0, img_y))
+
+        # ── Edit mode mouse handling ──
+        if self.state == STATE_EDITING:
+            self._handle_edit_mouse(event, img_x, img_y, flags)
+            return
+
+        # ── Perspective ruler mode (clicks add ruler points) ──
+        if self.state == STATE_PERSPECTIVE_RULER:
+            if img_y < 0:
+                return
+            if event == cv2.EVENT_LBUTTONDOWN:
+                self._ruler_points.append((img_x, img_y))
+                n = len(self._ruler_points)
+                print(f"    📍 Ruler point #{n}: Y={img_y}px → {(n-1) * RULER_DASH_SPACING_M:.0f} m")
+            elif event == cv2.EVENT_RBUTTONDOWN:
+                if self._ruler_points:
+                    self._ruler_points.pop()
+                    self._set_status(f"Removed last point ({len(self._ruler_points)} remaining)")
+            return
+
+        # ── Draw mode (ignore clicks in HUD area) ──
+        if img_y < 0:
+            return
         if self.state != STATE_DRAWING:
-            return  # Ignore clicks during selection states
+            return
         if event == cv2.EVENT_LBUTTONDOWN:
-            self.current_points.append([x, y])
+            self.current_points.append([img_x, img_y])
             self._delete_armed = False
         elif event == cv2.EVENT_RBUTTONDOWN:
             if self.current_points:
                 self.current_points.pop()
+
+    def _handle_edit_mouse(self, event, img_x: int, img_y: int, flags):
+        """Handle mouse events in edit mode."""
+        if event == cv2.EVENT_LBUTTONDOWN and img_y >= 0:
+            # Try to grab a vertex first
+            roi_idx, vert_idx, dist = self._find_nearest_vertex(img_x, img_y)
+            if dist <= VERTEX_GRAB_RADIUS:
+                self._dragging = True
+                self._drag_roi_idx = roi_idx
+                self._drag_vert_idx = vert_idx
+                return
+
+            # Try to insert on an edge
+            roi_idx, edge_idx, dist, proj = self._find_nearest_edge(img_x, img_y)
+            if dist <= EDGE_INSERT_RADIUS:
+                # Insert new vertex after edge_idx
+                poly = self.rois[roi_idx]["polygon"]
+                insert_at = edge_idx + 1
+                poly.insert(insert_at, [int(proj[0]), int(proj[1])])
+                # Start dragging the new vertex immediately
+                self._dragging = True
+                self._drag_roi_idx = roi_idx
+                self._drag_vert_idx = insert_at
+                self._set_status(f"Inserted vertex at ({int(proj[0])}, {int(proj[1])})")
+                return
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if self._dragging and img_y >= 0:
+                # Clamp to image bounds
+                cx = max(0, min(img_x, self.w - 1))
+                cy = max(0, min(img_y, self.h - 1))
+                self.rois[self._drag_roi_idx]["polygon"][self._drag_vert_idx] = [cx, cy]
+            else:
+                # Update hover state for visual feedback
+                self._update_hover(img_x, img_y)
+
+        elif event == cv2.EVENT_LBUTTONUP:
+            if self._dragging:
+                self._dragging = False
+                self._set_status("Vertex moved")
+
+        elif event == cv2.EVENT_RBUTTONDOWN and img_y >= 0:
+            # Delete vertex
+            roi_idx, vert_idx, dist = self._find_nearest_vertex(img_x, img_y)
+            if dist <= VERTEX_GRAB_RADIUS:
+                poly = self.rois[roi_idx]["polygon"]
+                if len(poly) <= 3:
+                    self._set_status("Can't delete — polygon needs ≥ 3 vertices")
+                else:
+                    removed = poly.pop(vert_idx)
+                    self._set_status(f"Deleted vertex ({removed[0]}, {removed[1]})")
+
+    def _find_nearest_vertex(self, x: int, y: int) -> tuple[int, int, float]:
+        """Find closest vertex across all ROIs. Returns (roi_idx, vert_idx, distance)."""
+        best_dist = float("inf")
+        best_roi = -1
+        best_vert = -1
+        for ri, roi in enumerate(self.rois):
+            for vi, pt in enumerate(roi["polygon"]):
+                d = math.hypot(x - pt[0], y - pt[1])
+                if d < best_dist:
+                    best_dist = d
+                    best_roi = ri
+                    best_vert = vi
+        return best_roi, best_vert, best_dist
+
+    def _find_nearest_edge(self, x: int, y: int) -> tuple[int, int, float, tuple[float, float]]:
+        """Find closest edge across all ROIs. Returns (roi_idx, edge_idx, distance, projection_point)."""
+        best_dist = float("inf")
+        best_roi = -1
+        best_edge = -1
+        best_proj = (0.0, 0.0)
+        for ri, roi in enumerate(self.rois):
+            poly = roi["polygon"]
+            n = len(poly)
+            for ei in range(n):
+                ax, ay = poly[ei]
+                bx, by = poly[(ei + 1) % n]
+                d, px, py = _point_to_segment_dist(x, y, ax, ay, bx, by)
+                if d < best_dist:
+                    best_dist = d
+                    best_roi = ri
+                    best_edge = ei
+                    best_proj = (px, py)
+        return best_roi, best_edge, best_dist, best_proj
+
+    def _update_hover(self, x: int, y: int):
+        """Update hover highlights for edit mode."""
+        if not self.rois:
+            self._hover_roi_idx = -1
+            self._hover_vert_idx = -1
+            self._hover_edge_idx = -1
+            return
+
+        roi_v, vert_v, dist_v = self._find_nearest_vertex(x, y)
+        roi_e, edge_e, dist_e, proj_e = self._find_nearest_edge(x, y)
+
+        if dist_v <= VERTEX_GRAB_RADIUS:
+            self._hover_roi_idx = roi_v
+            self._hover_vert_idx = vert_v
+            self._hover_edge_idx = -1
+        elif dist_e <= EDGE_INSERT_RADIUS:
+            self._hover_roi_idx = roi_e
+            self._hover_vert_idx = -1
+            self._hover_edge_idx = edge_e
+            self._hover_proj = proj_e
+        else:
+            self._hover_roi_idx = -1
+            self._hover_vert_idx = -1
+            self._hover_edge_idx = -1
 
     def _set_status(self, msg: str, duration: float = 3.0):
         self._status_msg = msg
@@ -283,13 +481,13 @@ class PolygonDrawer:
         return True
 
     def select_lanes(self, key: int) -> bool:
-        """Handle lane count selection (1-4)."""
+        """Handle lane count selection (1-4). Finalizes ROI immediately."""
         if key in (ord("1"), ord("2"), ord("3"), ord("4")):
             num_lanes = int(chr(key))
             self._pending_roi["num_lanes"] = num_lanes
             self._pending_roi["capacity_vph"] = num_lanes * 2000
 
-            # Finalize ROI
+            # Finalize ROI (roi_length_meters set later by perspective ruler)
             roi = self._pending_roi
             self.rois.append(roi)
             self.current_points = []
@@ -308,8 +506,64 @@ class PolygonDrawer:
             return False
         return False
 
+    # -- Perspective ruler --------------------------------------------------
+
+    def enter_ruler_mode(self) -> None:
+        """Transition to perspective ruler state."""
+        self._ruler_points = []
+        self._perspective_poly = None
+        self.state = STATE_PERSPECTIVE_RULER
+        print("\n  📐 PERSPECTIVE RULER")
+        print("  Click the START of consecutive dashed road markings,")
+        print("  from BOTTOM of image moving UP. Min 4 clicks.")
+        print("  Each dash start = 12 m apart (3 m dash + 9 m gap).")
+        print("  ENTER to confirm | RIGHT-CLICK to undo | ESC to cancel\n")
+
+    def compute_perspective_lengths(self) -> bool:
+        """Fit polynomial and set roi_length_meters on all ROIs.
+
+        Returns True if successful, False if not enough points.
+        """
+        n = len(self._ruler_points)
+        if n < 4:
+            self._set_status(f"Need at least 4 points (have {n})", 3.0)
+            return False
+
+        # Extract Y-pixel coordinates (bottom-to-top order)
+        y_points = np.array([p[1] for p in self._ruler_points], dtype=float)
+        d_points = np.array([i * RULER_DASH_SPACING_M for i in range(n)], dtype=float)
+
+        # Fit 2nd-degree polynomial: Y-pixel → physical meters
+        z_coeffs = np.polyfit(y_points, d_points, 2)
+        p = np.poly1d(z_coeffs)
+        self._perspective_poly = p
+
+        print(f"\n  📈 Polynomial fit: z = {z_coeffs[0]:.6f}·y² + {z_coeffs[1]:.4f}·y + {z_coeffs[2]:.2f}")
+
+        # Calculate roi_length_meters for each ROI from its polygon Y-bounds
+        for roi in self.rois:
+            y_coords = [pt[1] for pt in roi["polygon"]]
+            y_bottom = max(y_coords)  # max Y = bottom of image
+            y_top = min(y_coords)     # min Y = top of image
+
+            dist_bottom = p(y_bottom)
+            dist_top = p(y_top)
+            length_m = round(abs(dist_top - dist_bottom), 1)
+
+            roi["roi_length_meters"] = max(length_m, 1.0)  # Floor at 1 m
+
+            road_id = roi.get("road_id", "?")
+            print(f"  📏 {road_id}: Y=[{y_top}..{y_bottom}]px → {length_m:.1f} m")
+
+        self._set_status(
+            f"Perspective calibration done — {len(self.rois)} ROI(s) measured",
+            5.0,
+        )
+        return True
+
     def render(self) -> np.ndarray:
-        """Draw current state on the frame."""
+        """Draw current state on a canvas with HUD above the image."""
+        # --- Build the image portion ---
         display = self.original.copy()
 
         # Draw existing (saved) ROIs with semi-transparent fill
@@ -322,14 +576,40 @@ class PolygonDrawer:
             cv2.addWeighted(overlay, 0.2, display, 0.8, 0, display)
             cv2.polylines(display, [pts], isClosed=True, color=color, thickness=2)
 
+            # In edit mode, draw vertex handles
+            if self.state == STATE_EDITING:
+                for vi, pt in enumerate(roi["polygon"]):
+                    handle_color = color
+                    radius = VERTEX_HANDLE_RADIUS
+                    # Highlight hovered vertex
+                    if (self._hover_roi_idx == i and self._hover_vert_idx == vi):
+                        handle_color = (0, 255, 255)  # Yellow
+                        radius = VERTEX_HANDLE_RADIUS + 3
+                    cv2.circle(display, (pt[0], pt[1]), radius, handle_color, -1)
+                    cv2.circle(display, (pt[0], pt[1]), radius, (0, 0, 0), 1)
+
+                # Highlight hovered edge with insertion preview
+                if (self._hover_roi_idx == i and self._hover_edge_idx >= 0
+                        and self._hover_vert_idx < 0 and not self._dragging):
+                    poly = roi["polygon"]
+                    ei = self._hover_edge_idx
+                    a = poly[ei]
+                    b = poly[(ei + 1) % len(poly)]
+                    cv2.line(display, tuple(a), tuple(b), (0, 255, 255), 3)
+                    # Draw insertion preview dot
+                    px, py = int(self._hover_proj[0]), int(self._hover_proj[1])
+                    cv2.circle(display, (px, py), 7, (0, 255, 255), -1)
+                    cv2.circle(display, (px, py), 7, (255, 255, 255), 2)
+
             # Label
             cx = int(np.mean(pts[:, 0]))
             cy = int(np.mean(pts[:, 1]))
-            label = f'{roi["road_id"]} ({roi["num_lanes"]}L)'
+            length_str = f' {roi["roi_length_meters"]:.0f}m' if "roi_length_meters" in roi else ""
+            label = f'{roi["road_id"]} ({roi["num_lanes"]}L{length_str})'
             display = pil_puttext(display, label, (cx - 60, cy), color, 0.55, 2)
 
-        # Draw current in-progress polygon
-        if self.current_points:
+        # Draw current in-progress polygon (draw mode only)
+        if self.current_points and self.state == STATE_DRAWING:
             pts = np.array(self.current_points, dtype=np.int32)
             for j in range(len(pts) - 1):
                 cv2.line(display, tuple(pts[j]), tuple(pts[j + 1]), (0, 255, 255), 2)
@@ -349,9 +629,26 @@ class PolygonDrawer:
 
             for pt in pts:
                 cv2.circle(display, tuple(pt), 5, (0, 255, 255), -1)
+
+        # Draw perspective ruler points
+        if self._ruler_points:
+            for i, (rx, ry) in enumerate(self._ruler_points):
+                # Magenta circle with index label
+                cv2.circle(display, (rx, ry), 8, (255, 0, 255), -1)
+                cv2.circle(display, (rx, ry), 8, (255, 255, 255), 2)
+                cv2.putText(
+                    display, str(i + 1), (rx + 12, ry + 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2,
+                )
+                # Connect consecutive points
+                if i > 0:
+                    px, py = self._ruler_points[i - 1]
+                    cv2.line(display, (px, py), (rx, ry), (255, 0, 255), 1)
                 cv2.circle(display, tuple(pt), 5, (0, 0, 0), 1)
 
-        # ── Build HUD ──
+        # --- Build HUD above the image ---
+        hud = np.zeros((HUD_HEIGHT, self.w, 3), dtype=np.uint8)
+
         cam_name = self.meta.get("name", self.camera_id)
         cam_dir = self._get_camera_direction_text()
         bearing = self.meta.get("direction")
@@ -375,7 +672,7 @@ class PolygonDrawer:
         # State-specific HUD lines
         if self.state == STATE_DRAWING:
             hud_lines.append((
-                f"Saved ROIs: {len(self.rois)}  |  Vertices: {len(self.current_points)}",
+                f"MODE: DRAW  |  Saved ROIs: {len(self.rois)}  |  Vertices: {len(self.current_points)}",
                 (200, 200, 200), 0.5, 1,
             ))
             hud_lines.append((
@@ -383,7 +680,26 @@ class PolygonDrawer:
                 (150, 200, 255), 0.45, 1,
             ))
             hud_lines.append((
-                "R: restart | D+D: delete all | S: skip | Q/ESC: quit & save",
+                "E: edit mode | R: restart | D+D: delete all | S: skip | Q/ESC: quit",
+                (150, 200, 255), 0.45, 1,
+            ))
+            hud_lines.append((
+                "W: save & calibrate (perspective ruler)",
+                (255, 200, 100), 0.5, 1,
+            ))
+
+        elif self.state == STATE_EDITING:
+            hud_lines.append((
+                f"MODE: EDIT  |  ROIs: {len(self.rois)}  |  "
+                + ("DRAGGING vertex" if self._dragging else "Hover to select"),
+                (255, 200, 100), 0.5, 1,
+            ))
+            hud_lines.append((
+                "DRAG: move vertex | CLICK edge: insert vertex | RIGHT-CLICK: delete vertex",
+                (150, 200, 255), 0.45, 1,
+            ))
+            hud_lines.append((
+                "E: draw mode | S: skip | Q/ESC: quit & save",
                 (150, 200, 255), 0.45, 1,
             ))
 
@@ -416,6 +732,26 @@ class PolygonDrawer:
                 (150, 150, 150), 0.4, 1,
             ))
 
+        elif self.state == STATE_PERSPECTIVE_RULER:
+            n = len(self._ruler_points)
+            hud_lines.append((
+                f"PERSPECTIVE RULER — {n} point(s) clicked",
+                (255, 100, 255), 0.6, 2,
+            ))
+            hud_lines.append((
+                "LEFT-CLICK: mark start of next road dash (bottom → top)",
+                (255, 255, 100), 0.5, 1,
+            ))
+            hud_lines.append((
+                "Each click = 12 m further (3 m dash + 9 m gap)",
+                (100, 200, 255), 0.45, 1,
+            ))
+            status = f"Need {max(0, 4 - n)} more" if n < 4 else "✅ Ready"
+            hud_lines.append((
+                f"RIGHT-CLICK: undo | ENTER: confirm ({status}) | ESC: cancel",
+                (150, 200, 255), 0.45, 1,
+            ))
+
         # Status message (temporary)
         if self._status_msg and time.time() < self._status_until:
             hud_lines.append((self._status_msg, (100, 255, 255), 0.5, 1))
@@ -426,15 +762,15 @@ class PolygonDrawer:
             (180, 180, 180), 0.4, 1,
         ))
 
-        # Render HUD
-        hud_height = 22 * len(hud_lines) + 15
-        cv2.rectangle(display, (0, 0), (self.w, hud_height), (0, 0, 0), -1)
+        # Render HUD text
         hud_y = 22
         for text, color, scale, thickness in hud_lines:
-            display = pil_puttext(display, text, (10, hud_y), color, scale, thickness)
+            hud = pil_puttext(hud, text, (10, hud_y), color, scale, thickness)
             hud_y += 22
 
-        return display
+        # --- Combine: HUD on top, image below ---
+        canvas = np.vstack([hud, display])
+        return canvas
 
 
 # ---------------------------------------------------------------------------
@@ -462,7 +798,10 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
     drawer = PolygonDrawer(frame, camera_id, existing_rois, meta=meta)
 
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WINDOW_NAME, min(frame.shape[1], 1400), min(frame.shape[0], 900))
+    # Expand window height to accommodate HUD above the image
+    win_w = min(frame.shape[1], 1400)
+    win_h = min(frame.shape[0] + HUD_HEIGHT, 1060)
+    cv2.resizeWindow(WINDOW_NAME, win_w, win_h)
     cv2.setMouseCallback(WINDOW_NAME, drawer.mouse_callback)
 
     quit_all = False
@@ -485,7 +824,19 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
             drawer.select_lanes(key)
             continue
 
-        # ── Normal drawing state ──
+        # ── Perspective ruler state ──
+        if drawer.state == STATE_PERSPECTIVE_RULER:
+            if key == 13 or key == 32:  # ENTER/SPACE → compute
+                if drawer.compute_perspective_lengths():
+                    # Save and exit
+                    break
+            elif key == 27:  # ESC → cancel ruler, back to drawing
+                drawer.state = STATE_DRAWING
+                drawer._ruler_points = []
+                drawer._set_status("Ruler cancelled")
+            continue
+
+        # ── Common keys for both draw and edit modes ──
         if key == 27 or key == ord("q"):  # ESC or Q → quit
             quit_all = True
             break
@@ -494,25 +845,47 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
             print("  ⏭  Skipped")
             break
 
-        elif key == 13 or key == 32:  # ENTER or SPACE → finish polygon
-            drawer.try_finish_polygon()
-
-        elif key == ord("r"):  # Restart current polygon
-            drawer.current_points = []
-            drawer._set_status("Polygon cleared")
-            print("  🔄 Polygon cleared")
-
-        elif key == ord("d"):  # Delete all ROIs (double-press)
+        elif key == ord("w"):  # Save & calibrate
             if not drawer.rois:
-                drawer._set_status("No ROIs to delete")
-            elif drawer._delete_armed:
-                drawer.rois = []
-                drawer._delete_armed = False
-                drawer._set_status("All ROIs deleted!")
-                print("  🗑  All ROIs deleted")
+                drawer._set_status("No ROIs to calibrate — draw at least one first")
             else:
-                drawer._delete_armed = True
-                drawer._set_status("Press D again to confirm delete all ROIs", 3.0)
+                drawer.enter_ruler_mode()
+
+        elif key == ord("e"):  # Toggle edit/draw mode
+            if drawer.state == STATE_DRAWING:
+                if drawer.rois:
+                    drawer.state = STATE_EDITING
+                    drawer._set_status("Edit mode — drag vertices or click edges to insert")
+                    print("  ✏️  Edit mode")
+                else:
+                    drawer._set_status("No ROIs to edit — draw one first")
+            elif drawer.state == STATE_EDITING:
+                drawer.state = STATE_DRAWING
+                drawer._dragging = False
+                drawer._set_status("Draw mode")
+                print("  ✏️  Draw mode")
+
+        # ── Draw mode specific keys ──
+        elif drawer.state == STATE_DRAWING:
+            if key == 13 or key == 32:  # ENTER or SPACE → finish polygon
+                drawer.try_finish_polygon()
+
+            elif key == ord("r"):  # Restart current polygon
+                drawer.current_points = []
+                drawer._set_status("Polygon cleared")
+                print("  🔄 Polygon cleared")
+
+            elif key == ord("d"):  # Delete all ROIs (double-press)
+                if not drawer.rois:
+                    drawer._set_status("No ROIs to delete")
+                elif drawer._delete_armed:
+                    drawer.rois = []
+                    drawer._delete_armed = False
+                    drawer._set_status("All ROIs deleted!")
+                    print("  🗑  All ROIs deleted")
+                else:
+                    drawer._delete_armed = True
+                    drawer._set_status("Press D again to confirm delete all ROIs", 3.0)
 
     cv2.destroyAllWindows()
 

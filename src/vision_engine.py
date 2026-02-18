@@ -67,12 +67,15 @@ VEHICLE_CLASS_IDS: set[int] = {
 # ---------------------------------------------------------------------------
 FREE_FLOW_SPEED_KMH: float = 110.0       # Swedish motorway speed limit
 FREE_FLOW_VPH_PER_LANE: float = 2_000.0  # Typical motorway lane capacity
-DEFAULT_ROI_LENGTH_KM: float = 0.3        # Assumed visible road length in frame
+DEFAULT_ROI_LENGTH_KM: float = 0.1       # Legacy fallback (100 m) for uncalibrated ROIs
 BLACK_IMAGE_THRESHOLD: int = 15           # Mean pixel value below this → "black"
 SPEED_DROP_RATIO: float = 0.50            # >50 % speed drop → severe event
 
 # Anomaly: bounding-box width/height ratio above this suggests a sideways vehicle
 ABNORMAL_ASPECT_RATIO: float = 3.5
+
+# Jam density (veh/km/lane) — imported from physics_engine to stay in sync
+JAM_DENSITY_VEH_KM_LANE: float = 133.0
 
 # ---------------------------------------------------------------------------
 # TODO: Implement Headlight/Taillight classification
@@ -295,8 +298,11 @@ class VisionEngine:
                 else 0.0
             )
 
-            # Estimate capacity for this segment
-            capacity = self._estimate_capacity(count, speed, roi.num_lanes)
+            # Estimate capacity using per-ROI physical length
+            roi_length_km = roi.roi_length_meters / 1000.0
+            capacity = self._estimate_capacity(
+                count, speed, roi.num_lanes, roi_length_km=roi_length_km,
+            )
 
             # Check anomalies within this segment
             anomaly, anomaly_reason = self._check_anomalies(
@@ -493,18 +499,37 @@ class VisionEngine:
         vehicle_count: int,
         speed_kmh: float,
         num_lanes: int,
+        roi_length_km: float = DEFAULT_ROI_LENGTH_KM,
     ) -> float:
         """Estimate road capacity in Vehicles Per Hour.
 
         Uses a simplified Greenshields model:
-            density = vehicle_count / ROI_length_km
+            density = vehicle_count / roi_length_km
             capacity = density × speed
-        Falls back to lane-based free-flow estimate when density is zero.
+
+        A safety clamp prevents density from exceeding the theoretical
+        jam density (133 veh/km/lane × lanes).  This guards against
+        absurd shockwave speeds when YOLO hallucinates overlapping
+        bounding boxes in snow/rain.
         """
         if vehicle_count == 0:
             return 0.0
 
-        density_per_km = vehicle_count / DEFAULT_ROI_LENGTH_KM
+        density_per_km = vehicle_count / roi_length_km
+
+        # Safety clamp: cap at jam density × lanes
+        max_density = JAM_DENSITY_VEH_KM_LANE * num_lanes
+        if density_per_km > max_density:
+            logger.warning(
+                "Density %.1f veh/km exceeds jam density %.1f "
+                "(count=%d, ROI=%.0f m) — clamping",
+                density_per_km,
+                max_density,
+                vehicle_count,
+                roi_length_km * 1000,
+            )
+            density_per_km = max_density
+
         capacity = density_per_km * speed_kmh
 
         # Cap at theoretical maximum

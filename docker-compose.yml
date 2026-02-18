@@ -22,7 +22,8 @@ services:
     volumes:
       - ./data:/app/data
       - ./static:/app/static
-    command: [ "python", "-u", "dashboard.py" ]
+      - ./templates:/app/templates
+    command: [ "python", "-u", "main.py", "--host", "0.0.0.0", "--port", "8080" ]
     entrypoint: []
     depends_on:
       - collector

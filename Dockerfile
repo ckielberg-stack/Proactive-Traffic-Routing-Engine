@@ -2,13 +2,20 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
+# System deps for OpenCV (headless) and general runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 libxcb1 libsm6 libxext6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY config.py collect.py discover_cameras.py dashboard.py ./
+COPY *.py ./
+COPY src/ ./src/
 COPY static/ ./static/
+COPY templates/ ./templates/
 
 # Data volume mount point
 VOLUME /app/data

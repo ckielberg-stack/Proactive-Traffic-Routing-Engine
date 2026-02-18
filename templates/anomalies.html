@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% set active_page = "anomalies" %}
+
+{% block title %}PTRE — Anomaly Log{% endblock %}
+
+{% block content %}
+<!-- Summary bar -->
+<div class="stat-grid" style="margin-bottom: 1.5rem;">
+    <div class="stat-card">
+        <div class="stat-card-value" id="anomaly-total" style="color: var(--urgency-immediate);">&mdash;</div>
+        <div class="stat-card-label">Total Anomalies</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value" id="anomaly-today" style="color: var(--urgency-soon);">&mdash;</div>
+        <div class="stat-card-label">Today</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-value muted" id="anomaly-last-update">&mdash;</div>
+        <div class="stat-card-label">Last Update</div>
+    </div>
+</div>
+
+<!-- Anomaly event table -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-dot" style="background: var(--urgency-immediate);"></div>
+        <span class="panel-title">Anomaly Events</span>
+        <span class="panel-subtitle">Click a row to view annotated image</span>
+    </div>
+    <div class="panel-body" style="padding: 0;">
+        <table class="data-table" id="anomaly-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Camera</th>
+                    <th>Reason</th>
+                    <th>Confidence</th>
+                    <th>Vehicles</th>
+                    <th>VPH</th>
+                    <th>Image</th>
+                </tr>
+            </thead>
+            <tbody id="anomaly-tbody">
+                <tr>
+                    <td colspan="7" class="empty-state">Waiting for data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Anomaly image viewer modal -->
+<div id="anomaly-modal" class="cam-modal" style="display: none;">
+    <div class="cam-modal-backdrop" id="anomaly-modal-backdrop"></div>
+    <div class="cam-modal-content" style="max-width: 1100px;">
+        <div class="cam-modal-header">
+            <span class="cam-modal-title" id="anomaly-modal-title">Anomaly Image</span>
+            <button class="cam-modal-close" id="anomaly-modal-close">&times;</button>
+        </div>
+        <div class="cam-modal-body" id="anomaly-modal-body">
+            <div class="cam-modal-loading" id="anomaly-modal-loading">
+                <div class="cam-modal-spinner"></div>
+                <span>Loading annotated image...</span>
+            </div>
+            <img id="anomaly-modal-img" style="display: none; max-width: 90vw; max-height: 75vh;" />
+        </div>
+        <div class="cam-modal-footer" id="anomaly-modal-footer"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/anomalies.js"></script>
+{% endblock %}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PTRE — Traffic Management Center{% endblock %}</title>
+    <meta name="description"
+        content="Proactive Traffic Routing Engine — AI-Powered Operator Decision Support for Trafikverket">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <!-- ═══════════════ HEADER ═══════════════ -->
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="header-left">
+                <div class="status-indicator">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span class="status-label" id="status-text">System Online</span>
+                </div>
+                <div class="header-divider"></div>
+                <h1 class="site-title">
+                    <span class="brand">PTRE</span>
+                    <span class="sep">—</span>
+                    <span class="sub">Proactive Traffic Routing Engine</span>
+                    <span class="sep">|</span>
+                    <span class="sub">Trafik Stockholm Copilot</span>
+                </h1>
+            </div>
+            <div class="header-right">
+                <button id="btn-datex2" class="btn-export">Export DATEX II (NTS)</button>
+                <div class="header-meta">
+                    <span id="tick-counter">TICK #—</span>
+                    <div class="header-divider"></div>
+                    <span id="live-clock">--:--:--</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══════════════ NAVIGATION ═══════════════ -->
+    <nav class="site-nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-link {% if active_page == 'tmc' %}active{% endif %}">
+                <span class="nav-icon">📡</span> TMC
+            </a>
+            <a href="/cameras" class="nav-link {% if active_page == 'cameras' %}active{% endif %}">
+                <span class="nav-icon">📷</span> Cameras
+            </a>
+            <a href="/sensors" class="nav-link {% if active_page == 'sensors' %}active{% endif %}">
+                <span class="nav-icon">🔢</span> Sensors
+            </a>
+            <a href="/anomalies" class="nav-link {% if active_page == 'anomalies' %}active{% endif %}">
+                <span class="nav-icon">🚨</span> Anomalies
+            </a>
+            <a href="/logs" class="nav-link {% if active_page == 'logs' %}active{% endif %}">
+                <span class="nav-icon">📋</span> Log
+            </a>
+            <a href="/system" class="nav-link {% if active_page == 'system' %}active{% endif %}">
+                <span class="nav-icon">⚙️</span> System
+            </a>
+        </div>
+    </nav>
+
+    {% block metrics %}{% endblock %}
+
+    <!-- ═══════════════ PAGE CONTENT ═══════════════ -->
+    <main class="page-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block modals %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

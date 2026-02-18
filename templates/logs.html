@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% set active_page = "logs" %}
+
+{% block title %}PTRE — System Log{% endblock %}
+
+{% block metrics %}
+<div class="metrics-bar">
+    <div class="metrics-inner">
+        <div class="metric-item">
+            <span class="metric-label">Log Lines</span>
+            <span class="metric-value" id="log-total">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Errors</span>
+            <span class="metric-value" id="log-errors" style="color: var(--status-failed);">0</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Warnings</span>
+            <span class="metric-value warn" id="log-warnings">0</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Auto-scroll</span>
+            <span class="metric-value ok" id="log-autoscroll">ON</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="panel" style="height: calc(100vh - 200px); display: flex; flex-direction: column;">
+    <div class="panel-header">
+        <div class="panel-dot" style="background: var(--status-online);"></div>
+        <span class="panel-title">mainloop.log</span>
+        <span class="panel-subtitle">data/mainloop.log — tail -f</span>
+    </div>
+    <div class="log-terminal terminal-scroll" id="log-container" style="flex: 1; overflow-y: auto;">
+        <div class="empty-state">Loading logs...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/logs.js"></script>
+{% endblock %}

@@ -44,6 +44,12 @@ class ROIRegion(BaseModel):
     )
     capacity_vph: float = Field(ge=0, description="Theoretical max throughput for this segment")
     num_lanes: int = Field(ge=1, default=2)
+    roi_length_meters: float = Field(
+        default=100.0,
+        ge=1.0,
+        description="Physical road length visible in this ROI (meters). "
+        "Used to convert vehicle count → density for shockwave math.",
+    )
     polygon: list[list[int]] = Field(
         description="List of [x, y] pixel coordinates defining the ROI boundary"
     )
@@ -106,6 +112,13 @@ class ROIMapper:
                             cam_id,
                         )
                         continue
+                    if "roi_length_meters" not in roi_raw:
+                        logger.warning(
+                            "⚠️  ROI '%s' for camera '%s' missing roi_length_meters "
+                            "— defaulting to 100 m. Re-run roi_helper.py to calibrate.",
+                            roi.road_id,
+                            cam_id,
+                        )
                     rois.append(roi)
                 except Exception as e:
                     logger.error(
