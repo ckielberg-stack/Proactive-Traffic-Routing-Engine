@@ -20,6 +20,7 @@ Controls:
     RIGHT CLICK      Undo last vertex
     ENTER / SPACE    Finish current polygon → name it
     E                Switch to Edit mode
+    H                Toggle layer visibility (hide/show all overlays)
     S                Skip to next camera (no changes)
     R                Restart current polygon (clear vertices)
     D                Delete all ROIs for current camera
@@ -278,6 +279,7 @@ class PolygonDrawer:
         self.state = STATE_DRAWING
         self._pending_roi: dict | None = None  # Partially built ROI
         self._delete_armed = False  # D pressed once
+        self._overlay_hidden = False  # H key hides all overlays
         self._status_msg = ""  # Temporary status message
         self._status_until = 0.0  # When to clear status msg
 
@@ -712,124 +714,126 @@ class PolygonDrawer:
         # --- Build the image portion ---
         display = self.original.copy()
 
-        # Draw existing (saved) ROIs with semi-transparent fill
-        for i, roi in enumerate(self.rois):
-            color = COLORS[i % len(COLORS)]
-            pts = np.array(roi["polygon"], dtype=np.int32)
-            # Semi-transparent fill
-            overlay = display.copy()
-            cv2.fillPoly(overlay, [pts], color)
-            cv2.addWeighted(overlay, 0.2, display, 0.8, 0, display)
-            cv2.polylines(display, [pts], isClosed=True, color=color, thickness=2)
-
-            # In edit mode, draw vertex handles
-            if self.state == STATE_EDITING:
-                for vi, pt in enumerate(roi["polygon"]):
-                    handle_color = color
-                    radius = VERTEX_HANDLE_RADIUS
-                    # Highlight hovered vertex
-                    if (self._hover_roi_idx == i and self._hover_vert_idx == vi):
-                        handle_color = (0, 255, 255)  # Yellow
-                        radius = VERTEX_HANDLE_RADIUS + 3
-                    cv2.circle(display, (pt[0], pt[1]), radius, handle_color, -1)
-                    cv2.circle(display, (pt[0], pt[1]), radius, (0, 0, 0), 1)
-
-                # Highlight hovered edge with insertion preview
-                if (self._hover_roi_idx == i and self._hover_edge_idx >= 0
-                        and self._hover_vert_idx < 0 and not self._dragging):
-                    poly = roi["polygon"]
-                    ei = self._hover_edge_idx
-                    a = poly[ei]
-                    b = poly[(ei + 1) % len(poly)]
-                    cv2.line(display, tuple(a), tuple(b), (0, 255, 255), 3)
-                    # Draw insertion preview dot
-                    px, py = int(self._hover_proj[0]), int(self._hover_proj[1])
-                    cv2.circle(display, (px, py), 7, (0, 255, 255), -1)
-                    cv2.circle(display, (px, py), 7, (255, 255, 255), 2)
-
-            # Label
-            cx = int(np.mean(pts[:, 0]))
-            cy = int(np.mean(pts[:, 1]))
-            length_str = f' {roi["roi_length_meters"]:.0f}m' if "roi_length_meters" in roi else ""
-            label = f'{roi["road_id"]} ({roi["num_lanes"]}L{length_str})'
-            display = pil_puttext(display, label, (cx - 60, cy), color, 0.55, 2)
-
-        # Draw exclusion zones as red dashed rectangles
-        for idx, ez in enumerate(self.exclusion_zones):
-            x1, y1, x2, y2 = ez
-            # Dashed rectangle using line segments
-            dash_len = 10
-            red = (0, 0, 255)  # BGR
-            for edge in [
-                ((x1, y1), (x2, y1)),  # top
-                ((x2, y1), (x2, y2)),  # right
-                ((x2, y2), (x1, y2)),  # bottom
-                ((x1, y2), (x1, y1)),  # left
-            ]:
-                pt_a, pt_b = edge
-                dx = pt_b[0] - pt_a[0]
-                dy = pt_b[1] - pt_a[1]
-                length = math.hypot(dx, dy)
-                if length == 0:
-                    continue
-                num_dashes = max(1, int(length / dash_len))
-                for d in range(0, num_dashes, 2):
-                    t0 = d / num_dashes
-                    t1 = min((d + 1) / num_dashes, 1.0)
-                    p0 = (int(pt_a[0] + dx * t0), int(pt_a[1] + dy * t0))
-                    p1 = (int(pt_a[0] + dx * t1), int(pt_a[1] + dy * t1))
-                    cv2.line(display, p0, p1, red, 2)
-            # Semi-transparent red fill
-            overlay = display.copy()
-            cv2.rectangle(overlay, (x1, y1), (x2, y2), red, -1)
-            cv2.addWeighted(overlay, 0.1, display, 0.9, 0, display)
-            # Label
-            display = pil_puttext(display, f"EXCL {idx+1}", (x1 + 4, y1 + 16), red, 0.45, 2)
-
-        # Draw in-progress exclusion zone corner + live preview rectangle
-        if self.state == STATE_EXCLUSION_ZONE and self._excl_corner1 is not None:
-            c1x, c1y = self._excl_corner1
-            mx, my = self.mouse_pos
-            cv2.circle(display, (c1x, c1y), 6, (0, 0, 255), -1)
-            cv2.rectangle(display, (c1x, c1y), (mx, my), (0, 0, 255), 1)
-
-        # Draw current in-progress polygon (draw mode only)
-        if self.current_points and self.state == STATE_DRAWING:
-            pts = np.array(self.current_points, dtype=np.int32)
-            for j in range(len(pts) - 1):
-                cv2.line(display, tuple(pts[j]), tuple(pts[j + 1]), (0, 255, 255), 2)
-
-            last = tuple(pts[-1])
-            cv2.line(display, last, self.mouse_pos, (0, 255, 255), 1)
-
-            if len(pts) >= 3:
-                cv2.line(display, self.mouse_pos, tuple(pts[0]), (0, 200, 200), 1)
-                # Semi-transparent preview fill
-                preview_pts = np.array(
-                    self.current_points + [list(self.mouse_pos)], dtype=np.int32
-                )
+        # --- Overlay drawing (hidden when H is toggled) ---
+        if not self._overlay_hidden:
+            # Draw existing (saved) ROIs with semi-transparent fill
+            for i, roi in enumerate(self.rois):
+                color = COLORS[i % len(COLORS)]
+                pts = np.array(roi["polygon"], dtype=np.int32)
+                # Semi-transparent fill
                 overlay = display.copy()
-                cv2.fillPoly(overlay, [preview_pts], (0, 255, 255))
+                cv2.fillPoly(overlay, [pts], color)
+                cv2.addWeighted(overlay, 0.2, display, 0.8, 0, display)
+                cv2.polylines(display, [pts], isClosed=True, color=color, thickness=2)
+
+                # In edit mode, draw vertex handles
+                if self.state == STATE_EDITING:
+                    for vi, pt in enumerate(roi["polygon"]):
+                        handle_color = color
+                        radius = VERTEX_HANDLE_RADIUS
+                        # Highlight hovered vertex
+                        if (self._hover_roi_idx == i and self._hover_vert_idx == vi):
+                            handle_color = (0, 255, 255)  # Yellow
+                            radius = VERTEX_HANDLE_RADIUS + 3
+                        cv2.circle(display, (pt[0], pt[1]), radius, handle_color, -1)
+                        cv2.circle(display, (pt[0], pt[1]), radius, (0, 0, 0), 1)
+
+                    # Highlight hovered edge with insertion preview
+                    if (self._hover_roi_idx == i and self._hover_edge_idx >= 0
+                            and self._hover_vert_idx < 0 and not self._dragging):
+                        poly = roi["polygon"]
+                        ei = self._hover_edge_idx
+                        a = poly[ei]
+                        b = poly[(ei + 1) % len(poly)]
+                        cv2.line(display, tuple(a), tuple(b), (0, 255, 255), 3)
+                        # Draw insertion preview dot
+                        px, py = int(self._hover_proj[0]), int(self._hover_proj[1])
+                        cv2.circle(display, (px, py), 7, (0, 255, 255), -1)
+                        cv2.circle(display, (px, py), 7, (255, 255, 255), 2)
+
+                # Label
+                cx = int(np.mean(pts[:, 0]))
+                cy = int(np.mean(pts[:, 1]))
+                length_str = f' {roi["roi_length_meters"]:.0f}m' if "roi_length_meters" in roi else ""
+                label = f'{roi["road_id"]} ({roi["num_lanes"]}L{length_str})'
+                display = pil_puttext(display, label, (cx - 60, cy), color, 0.55, 2)
+
+            # Draw exclusion zones as red dashed rectangles
+            for idx, ez in enumerate(self.exclusion_zones):
+                x1, y1, x2, y2 = ez
+                # Dashed rectangle using line segments
+                dash_len = 10
+                red = (0, 0, 255)  # BGR
+                for edge in [
+                    ((x1, y1), (x2, y1)),  # top
+                    ((x2, y1), (x2, y2)),  # right
+                    ((x2, y2), (x1, y2)),  # bottom
+                    ((x1, y2), (x1, y1)),  # left
+                ]:
+                    pt_a, pt_b = edge
+                    dx = pt_b[0] - pt_a[0]
+                    dy = pt_b[1] - pt_a[1]
+                    length = math.hypot(dx, dy)
+                    if length == 0:
+                        continue
+                    num_dashes = max(1, int(length / dash_len))
+                    for d in range(0, num_dashes, 2):
+                        t0 = d / num_dashes
+                        t1 = min((d + 1) / num_dashes, 1.0)
+                        p0 = (int(pt_a[0] + dx * t0), int(pt_a[1] + dy * t0))
+                        p1 = (int(pt_a[0] + dx * t1), int(pt_a[1] + dy * t1))
+                        cv2.line(display, p0, p1, red, 2)
+                # Semi-transparent red fill
+                overlay = display.copy()
+                cv2.rectangle(overlay, (x1, y1), (x2, y2), red, -1)
                 cv2.addWeighted(overlay, 0.1, display, 0.9, 0, display)
+                # Label
+                display = pil_puttext(display, f"EXCL {idx+1}", (x1 + 4, y1 + 16), red, 0.45, 2)
 
-            for pt in pts:
-                cv2.circle(display, tuple(pt), 5, (0, 255, 255), -1)
+            # Draw in-progress exclusion zone corner + live preview rectangle
+            if self.state == STATE_EXCLUSION_ZONE and self._excl_corner1 is not None:
+                c1x, c1y = self._excl_corner1
+                mx, my = self.mouse_pos
+                cv2.circle(display, (c1x, c1y), 6, (0, 0, 255), -1)
+                cv2.rectangle(display, (c1x, c1y), (mx, my), (0, 0, 255), 1)
 
-        # Draw perspective ruler points
-        if self._ruler_points:
-            for i, (rx, ry) in enumerate(self._ruler_points):
-                # Magenta circle with index label
-                cv2.circle(display, (rx, ry), 8, (255, 0, 255), -1)
-                cv2.circle(display, (rx, ry), 8, (255, 255, 255), 2)
-                cv2.putText(
-                    display, str(i + 1), (rx + 12, ry + 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2,
-                )
-                # Connect consecutive points
-                if i > 0:
-                    px, py = self._ruler_points[i - 1]
-                    cv2.line(display, (px, py), (rx, ry), (255, 0, 255), 1)
-                cv2.circle(display, tuple(pt), 5, (0, 0, 0), 1)
+            # Draw current in-progress polygon (draw mode only)
+            if self.current_points and self.state == STATE_DRAWING:
+                pts = np.array(self.current_points, dtype=np.int32)
+                for j in range(len(pts) - 1):
+                    cv2.line(display, tuple(pts[j]), tuple(pts[j + 1]), (0, 255, 255), 2)
+
+                last = tuple(pts[-1])
+                cv2.line(display, last, self.mouse_pos, (0, 255, 255), 1)
+
+                if len(pts) >= 3:
+                    cv2.line(display, self.mouse_pos, tuple(pts[0]), (0, 200, 200), 1)
+                    # Semi-transparent preview fill
+                    preview_pts = np.array(
+                        self.current_points + [list(self.mouse_pos)], dtype=np.int32
+                    )
+                    overlay = display.copy()
+                    cv2.fillPoly(overlay, [preview_pts], (0, 255, 255))
+                    cv2.addWeighted(overlay, 0.1, display, 0.9, 0, display)
+
+                for pt in pts:
+                    cv2.circle(display, tuple(pt), 5, (0, 255, 255), -1)
+
+            # Draw perspective ruler points
+            if self._ruler_points:
+                for i, (rx, ry) in enumerate(self._ruler_points):
+                    # Magenta circle with index label
+                    cv2.circle(display, (rx, ry), 8, (255, 0, 255), -1)
+                    cv2.circle(display, (rx, ry), 8, (255, 255, 255), 2)
+                    cv2.putText(
+                        display, str(i + 1), (rx + 12, ry + 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2,
+                    )
+                    # Connect consecutive points
+                    if i > 0:
+                        px, py = self._ruler_points[i - 1]
+                        cv2.line(display, (px, py), (rx, ry), (255, 0, 255), 1)
+                    cv2.circle(display, tuple(pt), 5, (0, 0, 0), 1)
 
         # --- Build HUD above the image ---
         hud = np.zeros((HUD_HEIGHT, self.w, 3), dtype=np.uint8)
@@ -867,7 +871,7 @@ class PolygonDrawer:
                 (150, 200, 255), 0.45, 1,
             ))
             hud_lines.append((
-                "E: edit | X: excl. zone | Z: del excl. | D+D: delete all | S: skip | Q/ESC: quit",
+                "E: edit | X: excl. zone | Z: del excl. | H: hide layers | D+D: delete all | S: skip | Q/ESC: quit",
                 (150, 200, 255), 0.45, 1,
             ))
             hud_lines.append((
@@ -886,7 +890,7 @@ class PolygonDrawer:
                 (150, 200, 255), 0.45, 1,
             ))
             hud_lines.append((
-                "E: draw mode | S: skip | Q/ESC: quit & save",
+                "E: draw mode | H: hide layers | S: skip | Q/ESC: quit & save",
                 (150, 200, 255), 0.45, 1,
             ))
 
@@ -953,6 +957,10 @@ class PolygonDrawer:
                 f"RIGHT-CLICK: undo | ENTER: confirm ({status}) | ESC: cancel",
                 (150, 200, 255), 0.45, 1,
             ))
+
+        # Overlay hidden indicator
+        if self._overlay_hidden:
+            hud_lines.append(("⚠ LAYERS HIDDEN (H to show)", (0, 140, 255), 0.6, 2))
 
         # Status message (temporary)
         if self._status_msg and time.time() < self._status_until:
@@ -1087,6 +1095,12 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
             drawer._excl_corner1 = None
             drawer._set_status("Exclusion zone mode — click top-left corner")
             print("  🚫 Exclusion zone mode")
+
+        elif key == ord("h"):  # Toggle overlay visibility
+            drawer._overlay_hidden = not drawer._overlay_hidden
+            state = "hidden" if drawer._overlay_hidden else "visible"
+            drawer._set_status(f"Layers {state}", 2.0)
+            print(f"  👁  Layers {state}")
 
         elif key == ord("e"):  # Toggle edit/draw mode
             if drawer.state == STATE_DRAWING:

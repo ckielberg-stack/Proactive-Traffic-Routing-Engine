@@ -47,19 +47,29 @@ from config import (
     CAMERA_COORDS,
     CAMERA_IDS,
     DATA_DIR,
+    DEFAULT_ROAD_SPEED_LIMIT,
+    E4_TRAVEL_TIME_ROUTE_IDS,
     INTERVAL_SECONDS,
     MAX_RETRIES,
     RETRY_BACKOFF,
+    SENSOR_COORDS,
+    SENSOR_ROAD_SPEED_LIMITS,
+    SENSOR_SEVERE_DROP_RATIO,
+    SENSOR_SPEED_DROP_RATIO,
 )
 from retention import RetentionPolicy
 from src.models import (
+    CalibrationSnapshot,
     CameraMetadata,
     CapacityState,
     MultiSegmentCapacity,
+    SensorAnomaly,
     SensorReading,
     TickResult,
+    TravelTimeReading,
     VMSStatusSnapshot,
 )
+from src.travel_time_calibrator import TravelTimeCalibrator
 from src.anomaly_store import record_anomaly, get_total_count
 from src.density_smoother import DensitySmoother
 from src.physics_engine import PhysicsEngine
@@ -192,6 +202,7 @@ _roi_mapper: ROIMapper | None = None
 _physics_engine: PhysicsEngine | None = None
 _vms_orchestrator: VMSOrchestrator | None = None
 _density_smoother: DensitySmoother | None = None
+_travel_time_calibrator: TravelTimeCalibrator | None = None
 
 
 def _get_vision_engine() -> VisionEngine:
@@ -228,6 +239,13 @@ def _get_vms_orchestrator() -> VMSOrchestrator:
     if _vms_orchestrator is None:
         _vms_orchestrator = VMSOrchestrator()
     return _vms_orchestrator
+
+
+def _get_calibrator() -> TravelTimeCalibrator:
+    global _travel_time_calibrator
+    if _travel_time_calibrator is None:
+        _travel_time_calibrator = TravelTimeCalibrator()
+    return _travel_time_calibrator
 
 
 def _get_density_smoother() -> DensitySmoother:
@@ -730,6 +748,83 @@ def fetch_vms_status(now: datetime) -> list[VMSStatusSnapshot]:
     return statuses
 
 
+# ---------------------------------------------------------------------------
+# Phase 1d: Travel time fetch
+# ---------------------------------------------------------------------------
+
+
+def fetch_travel_times(now: datetime) -> list[TravelTimeReading]:
+    """Fetch measured corridor travel times from TravelTimeRoute API.
+
+    Queries Trafikverket's Bluetooth/ANPR-based travel time measurements
+    for E4/E20 route segments in Stockholm county.  Returns one
+    ``TravelTimeReading`` per segment with actual vs. free-flow times.
+    """
+    route_ids_filter = "".join(
+        f'<EQ name="Id" value="{rid}" />'
+        for rid in E4_TRAVEL_TIME_ROUTE_IDS
+    )
+
+    xml_query = f"""
+    <REQUEST>
+        <LOGIN authenticationkey="{API_KEY}" />
+        <QUERY objecttype="TravelTimeRoute" schemaversion="1.5" limit="50">
+            <FILTER>
+                <AND>
+                    <EQ name="CountyNo" value="1" />
+                    <OR>
+                        {route_ids_filter}
+                    </OR>
+                </AND>
+            </FILTER>
+            <INCLUDE>Id</INCLUDE>
+            <INCLUDE>Name</INCLUDE>
+            <INCLUDE>TravelTime</INCLUDE>
+            <INCLUDE>FreeFlowTravelTime</INCLUDE>
+            <INCLUDE>Speed</INCLUDE>
+            <INCLUDE>Length</INCLUDE>
+            <INCLUDE>TrafficStatus</INCLUDE>
+            <INCLUDE>MeasureTime</INCLUDE>
+        </QUERY>
+    </REQUEST>
+    """
+
+    data = api_request(xml_query)
+    readings: list[TravelTimeReading] = []
+
+    if data:
+        results = data.get("RESPONSE", {}).get("RESULT", [])
+        routes = results[0].get("TravelTimeRoute", []) if results else []
+
+        for r in routes:
+            try:
+                tt = float(r.get("TravelTime", 0) or 0)
+                ff = float(r.get("FreeFlowTravelTime", 0) or 0)
+                readings.append(TravelTimeReading(
+                    timestamp=now,
+                    route_id=str(r.get("Id", "")),
+                    name=r.get("Name", "Unknown"),
+                    travel_time_seconds=tt,
+                    free_flow_seconds=ff,
+                    speed_kmh=float(r.get("Speed", 0) or 0),
+                    length_meters=float(r.get("Length", 0) or 0),
+                    traffic_status=r.get("TrafficStatus", "unknown"),
+                    delay_seconds=round(tt - ff, 2),
+                ))
+            except (ValueError, TypeError) as e:
+                logger.debug(f"Skipping malformed TravelTimeRoute: {e}")
+
+    # Log summary
+    total_delay = sum(t.delay_seconds for t in readings)
+    slow_count = sum(1 for t in readings if t.traffic_status != "freeflow")
+    logger.info(
+        f"🕐 Travel times: {len(readings)} routes fetched "
+        f"(corridor delay: {total_delay:+.0f}s, "
+        f"{slow_count} non-freeflow)"
+    )
+    return readings
+
+
 def _parse_speed_limit(text: str) -> int | None:
     """Extract speed limit integer from Swedish text.
 
@@ -740,6 +835,115 @@ def _parse_speed_limit(text: str) -> int | None:
     """
     match = re.search(r"(\d+)\s*km/h", text, re.IGNORECASE)
     return int(match.group(1)) if match else None
+
+
+# ---------------------------------------------------------------------------
+# Sensor anomaly detection
+# ---------------------------------------------------------------------------
+
+
+def detect_sensor_anomalies(
+    sensor_readings: list[SensorReading],
+    now: datetime,
+) -> list[SensorAnomaly]:
+    """Check sensor speeds against road speed limits.
+
+    This closes the critical detection gap where sensor-measured speed
+    drops (e.g. 35 km/h on a 70 km/h road) were invisible to the system
+    because anomaly detection was camera-only.
+
+    Parameters
+    ----------
+    sensor_readings:
+        Latest sensor data from the Trafikverket API.
+    now:
+        Current timestamp for the anomaly records.
+
+    Returns
+    -------
+    list[SensorAnomaly]
+        Anomalies for stations where speed is below threshold.
+    """
+    anomalies: list[SensorAnomaly] = []
+
+    for reading in sensor_readings:
+        if reading.site_id is None:
+            continue
+
+        # Look up the road speed limit for this station
+        road_limit = SENSOR_ROAD_SPEED_LIMITS.get(
+            reading.site_id, DEFAULT_ROAD_SPEED_LIMIT
+        )
+
+        # Skip if speed is above the warning threshold
+        if reading.average_speed_kmh >= road_limit * SENSOR_SPEED_DROP_RATIO:
+            continue
+
+        # Calculate speed ratio
+        speed_ratio = (
+            reading.average_speed_kmh / road_limit if road_limit > 0 else 0.0
+        )
+
+        # Classify severity
+        severity = (
+            "severe"
+            if reading.average_speed_kmh < road_limit * SENSOR_SEVERE_DROP_RATIO
+            else "warning"
+        )
+
+        # Get station coordinates
+        coords = SENSOR_COORDS.get(reading.site_id, (0.0, 0.0))
+
+        # Find nearest camera for cross-referencing
+        nearest_cam = _find_nearest_camera(coords[0]) if coords[0] else None
+
+        anomaly = SensorAnomaly(
+            timestamp=now,
+            site_id=reading.site_id,
+            measured_speed_kmh=reading.average_speed_kmh,
+            road_speed_limit_kmh=road_limit,
+            speed_ratio=round(speed_ratio, 3),
+            volume_vph=reading.inflow_volume_vph,
+            severity=severity,
+            nearest_camera_id=nearest_cam,
+            lat=coords[0],
+            lng=coords[1],
+        )
+        anomalies.append(anomaly)
+
+        # Log with appropriate severity
+        icon = "🚨" if severity == "severe" else "⚠️"
+        logger.warning(
+            f"{icon} Sensor anomaly: station {reading.site_id} "
+            f"at {reading.average_speed_kmh:.0f} km/h "
+            f"(limit {road_limit} km/h, {speed_ratio*100:.0f}%) "
+            f"→ {severity}"
+        )
+
+        # Record to anomaly store
+        record_anomaly(
+            DATA_DIR,
+            timestamp=now,
+            camera_id=f"sensor_{reading.site_id}",
+            camera_name=f"Sensor {reading.site_id}",
+            anomaly_reason=f"sensor_speed_{severity}",
+            confidence=1.0 - speed_ratio,  # Higher confidence when bigger drop
+            vehicle_count=0,
+            capacity_vph=reading.inflow_volume_vph,
+            image_path=None,
+        )
+
+    return anomalies
+
+
+def _find_nearest_camera(lat: float) -> str | None:
+    """Find the camera ID nearest to a given latitude."""
+    if not CAMERA_COORDS:
+        return None
+    return min(
+        CAMERA_COORDS,
+        key=lambda cid: abs(CAMERA_COORDS[cid][0] - lat),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -779,11 +983,13 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     capacity_states: list[CapacityState] = []
     sensor_readings: list[SensorReading] = []
     vms_statuses: list[VMSStatusSnapshot] = []
+    travel_time_readings: list[TravelTimeReading] = []
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         future_cameras = executor.submit(fetch_cameras, camera_ids, now)
         future_sensors = executor.submit(fetch_sensor_data, now)
         future_vms = executor.submit(fetch_vms_status, now)
+        future_tt = executor.submit(fetch_travel_times, now)
 
         try:
             vision_records, capacity_states = future_cameras.result(timeout=55)
@@ -800,6 +1006,11 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         except Exception as e:
             logger.error(f"VMS status fetch failed: {e}", exc_info=True)
 
+        try:
+            travel_time_readings = future_tt.result(timeout=10)
+        except Exception as e:
+            logger.error(f"Travel time fetch failed: {e}", exc_info=True)
+
     # ---- Phase 2: Apply temporal density smoothing (Expert Audit Fix 3) ----
     smoother = _get_density_smoother()
     for state in capacity_states:
@@ -808,8 +1019,30 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         )
         state.observed_density_veh_km_lane = round(smoothed, 2)
 
+    # ---- Phase 2b: Sensor-based anomaly detection ----
+    sensor_anomalies = detect_sensor_anomalies(sensor_readings, now)
+    if sensor_anomalies:
+        logger.info(
+            f"🚨 {len(sensor_anomalies)} sensor speed anomalies detected "
+            f"({sum(1 for a in sensor_anomalies if a.severity == 'severe')} severe)"
+        )
+
+    # ---- Phase 2c: TravelTime calibration (adapts physics model) ----
+    calibrator = _get_calibrator()
+    calibration_snapshot: CalibrationSnapshot | None = None
+    if travel_time_readings:
+        from src.physics_engine import FREE_FLOW_SPEED_KMH
+        calibration_snapshot = calibrator.update(
+            readings=travel_time_readings,
+            model_free_flow_speed=FREE_FLOW_SPEED_KMH,
+        )
+
     # ---- Phase 3: Physics engine (shockwave propagation) ----
     physics = _get_physics_engine()
+
+    # Apply calibrated free-flow speed
+    if calibration_snapshot and calibration_snapshot.confidence != "low":
+        physics.free_flow_speed = calibration_snapshot.adapted_free_flow_speed
 
     # Build per-camera inflow map from nearest sensor stations
     node_inflows = build_node_inflows(sensor_readings)
@@ -839,9 +1072,19 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         node_inflows=node_inflows if node_inflows else None,
     )
 
-    # ---- Phase 3: VMS orchestrator (predictive recommendations) ----
+    # Post-physics: evaluate prediction accuracy against TravelTime data
+    if calibration_snapshot and travel_time_readings:
+        calibration_snapshot = calibrator.evaluate_accuracy(
+            readings=travel_time_readings,
+            predictions=queue_predictions,
+            snapshot=calibration_snapshot,
+        )
+
+    # ---- Phase 4: VMS orchestrator ----
     orchestrator = _get_vms_orchestrator()
     vms_recommendations = []
+
+    # 4a: Queue-tail based VMS recommendations (predictive)
     for prediction in queue_predictions:
         recs = orchestrator.generate_recommendations(
             prediction=prediction,
@@ -850,28 +1093,42 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         )
         vms_recommendations.extend(recs)
 
-    # ---- Phase 4: Persist ----
+    # 4b: Sensor-based VMS recommendations (immediate)
+    if sensor_anomalies:
+        sensor_recs = orchestrator.generate_sensor_recommendations(
+            anomalies=sensor_anomalies,
+            now=now,
+            vms_statuses=vms_statuses,
+        )
+        vms_recommendations.extend(sensor_recs)
+
+    # ---- Phase 5: Persist ----
     result = TickResult(
         tick_number=_tick_count,
         timestamp=now,
         capacity_states=capacity_states,
         sensor_readings=sensor_readings if aggregate_sensor else [],
+        sensor_anomalies=sensor_anomalies,
         vms_statuses=vms_statuses,
         queue_predictions=queue_predictions,
         vms_recommendations=vms_recommendations,
+        travel_time_readings=travel_time_readings,
+        calibration=calibration_snapshot,
     )
 
     _persist_tick(result, vision_records, now)
 
-    # ---- Phase 5: Summary logging ----
+    # ---- Phase 6: Summary logging ----
     ok = sum(1 for r in vision_records if r.get("status") == "ok")
-    anomalies = sum(1 for s in capacity_states if s.is_anomaly)
+    vision_anomalies = sum(1 for s in capacity_states if s.is_anomaly)
     logger.info(
         f"📊 Tick #{_tick_count}: "
-        f"{ok} cameras OK, {anomalies} anomalies, "
+        f"{ok} cameras OK, {vision_anomalies} vision anomalies, "
+        f"{len(sensor_anomalies)} sensor anomalies, "
         f"{len(sensor_readings)} sensors, "
         f"{len(queue_predictions)} predictions, "
-        f"{len(vms_recommendations)} VMS recommendations"
+        f"{len(vms_recommendations)} VMS recommendations, "
+        f"{len(travel_time_readings)} travel times"
     )
 
     for rec in vms_recommendations:
@@ -944,6 +1201,52 @@ def _persist_tick(
             "summary": rec.summary,
         })
 
+    # Sensor anomalies
+    for sa in result.sensor_anomalies:
+        all_records.append({
+            "type": "sensor_anomaly",
+            "timestamp": now.isoformat(),
+            "site_id": sa.site_id,
+            "measured_speed_kmh": sa.measured_speed_kmh,
+            "road_speed_limit_kmh": sa.road_speed_limit_kmh,
+            "speed_ratio": sa.speed_ratio,
+            "volume_vph": sa.volume_vph,
+            "severity": sa.severity,
+            "nearest_camera_id": sa.nearest_camera_id,
+            "lat": sa.lat,
+            "lng": sa.lng,
+        })
+
+    # Travel time readings
+    for tt in result.travel_time_readings:
+        all_records.append({
+            "type": "travel_time",
+            "timestamp": now.isoformat(),
+            "route_id": tt.route_id,
+            "name": tt.name,
+            "travel_time_seconds": tt.travel_time_seconds,
+            "free_flow_seconds": tt.free_flow_seconds,
+            "delay_seconds": tt.delay_seconds,
+            "speed_kmh": tt.speed_kmh,
+            "traffic_status": tt.traffic_status,
+            "length_meters": tt.length_meters,
+        })
+
+    # Calibration snapshot
+    if result.calibration:
+        cal = result.calibration
+        all_records.append({
+            "type": "calibration",
+            "timestamp": now.isoformat(),
+            "adapted_free_flow_speed": cal.adapted_free_flow_speed,
+            "correction_factor": cal.correction_factor,
+            "measured_free_flow_speed": cal.measured_free_flow_speed,
+            "freeflow_segment_count": cal.freeflow_segment_count,
+            "congested_segment_count": cal.congested_segment_count,
+            "accuracy_hit_rate": cal.accuracy_hit_rate,
+            "confidence": cal.confidence,
+        })
+
     # Write JSONL
     if all_records:
         with open(jsonl_path, "a", encoding="utf-8") as f:
@@ -990,6 +1293,7 @@ def _update_status(
             "queue_predictions": len(result.queue_predictions),
             "vms_recommendations": len(result.vms_recommendations),
             "vms_statuses_polled": len(result.vms_statuses),
+            "travel_time_routes": len(result.travel_time_readings),
         },
     }
 

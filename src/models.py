@@ -197,6 +197,43 @@ class VMSStatusSnapshot(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# TravelTimeRoute (measured corridor travel times)
+# ---------------------------------------------------------------------------
+
+
+class TravelTimeReading(BaseModel):
+    """Measured travel time from Trafikverket's TravelTimeRoute API.
+
+    Each reading represents a road segment with Bluetooth/ANPR-measured
+    actual A→B travel time vs. free-flow baseline.
+    """
+
+    timestamp: datetime
+    route_id: str = Field(description="Trafikverket route segment ID")
+    name: str = Field(
+        description="Route name, e.g. 'E4/E20 N Fittja (147) - Vårby (148)'"
+    )
+    travel_time_seconds: float = Field(
+        ge=0, description="Current measured travel time (seconds)"
+    )
+    free_flow_seconds: float = Field(
+        ge=0, description="Free-flow baseline travel time (seconds)"
+    )
+    speed_kmh: float = Field(
+        ge=0, description="Current average speed on segment (km/h)"
+    )
+    length_meters: float = Field(
+        ge=0, description="Segment length in metres"
+    )
+    traffic_status: str = Field(
+        description="'freeflow', 'slow', 'heavy', or 'unknown'"
+    )
+    delay_seconds: float = Field(
+        description="Delay vs free-flow (positive = slower than normal)"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Phase 5: VMS Orchestrator models
 # ---------------------------------------------------------------------------
 
@@ -277,6 +314,80 @@ class IncidentReport(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Physics calibration snapshot
+# ---------------------------------------------------------------------------
+
+
+class CalibrationSnapshot(BaseModel):
+    """Snapshot of the TravelTime-based physics calibration state.
+
+    Tracks how the measured corridor free-flow speed compares to the
+    physics engine's assumption, and scores prediction accuracy.
+    """
+
+    adapted_free_flow_speed: float = Field(
+        description="EMA-smoothed free-flow speed from measurements (km/h)"
+    )
+    correction_factor: float = Field(
+        description="Ratio: adapted / model free_flow_speed"
+    )
+    measured_free_flow_speed: float | None = Field(
+        default=None,
+        description="Raw weighted-average speed this tick (km/h)",
+    )
+    freeflow_segment_count: int = Field(
+        ge=0, description="Number of freeflow TravelTimeRoute segments"
+    )
+    congested_segment_count: int = Field(
+        ge=0, description="Number of congested TravelTimeRoute segments"
+    )
+    accuracy_hit_rate: float | None = Field(
+        default=None,
+        description="Fraction of congested segments with matching predictions",
+    )
+    confidence: str = Field(
+        description="'high', 'medium', or 'low' based on segment count"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sensor-based anomaly detection
+# ---------------------------------------------------------------------------
+
+
+class SensorAnomaly(BaseModel):
+    """Anomaly detected from sensor speed data (no camera required).
+
+    Generated when a sensor station reports a speed significantly below
+    the road's posted speed limit.  This closes the detection gap for
+    congestion events that are invisible to the camera-based pipeline
+    (e.g. night, fog, stations without mapped cameras).
+    """
+
+    timestamp: datetime
+    site_id: int = Field(description="TrafficFlow SiteId")
+    measured_speed_kmh: float = Field(
+        ge=0, description="Actual measured speed at the station"
+    )
+    road_speed_limit_kmh: int = Field(
+        description="Posted speed limit for this road segment"
+    )
+    speed_ratio: float = Field(
+        description="measured / limit, e.g. 0.50 = 50% of posted limit"
+    )
+    volume_vph: float = Field(ge=0, description="Traffic volume at station")
+    severity: str = Field(
+        description="'warning' (speed < 50% of limit) or 'severe' (< 35%)"
+    )
+    nearest_camera_id: str | None = Field(
+        default=None,
+        description="Closest mapped camera for cross-referencing",
+    )
+    lat: float = Field(description="Station latitude")
+    lng: float = Field(description="Station longitude")
+
+
+# ---------------------------------------------------------------------------
 # Tick-based orchestration output
 # ---------------------------------------------------------------------------
 
@@ -292,6 +403,9 @@ class TickResult(BaseModel):
     timestamp: datetime
     capacity_states: list[CapacityState] = []
     sensor_readings: list[SensorReading] = []
+    sensor_anomalies: list[SensorAnomaly] = []
     vms_statuses: list[VMSStatusSnapshot] = []
     queue_predictions: list[QueuePrediction] = []
     vms_recommendations: list[VMSRecommendation] = []
+    travel_time_readings: list[TravelTimeReading] = []
+    calibration: CalibrationSnapshot | None = None

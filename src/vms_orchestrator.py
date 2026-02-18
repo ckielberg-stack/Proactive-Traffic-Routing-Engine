@@ -24,7 +24,13 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from src.models import QueuePrediction, VMSGantry, VMSRecommendation, VMSStatusSnapshot
+from src.models import (
+    QueuePrediction,
+    SensorAnomaly,
+    VMSGantry,
+    VMSRecommendation,
+    VMSStatusSnapshot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +151,21 @@ class VMSOrchestrator:
         # Nearest upstream = highest chainage among candidates
         return max(candidates, key=lambda g: g.chainage_km)
 
+    def find_nearest_vms_by_lat(
+        self,
+        lat: float,
+    ) -> VMSGantry | None:
+        """Find the VMS gantry nearest to a given latitude.
+
+        Used for sensor-based anomalies where we don't have a chainage
+        but do have station coordinates.
+
+        Returns ``None`` if no gantries are loaded.
+        """
+        if not self._gantries:
+            return None
+        return min(self._gantries, key=lambda g: abs(g.lat - lat))
+
     # ------------------------------------------------------------------
     # Recommendation generation
     # ------------------------------------------------------------------
@@ -239,6 +260,90 @@ class VMSOrchestrator:
 
         return recommendations
 
+    # ------------------------------------------------------------------
+    # Sensor-based VMS recommendations
+    # ------------------------------------------------------------------
+
+    def generate_sensor_recommendations(
+        self,
+        anomalies: list[SensorAnomaly],
+        now: datetime | None = None,
+        vms_statuses: list[VMSStatusSnapshot] | None = None,
+    ) -> list[VMSRecommendation]:
+        """Generate VMS warnings for sensor-detected speed drops.
+
+        Unlike queue-tail predictions (which forecast *future* congestion),
+        sensor anomalies represent *current* measured congestion.  These
+        recommendations are therefore always ``urgency='immediate'``.
+
+        Only ``severity='severe'`` anomalies trigger VMS recommendations.
+        ``severity='warning'`` anomalies are logged to the anomaly store
+        for operator awareness but do not generate VMS activation requests.
+
+        Parameters
+        ----------
+        anomalies:
+            Sensor anomalies from the current tick.
+        now:
+            Override for current timestamp (useful in tests).
+        vms_statuses:
+            Current polled VMS sign statuses.
+
+        Returns
+        -------
+        list[VMSRecommendation]
+            One recommendation per triggered VMS (deduplicated by vms_id).
+        """
+        if now is None:
+            now = datetime.now()
+
+        # Build a lookup for current VMS statuses
+        status_lookup: dict[str, VMSStatusSnapshot] = {}
+        if vms_statuses:
+            for s in vms_statuses:
+                status_lookup[s.vms_id] = s
+
+        seen_vms: set[str] = set()
+        recommendations: list[VMSRecommendation] = []
+
+        for anomaly in anomalies:
+            # Only severe anomalies trigger VMS recommendations
+            if anomaly.severity != "severe":
+                continue
+
+            # Find the nearest VMS to this sensor station
+            vms = self.find_nearest_vms_by_lat(anomaly.lat)
+            if vms is None or vms.vms_id in seen_vms:
+                continue
+
+            seen_vms.add(vms.vms_id)
+
+            # Resolve current VMS sign state
+            current_status = status_lookup.get(vms.vms_id)
+            current_status_str = (
+                current_status.displayed_message if current_status.is_active else "OFF"
+            ) if current_status is not None else None
+
+            summary = _build_sensor_narrative(anomaly, vms, current_status_str)
+
+            recommendations.append(
+                VMSRecommendation(
+                    timestamp=now,
+                    vms_id=vms.vms_id,
+                    vms_name=vms.name,
+                    recommended_message="KÖVARNING 50 km/h",
+                    urgency="immediate",
+                    queue_growth_speed_kmh=0.0,  # Not a prediction — measured now
+                    distance_queue_tail_to_vms_km=0.0,
+                    estimated_activation_minutes=0.0,
+                    triggering_camera_id=anomaly.nearest_camera_id or f"sensor_{anomaly.site_id}",
+                    current_vms_status=current_status_str,
+                    summary=summary,
+                )
+            )
+
+        return recommendations
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -310,4 +415,33 @@ def _build_narrative(
     else:
         parts.append("Rekommendation: Bevakning — aktivera vid behov.")
 
+    return " ".join(parts)
+
+
+def _build_sensor_narrative(
+    anomaly: SensorAnomaly,
+    vms: VMSGantry,
+    current_status_str: str | None,
+) -> str:
+    """Generate an operator narrative for a sensor-detected speed anomaly.
+
+    Example output::
+
+        Sensorlarm: Station 2790 mäter 35.0 km/h (gräns 70 km/h, 50%).
+        Närmaste VMS: Kristineberg (VMS-4008).
+        Nuvarande VMS-status: OFF.
+        Rekommendation: Aktivera KÖVARNING 50 km/h OMEDELBART.
+    """
+    parts: list[str] = [
+        f"Sensorlarm: Station {anomaly.site_id} mäter "
+        f"{anomaly.measured_speed_kmh:.0f} km/h "
+        f"(gräns {anomaly.road_speed_limit_kmh} km/h, "
+        f"{anomaly.speed_ratio * 100:.0f}%).",
+        f"Närmaste VMS: {vms.name} ({vms.vms_id}).",
+    ]
+
+    if current_status_str is not None:
+        parts.append(f"Nuvarande VMS-status: {current_status_str}.")
+
+    parts.append("Rekommendation: Aktivera KÖVARNING 50 km/h OMEDELBART.")
     return " ".join(parts)

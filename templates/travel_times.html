@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% set active_page = "travel_times" %}
+
+{% block title %}PTRE — Corridor Travel Times{% endblock %}
+
+{% block metrics %}
+<div class="metrics-bar">
+    <div class="metrics-inner">
+        <div class="metric-item">
+            <span class="metric-label">Route Segments</span>
+            <span class="metric-value" id="tt-total">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Corridor TT</span>
+            <span class="metric-value ok" id="tt-corridor">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Free Flow</span>
+            <span class="metric-value muted" id="tt-freeflow">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Total Delay</span>
+            <span class="metric-value warn" id="tt-delay">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Status</span>
+            <span class="metric-value" id="tt-status">—</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Last Update</span>
+            <span class="metric-value muted" id="tt-updated">—</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+
+    <!-- Northbound -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-dot" style="background: var(--status-online);"></div>
+            <span class="panel-title">Northbound (N)</span>
+            <span class="panel-subtitle">Hallunda → Karlberg</span>
+        </div>
+        <div class="panel-body" style="padding: 0;">
+            <table class="data-table" id="tt-table-north">
+                <thead>
+                    <tr>
+                        <th>Segment</th>
+                        <th>Travel Time</th>
+                        <th>Free Flow</th>
+                        <th>Delay</th>
+                        <th>Speed</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tt-tbody-north">
+                    <tr>
+                        <td colspan="6" class="empty-state">Loading travel time data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Southbound -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-dot" style="background: var(--urgency-soon);"></div>
+            <span class="panel-title">Southbound (S)</span>
+            <span class="panel-subtitle">Karlberg → Hallunda</span>
+        </div>
+        <div class="panel-body" style="padding: 0;">
+            <table class="data-table" id="tt-table-south">
+                <thead>
+                    <tr>
+                        <th>Segment</th>
+                        <th>Travel Time</th>
+                        <th>Free Flow</th>
+                        <th>Delay</th>
+                        <th>Speed</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tt-tbody-south">
+                    <tr>
+                        <td colspan="6" class="empty-state">Loading travel time data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/travel_times.js"></script>
+{% endblock %}

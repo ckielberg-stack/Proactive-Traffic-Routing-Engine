@@ -281,13 +281,15 @@ function drawImageWithPolygons(canvas, img, cameraId, roiConfig) {
 
     // Draw YOLO detection boxes (Expert Audit — visual verification)
     let detectCount = 0;
+    let inRoiCount = 0;
     if (_showDetections && _lastDetections && _lastDetections.detections) {
         const dets = _lastDetections.detections;
         const imgW = _lastDetections.image_width || NATIVE_W;
         const imgH = _lastDetections.image_height || NATIVE_H;
         const dScaleX = drawW / imgW;
         const dScaleY = drawH / imgH;
-        detectCount = dets.length;
+        detectCount = _lastDetections.total_count ?? dets.length;
+        inRoiCount = _lastDetections.in_roi_count ?? detectCount;
 
         const classColors = {
             car: '#00ff88',
@@ -303,19 +305,25 @@ function drawImageWithPolygons(canvas, img, cameraId, roiConfig) {
             const dw = (x2 - x1) * dScaleX;
             const dh = (y2 - y1) * dScaleY;
 
-            const color = classColors[det.class_name] || '#00ff88';
+            const isInRoi = det.in_roi !== false;
+            const baseColor = classColors[det.class_name] || '#00ff88';
+            // Dim out-of-zone detections
+            const color = isInRoi ? baseColor : baseColor + '55';
 
-            // Box
+            // Box — dashed for out-of-zone
+            ctx.save();
+            if (!isInRoi) ctx.setLineDash([4, 3]);
             ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = isInRoi ? 2 : 1;
             ctx.strokeRect(dx, dy, dw, dh);
+            ctx.restore();
 
             // Label background
             const label = `${det.class_name} ${(det.confidence * 100).toFixed(0)}%`;
             const fontSize = Math.max(10, Math.round(11 * scale));
             ctx.font = `bold ${fontSize}px monospace`;
             const tw = ctx.measureText(label).width + 6;
-            ctx.fillStyle = 'rgba(0,0,0,0.75)';
+            ctx.fillStyle = isInRoi ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.4)';
             ctx.fillRect(dx, dy - fontSize - 4, tw, fontSize + 4);
 
             // Label text
@@ -355,11 +363,15 @@ function drawImageWithPolygons(canvas, img, cameraId, roiConfig) {
 
     // Footer legend
     const excludedInfo = _showDetections && _lastDetections && _lastDetections.excluded_count > 0
-        ? ` (${_lastDetections.excluded_count} excluded)`
+        ? ` (${_lastDetections.excluded_count} excl)`
         : '';
-    const detectInfo = _showDetections && detectCount > 0
-        ? `  │  🔍 ${detectCount} vehicles detected${excludedInfo}`
-        : '';
+    let detectInfo = '';
+    if (_showDetections && detectCount > 0) {
+        const hasRois = inRoiCount !== detectCount;
+        detectInfo = hasRois
+            ? `  │  🔍 ${inRoiCount} in zone │ ${detectCount} total${excludedInfo}`
+            : `  │  🔍 ${detectCount} vehicles detected${excludedInfo}`;
+    }
     document.getElementById('cam-modal-footer').textContent =
         legendParts.join('  •  ') + detectInfo;
 }
