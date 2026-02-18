@@ -28,8 +28,11 @@ from __future__ import annotations
 
 import base64
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from threading import RLock
 from typing import Any
+from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import FastAPI, Response
 from pydantic import BaseModel, Field
@@ -61,12 +64,31 @@ app = FastAPI(
 # Shared pipeline state
 # ---------------------------------------------------------------------------
 
-_active_incidents: list[IncidentReport] = []
-_active_predictions: list[QueuePrediction] = []
-_active_vms_statuses: list[VMSStatusSnapshot] = []
-_active_recommendations: list[VMSRecommendation] = []
 _vms_orchestrator = VMSOrchestrator()
-_last_tick_time: datetime | None = None
+
+
+@dataclass
+class _PipelineState:
+    incidents: list[IncidentReport] = field(default_factory=list)
+    predictions: list[QueuePrediction] = field(default_factory=list)
+    vms_statuses: list[VMSStatusSnapshot] = field(default_factory=list)
+    recommendations: list[VMSRecommendation] = field(default_factory=list)
+    last_tick_time: datetime | None = None
+
+
+_pipeline_state = _PipelineState()
+_state_lock = RLock()
+
+
+def _get_state_snapshot() -> _PipelineState:
+    with _state_lock:
+        return _PipelineState(
+            incidents=list(_pipeline_state.incidents),
+            predictions=list(_pipeline_state.predictions),
+            vms_statuses=list(_pipeline_state.vms_statuses),
+            recommendations=list(_pipeline_state.recommendations),
+            last_tick_time=_pipeline_state.last_tick_time,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -113,26 +135,43 @@ class VMSRecommendationResponse(BaseModel):
 
 def set_active_incidents(incidents: list[IncidentReport]) -> None:
     """Inject incidents from the vision pipeline."""
-    global _active_incidents
-    _active_incidents = list(incidents)
+    with _state_lock:
+        _pipeline_state.incidents = list(incidents)
 
 
 def set_active_predictions(predictions: list[QueuePrediction]) -> None:
     """Inject predictions from the physics pipeline."""
-    global _active_predictions
-    _active_predictions = list(predictions)
+    with _state_lock:
+        _pipeline_state.predictions = list(predictions)
 
 
 def set_active_vms_statuses(statuses: list[VMSStatusSnapshot]) -> None:
     """Inject polled VMS proxy statuses from the Situation API."""
-    global _active_vms_statuses
-    _active_vms_statuses = list(statuses)
+    with _state_lock:
+        _pipeline_state.vms_statuses = list(statuses)
 
 
 def set_active_recommendations(recommendations: list[VMSRecommendation]) -> None:
     """Inject VMS recommendations from the orchestrator."""
-    global _active_recommendations
-    _active_recommendations = list(recommendations)
+    with _state_lock:
+        _pipeline_state.recommendations = list(recommendations)
+
+
+def set_pipeline_snapshot(
+    *,
+    incidents: list[IncidentReport],
+    predictions: list[QueuePrediction],
+    vms_statuses: list[VMSStatusSnapshot],
+    recommendations: list[VMSRecommendation],
+    last_tick_time: datetime | None,
+) -> None:
+    """Atomically replace all live pipeline fields for one tick."""
+    with _state_lock:
+        _pipeline_state.incidents = list(incidents)
+        _pipeline_state.predictions = list(predictions)
+        _pipeline_state.vms_statuses = list(vms_statuses)
+        _pipeline_state.recommendations = list(recommendations)
+        _pipeline_state.last_tick_time = last_tick_time
 
 
 def set_vms_orchestrator(orchestrator: VMSOrchestrator) -> None:
@@ -141,10 +180,10 @@ def set_vms_orchestrator(orchestrator: VMSOrchestrator) -> None:
     _vms_orchestrator = orchestrator
 
 
-def set_last_tick_time(t: datetime) -> None:
+def set_last_tick_time(t: datetime | None) -> None:
     """Record the timestamp of the most recent tick."""
-    global _last_tick_time
-    _last_tick_time = t
+    with _state_lock:
+        _pipeline_state.last_tick_time = t
 
 
 # ---------------------------------------------------------------------------
@@ -191,9 +230,10 @@ async def get_active_incidents() -> IncidentListResponse:
     ``capacity_drop_percentage``, and a base64-encoded JPEG thumbnail
     with YOLO bounding boxes drawn for instant human verification.
     """
+    state = _get_state_snapshot()
     return IncidentListResponse(
-        count=len(_active_incidents),
-        incidents=_active_incidents,
+        count=len(state.incidents),
+        incidents=state.incidents,
     )
 
 
@@ -211,21 +251,26 @@ async def get_vms_recommendations() -> VMSRecommendationResponse:
     - Human operator actually acted at T₂
     - Delta = T₂ - T₁ (our value proposition)
     """
+    state = _get_state_snapshot()
+    vms_statuses = state.vms_statuses
+    active_predictions = state.predictions
+    last_tick_time = state.last_tick_time
+
     # If we have pre-computed recommendations from the tick, use those
-    recs_to_use = _active_recommendations
+    recs_to_use = list(state.recommendations)
 
     # Fallback: compute on-the-fly if the tick hasn't pushed recs yet
-    if not recs_to_use and _active_predictions:
-        for pred in _active_predictions:
+    if not recs_to_use and active_predictions:
+        for pred in active_predictions:
             recs = _vms_orchestrator.generate_recommendations(
-                pred, vms_statuses=_active_vms_statuses,
+                pred, vms_statuses=vms_statuses,
             )
             recs_to_use.extend(recs)
 
     enriched: list[VMSRecommendationWithGroundTruth] = []
     for rec in recs_to_use:
         gt_active, gt_speed, gt_dev_id = _match_proxy_ground_truth(
-            rec, _active_vms_statuses,
+            rec, vms_statuses,
         )
         enriched.append(VMSRecommendationWithGroundTruth(
             recommendation=rec,
@@ -236,7 +281,7 @@ async def get_vms_recommendations() -> VMSRecommendationResponse:
 
     return VMSRecommendationResponse(
         count=len(enriched),
-        ai_prediction_timestamp=_last_tick_time,
+        ai_prediction_timestamp=last_tick_time,
         recommendations=enriched,
     )
 
@@ -253,10 +298,11 @@ async def export_datex2() -> Response:
     The output can be ingested by the National Traffic Management System
     (NTS) without manual intervention by operators.
     """
+    state = _get_state_snapshot()
     xml_content = _build_datex2_xml(
-        incidents=_active_incidents,
-        recommendations=_active_recommendations or [],
-        vms_statuses=_active_vms_statuses,
+        incidents=state.incidents,
+        recommendations=state.recommendations or [],
+        vms_statuses=state.vms_statuses,
     )
     return Response(
         content=xml_content,
@@ -272,13 +318,16 @@ async def export_datex2() -> Response:
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
+    state = _get_state_snapshot()
     return {
         "status": "ok",
         "service": "operator-api",
-        "last_tick": _last_tick_time.isoformat() if _last_tick_time else None,
-        "active_incidents": len(_active_incidents),
-        "active_recommendations": len(_active_recommendations),
-        "proxy_statuses_polled": len(_active_vms_statuses),
+        "last_tick": (
+            state.last_tick_time.isoformat() if state.last_tick_time else None
+        ),
+        "active_incidents": len(state.incidents),
+        "active_recommendations": len(state.recommendations),
+        "proxy_statuses_polled": len(state.vms_statuses),
     }
 
 
@@ -290,6 +339,15 @@ async def health() -> dict[str, Any]:
 _DATEX2_NS = "http://datex2.eu/schema/3/d2Payload"
 _DATEX2_SITUATION_NS = "http://datex2.eu/schema/3/situation"
 _XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
+_XML_ATTR_ESCAPE_MAP = {'"': "&quot;", "'": "&apos;"}
+
+
+def _xml_text(value: Any) -> str:
+    return xml_escape(str(value))
+
+
+def _xml_attr(value: Any) -> str:
+    return xml_escape(str(value), _XML_ATTR_ESCAPE_MAP)
 
 
 def _build_datex2_xml(
@@ -322,26 +380,26 @@ def _build_datex2_xml(
         </locationReference>"""
 
         situations.append(
-            f"""    <situation id="{situation_id}">
+            f"""    <situation id="{_xml_attr(situation_id)}">
       <headerInformation>
         <areaOfInterest>national</areaOfInterest>
         <confidentiality>restrictedToAuthoritiesTrafficOperatorsAndPublishers</confidentiality>
         <informationStatus>real</informationStatus>
       </headerInformation>
       <situationRecord>
-        <situationRecordCreationTime>{inc.timestamp.isoformat()}</situationRecordCreationTime>
-        <situationRecordVersionTime>{inc.timestamp.isoformat()}</situationRecordVersionTime>
+        <situationRecordCreationTime>{_xml_text(inc.timestamp.isoformat())}</situationRecordCreationTime>
+        <situationRecordVersionTime>{_xml_text(inc.timestamp.isoformat())}</situationRecordVersionTime>
         <probabilityOfOccurrence>certain</probabilityOfOccurrence>
         <severity>high</severity>
         <validity>
           <validityStatus>active</validityStatus>
         </validity>
         <operatorActionStatus>requested</operatorActionStatus>
-        <typeOfIncident>{inc.incident_type}</typeOfIncident>
+        <typeOfIncident>{_xml_text(inc.incident_type)}</typeOfIncident>
         <lanesAffected>{inc.lanes_affected}</lanesAffected>
         <totalLanes>{inc.total_lanes}</totalLanes>
         <capacityDropPercentage>{inc.capacity_drop_percentage:.1f}</capacityDropPercentage>
-        <sourceCamera>{inc.camera_id}</sourceCamera>
+        <sourceCamera>{_xml_text(inc.camera_id)}</sourceCamera>
         <confidence>{inc.confidence:.2f}</confidence>{lat_block}
       </situationRecord>
     </situation>"""
@@ -358,23 +416,23 @@ def _build_datex2_xml(
         operator_status = "implemented" if gt_active else "requested"
 
         situations.append(
-            f"""    <situation id="{sm_id}">
+            f"""    <situation id="{_xml_attr(sm_id)}">
       <headerInformation>
         <areaOfInterest>national</areaOfInterest>
         <confidentiality>restrictedToAuthoritiesTrafficOperatorsAndPublishers</confidentiality>
         <informationStatus>real</informationStatus>
       </headerInformation>
       <speedManagement>
-        <creationTime>{rec.timestamp.isoformat()}</creationTime>
-        <vmsId>{rec.vms_id}</vmsId>
-        <vmsName>{rec.vms_name}</vmsName>
-        <recommendedMessage>{rec.recommended_message}</recommendedMessage>
-        <urgency>{rec.urgency}</urgency>
+        <creationTime>{_xml_text(rec.timestamp.isoformat())}</creationTime>
+        <vmsId>{_xml_text(rec.vms_id)}</vmsId>
+        <vmsName>{_xml_text(rec.vms_name)}</vmsName>
+        <recommendedMessage>{_xml_text(rec.recommended_message)}</recommendedMessage>
+        <urgency>{_xml_text(rec.urgency)}</urgency>
         <queueGrowthSpeedKmh>{rec.queue_growth_speed_kmh:.1f}</queueGrowthSpeedKmh>
         <estimatedActivationMinutes>{rec.estimated_activation_minutes:.1f}</estimatedActivationMinutes>
-        <operatorActionStatus>{operator_status}</operatorActionStatus>
-        <triggeringCamera>{rec.triggering_camera_id}</triggeringCamera>
-        <narrative>{rec.summary}</narrative>
+        <operatorActionStatus>{_xml_text(operator_status)}</operatorActionStatus>
+        <triggeringCamera>{_xml_text(rec.triggering_camera_id)}</triggeringCamera>
+        <narrative>{_xml_text(rec.summary)}</narrative>
       </speedManagement>
     </situation>"""
         )

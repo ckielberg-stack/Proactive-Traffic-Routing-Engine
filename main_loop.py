@@ -274,6 +274,62 @@ def build_camera_chainage_map(
 _build_camera_chainage_map = build_camera_chainage_map
 
 
+def build_node_inflows(
+    sensor_readings: list[SensorReading],
+    camera_coords: dict[str, tuple[float, float]] | None = None,
+) -> dict[str, float]:
+    """Map sensor station readings to the nearest camera node.
+
+    For each sensor with a ``site_id`` and known coordinates, find the
+    camera with the smallest latitude distance and assign its measured
+    volume as that camera's local inflow.
+
+    When multiple sensors map to the same camera, their flows are summed
+    (they typically represent different lanes at the same location).
+
+    Parameters
+    ----------
+    sensor_readings:
+        Per-station readings from ``fetch_sensor_data`` (with ``site_id``).
+    camera_coords:
+        Mapping of camera_id → (lat, lng).  Falls back to
+        ``config.CAMERA_COORDS`` when not provided.
+
+    Returns
+    -------
+    dict[str, float]
+        Mapping of camera_id → total inflow volume (VPH).
+    """
+    from config import SENSOR_COORDS
+
+    coords = camera_coords if camera_coords is not None else CAMERA_COORDS
+    if not coords or not sensor_readings:
+        return {}
+
+    cam_items = list(coords.items())  # [(cam_id, (lat, lng)), ...]
+
+    node_inflows: dict[str, float] = {}
+
+    for reading in sensor_readings:
+        if reading.site_id is None:
+            continue
+        sensor_pos = SENSOR_COORDS.get(reading.site_id)
+        if sensor_pos is None:
+            continue
+
+        # Find nearest camera by latitude (corridor is roughly N-S)
+        best_cam = min(
+            cam_items,
+            key=lambda c: abs(c[1][0] - sensor_pos[0]),
+        )[0]
+
+        node_inflows[best_cam] = (
+            node_inflows.get(best_cam, 0.0) + reading.inflow_volume_vph
+        )
+
+    return node_inflows
+
+
 # ---------------------------------------------------------------------------
 # Concurrent data fetchers
 # ---------------------------------------------------------------------------
@@ -472,6 +528,7 @@ def fetch_sensor_data(now: datetime) -> list[SensorReading]:
         mean_speed = sum(agg["speeds"]) / len(agg["speeds"]) if agg["speeds"] else 0
         readings.append(SensorReading(
             timestamp=now,
+            site_id=sid,
             inflow_volume_vph=round(total_flow, 1),
             average_speed_kmh=round(mean_speed, 1),
         ))
@@ -644,7 +701,15 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     # ---- Phase 2: Physics engine (shockwave propagation) ----
     physics = _get_physics_engine()
 
-    # Use the mean of all sensor readings as the upstream aggregator
+    # Build per-camera inflow map from nearest sensor stations
+    node_inflows = build_node_inflows(sensor_readings)
+    if node_inflows:
+        logger.info(
+            f"🗺️  Mapped {len(sensor_readings)} sensors → "
+            f"{len(node_inflows)} camera nodes"
+        )
+
+    # Aggregate sensor as fallback for cameras without a nearby station
     aggregate_sensor: SensorReading | None = None
     if sensor_readings:
         mean_volume = sum(s.inflow_volume_vph for s in sensor_readings) / len(sensor_readings)
@@ -661,6 +726,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         camera_chainage_map=_camera_chainage_map,
         camera_coords_map=CAMERA_COORDS,
         now=now,
+        node_inflows=node_inflows if node_inflows else None,
     )
 
     # ---- Phase 3: VMS orchestrator (predictive recommendations) ----

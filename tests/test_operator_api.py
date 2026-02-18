@@ -21,6 +21,7 @@ from src.models import (
 )
 from src.operator_api import (
     app,
+    set_pipeline_snapshot,
     set_active_incidents,
     set_active_predictions,
     set_active_recommendations,
@@ -245,6 +246,30 @@ class TestVMSRecommendations:
         data = resp.json()
         assert data["ai_prediction_timestamp"] is not None
 
+    def test_fallback_does_not_mutate_global_recommendations(
+        self,
+        client: TestClient,
+        sample_prediction: QueuePrediction,
+        sample_vms_recommendation: VMSRecommendation,
+    ) -> None:
+        class StubOrchestrator:
+            def generate_recommendations(self, pred, vms_statuses=None):
+                return [sample_vms_recommendation]
+
+        set_active_recommendations([])
+        set_active_predictions([sample_prediction])
+        set_vms_orchestrator(StubOrchestrator())  # type: ignore[arg-type]
+
+        first = client.get("/api/v1/operator/vms-recommendations")
+        assert first.status_code == 200
+        assert first.json()["count"] == 1
+
+        # If fallback mutates global recommendation state, this would still be 1.
+        set_active_predictions([])
+        second = client.get("/api/v1/operator/vms-recommendations")
+        assert second.status_code == 200
+        assert second.json()["count"] == 0
+
 
 # ======================================================================
 # Ground-truth matching logic
@@ -413,6 +438,43 @@ class TestDatex2Export:
         resp = client.get("/api/v1/export/datex2")
         assert "datex2_export.xml" in resp.headers.get("content-disposition", "")
 
+    def test_xml_escapes_special_characters(self, client: TestClient) -> None:
+        import xml.etree.ElementTree as ET
+
+        now = datetime(2026, 2, 16, 14, 0, 0)
+        set_active_incidents([IncidentReport(
+            timestamp=now,
+            camera_id="CAM&<01>",
+            incident_type="vehicle & debris <blocked>",
+            lanes_affected=1,
+            total_lanes=3,
+            capacity_drop_percentage=42.0,
+            thumbnail_base64=None,
+            confidence=0.9,
+            lat=59.3,
+            lng=18.0,
+        )])
+        set_active_recommendations([VMSRecommendation(
+            timestamp=now,
+            vms_id="VMS&<4003>",
+            vms_name="Kungens & Kurva <E4>",
+            recommended_message="KÖVARNING & 70 <km/h>",
+            urgency="soon",
+            queue_growth_speed_kmh=8.0,
+            distance_queue_tail_to_vms_km=1.2,
+            estimated_activation_minutes=6.5,
+            triggering_camera_id="CAM&<01>",
+            current_vms_status="OFF",
+            summary="Use & monitor <carefully>",
+        )])
+
+        resp = client.get("/api/v1/export/datex2")
+        assert resp.status_code == 200
+        content = resp.text
+        ET.fromstring(content)
+        assert "&amp;" in content
+        assert "&lt;" in content
+
 
 # ======================================================================
 # Health check
@@ -438,3 +500,45 @@ class TestHealthCheck:
         data = resp.json()
         assert data["active_incidents"] == 1
         assert data["last_tick"] is not None
+
+    def test_set_pipeline_snapshot_updates_all_fields_atomically(
+        self,
+        client: TestClient,
+        sample_incident: IncidentReport,
+        sample_prediction: QueuePrediction,
+        sample_vms_recommendation: VMSRecommendation,
+        active_proxy_status: VMSStatusSnapshot,
+    ) -> None:
+        now = datetime(2026, 2, 16, 15, 0, 0)
+        incidents = [sample_incident]
+        predictions = [sample_prediction]
+        statuses = [active_proxy_status]
+        recommendations = [sample_vms_recommendation]
+
+        set_pipeline_snapshot(
+            incidents=incidents,
+            predictions=predictions,
+            vms_statuses=statuses,
+            recommendations=recommendations,
+            last_tick_time=now,
+        )
+
+        incidents.clear()
+        predictions.clear()
+        statuses.clear()
+        recommendations.clear()
+
+        incidents_resp = client.get("/api/v1/operator/active-incidents")
+        recs_resp = client.get("/api/v1/operator/vms-recommendations")
+        health_resp = client.get("/health")
+
+        assert incidents_resp.status_code == 200
+        assert recs_resp.status_code == 200
+        assert health_resp.status_code == 200
+
+        assert incidents_resp.json()["count"] == 1
+        assert recs_resp.json()["count"] == 1
+        assert recs_resp.json()["ai_prediction_timestamp"] is not None
+        assert health_resp.json()["active_incidents"] == 1
+        assert health_resp.json()["active_recommendations"] == 1
+        assert health_resp.json()["proxy_statuses_polled"] == 1
