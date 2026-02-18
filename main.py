@@ -302,6 +302,12 @@ async def page_anomalies(request: Request):
     return templates.TemplateResponse(request, "anomalies.html")
 
 
+@operator_app.get("/map", include_in_schema=False, response_class=HTMLResponse)
+async def page_map(request: Request):
+    """Interactive corridor map."""
+    return templates.TemplateResponse(request, "map.html")
+
+
 # --- Data API endpoints (for dashboard pages) ---
 
 
