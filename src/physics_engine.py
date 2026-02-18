@@ -53,6 +53,11 @@ DEFAULT_TIME_HORIZONS: list[int] = [1, 3, 5, 10]
 #: Below this threshold, the delta is too small for meaningful predictions.
 MIN_CAPACITY_DROP_VPH: float = 200.0
 
+# --- Expert Audit Fix 1: Flow vs Capacity ---
+#: Critical density threshold (veh/km/lane).  Bottleneck evaluation only
+#: triggers when the vision engine's observed density exceeds this value.
+K_CRITICAL_VEH_KM_LANE: float = 45.0
+
 
 # ---------------------------------------------------------------------------
 # Physics Engine
@@ -124,8 +129,9 @@ class PhysicsEngine:
         sorted_nodes = sorted(camera_chainage_map.items(), key=lambda x: x[1])
 
         for state in capacity_states:
-            if not state.is_anomaly:
-                continue  # No bottleneck detected by vision
+            # Expert Audit Fix 1: trigger on density, not is_anomaly
+            if state.observed_density_veh_km_lane < K_CRITICAL_VEH_KM_LANE:
+                continue  # Density below critical — no congestion breakdown
 
             prediction = self._evaluate_bottleneck_piecewise(
                 state=state,

@@ -9,6 +9,11 @@ const POLL_INTERVAL = 10_000;
 // ROI polygon config cache (loaded once)
 let _roiConfig = null;
 
+// Detection state
+let _lastDetections = null;
+let _showDetections = true;
+let _currentDrawState = null;  // {canvas, img, cameraId, roiConfig}
+
 const ROI_COLORS = [
     { fill: 'rgba(34, 197, 94, 0.25)', stroke: '#22c55e', label: '#22c55e' },  // Green
     { fill: 'rgba(59, 130, 246, 0.25)', stroke: '#3b82f6', label: '#3b82f6' },  // Blue
@@ -125,12 +130,39 @@ function openCameraViewer(cameraId) {
     canvas.style.display = 'none';
     loading.style.display = 'flex';
     footer.textContent = '';
+    _lastDetections = null;
+    _currentDrawState = null;
 
     // Set title from camera name
     const shortName = cameraId.split('_').pop();
     title.textContent = shortName;
 
-    // Load image + ROI config in parallel
+    // Ensure toggle button exists
+    let toggleBtn = document.getElementById('cam-detect-toggle');
+    if (!toggleBtn) {
+        toggleBtn = document.createElement('button');
+        toggleBtn.id = 'cam-detect-toggle';
+        toggleBtn.style.cssText =
+            'position:absolute;top:12px;right:50px;z-index:20;' +
+            'background:rgba(0,0,0,0.7);color:#22c55e;border:1px solid #22c55e;' +
+            'padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;' +
+            'font-family:monospace;';
+        toggleBtn.addEventListener('click', () => {
+            _showDetections = !_showDetections;
+            toggleBtn.textContent = _showDetections ? '🟢 YOLO ON' : '⚫ YOLO OFF';
+            toggleBtn.style.color = _showDetections ? '#22c55e' : '#666';
+            toggleBtn.style.borderColor = _showDetections ? '#22c55e' : '#666';
+            if (_currentDrawState) {
+                const { canvas, img, cameraId, roiConfig } = _currentDrawState;
+                drawImageWithPolygons(canvas, img, cameraId, roiConfig);
+            }
+        });
+        canvas.parentElement.appendChild(toggleBtn);
+    }
+    toggleBtn.textContent = _showDetections ? '🟢 YOLO ON' : '⚫ YOLO OFF';
+    toggleBtn.style.display = 'block';
+
+    // Load image + ROI config + detections in parallel
     const imgPromise = new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -141,10 +173,15 @@ function openCameraViewer(cameraId) {
 
     const roiPromise = loadROIConfig();
 
-    Promise.all([imgPromise, roiPromise])
-        .then(([img, roiConfig]) => {
+    const detectPromise = fetchJSON(`/api/v1/camera-detections/${encodeURIComponent(cameraId)}`)
+        .catch(e => { console.warn('Detection fetch failed:', e); return null; });
+
+    Promise.all([imgPromise, roiPromise, detectPromise])
+        .then(([img, roiConfig, detData]) => {
             loading.style.display = 'none';
             canvas.style.display = 'block';
+            _lastDetections = detData;
+            _currentDrawState = { canvas, img, cameraId, roiConfig };
             drawImageWithPolygons(canvas, img, cameraId, roiConfig);
         })
         .catch(err => {
@@ -155,6 +192,8 @@ function openCameraViewer(cameraId) {
 
 function closeCameraViewer() {
     document.getElementById('cam-modal').style.display = 'none';
+    const toggleBtn = document.getElementById('cam-detect-toggle');
+    if (toggleBtn) toggleBtn.style.display = 'none';
 }
 
 function drawImageWithPolygons(canvas, img, cameraId, roiConfig) {
@@ -240,7 +279,89 @@ function drawImageWithPolygons(canvas, img, cameraId, roiConfig) {
         legendParts.push(`${label} (${dir} ${lanes}L ${cap})`);
     });
 
-    document.getElementById('cam-modal-footer').textContent = legendParts.join('  •  ');
+    // Draw YOLO detection boxes (Expert Audit — visual verification)
+    let detectCount = 0;
+    if (_showDetections && _lastDetections && _lastDetections.detections) {
+        const dets = _lastDetections.detections;
+        const imgW = _lastDetections.image_width || NATIVE_W;
+        const imgH = _lastDetections.image_height || NATIVE_H;
+        const dScaleX = drawW / imgW;
+        const dScaleY = drawH / imgH;
+        detectCount = dets.length;
+
+        const classColors = {
+            car: '#00ff88',
+            truck: '#ff6644',
+            bus: '#ffaa00',
+            motorcycle: '#aa66ff',
+        };
+
+        dets.forEach(det => {
+            const [x1, y1, x2, y2] = det.xyxy;
+            const dx = x1 * dScaleX;
+            const dy = y1 * dScaleY;
+            const dw = (x2 - x1) * dScaleX;
+            const dh = (y2 - y1) * dScaleY;
+
+            const color = classColors[det.class_name] || '#00ff88';
+
+            // Box
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(dx, dy, dw, dh);
+
+            // Label background
+            const label = `${det.class_name} ${(det.confidence * 100).toFixed(0)}%`;
+            const fontSize = Math.max(10, Math.round(11 * scale));
+            ctx.font = `bold ${fontSize}px monospace`;
+            const tw = ctx.measureText(label).width + 6;
+            ctx.fillStyle = 'rgba(0,0,0,0.75)';
+            ctx.fillRect(dx, dy - fontSize - 4, tw, fontSize + 4);
+
+            // Label text
+            ctx.fillStyle = color;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(label, dx + 3, dy - fontSize - 2);
+        });
+    }
+
+    // Draw exclusion zones as red dashed rectangles
+    if (_showDetections && _lastDetections && _lastDetections.exclusion_zones) {
+        const imgW = _lastDetections.image_width || NATIVE_W;
+        const imgH = _lastDetections.image_height || NATIVE_H;
+        const eScaleX = drawW / imgW;
+        const eScaleY = drawH / imgH;
+
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        _lastDetections.exclusion_zones.forEach(ez => {
+            const [x1, y1, x2, y2] = ez;
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x1 * eScaleX, y1 * eScaleY,
+                (x2 - x1) * eScaleX, (y2 - y1) * eScaleY);
+
+            // Small "EXCL" label
+            const fontSize = Math.max(9, Math.round(10 * scale));
+            ctx.font = `bold ${fontSize}px monospace`;
+            ctx.fillStyle = 'rgba(255,68,68,0.7)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText('EXCL', x1 * eScaleX + 2, y1 * eScaleY + 2);
+        });
+        ctx.restore();
+    }
+
+    // Footer legend
+    const excludedInfo = _showDetections && _lastDetections && _lastDetections.excluded_count > 0
+        ? ` (${_lastDetections.excluded_count} excluded)`
+        : '';
+    const detectInfo = _showDetections && detectCount > 0
+        ? `  │  🔍 ${detectCount} vehicles detected${excludedInfo}`
+        : '';
+    document.getElementById('cam-modal-footer').textContent =
+        legendParts.join('  •  ') + detectInfo;
 }
 
 // ─── Event Listeners ─────────────────────────────────────────────────

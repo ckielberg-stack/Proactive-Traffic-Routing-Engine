@@ -35,6 +35,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
+import numpy as np
 import requests
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -531,6 +532,93 @@ async def api_camera_image(camera_id: str):
         )
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Failed to fetch image: {e}")
+
+
+# -- Lazy-loaded YOLO for detection overlay --
+_vision_engine_singleton = None
+
+
+def _get_vision_engine():
+    global _vision_engine_singleton
+    if _vision_engine_singleton is None:
+        from src.vision_engine import VisionEngine
+        _vision_engine_singleton = VisionEngine()
+    return _vision_engine_singleton
+
+
+@operator_app.get("/api/v1/camera-detections/{camera_id}")
+async def api_camera_detections(camera_id: str) -> dict:
+    """Run YOLO on a live camera image and return bounding boxes.
+
+    Returns {detections: [{xyxy, class_name, confidence}, ...], count, timestamp}.
+    """
+    import cv2 as _cv2
+
+    # Fetch image bytes
+    cam_info = _get_camera_info()
+    info = cam_info.get(camera_id)
+    if not info or not info.get("photo_url"):
+        raise HTTPException(status_code=404, detail="Camera not found")
+
+    photo_url = info["photo_url"]
+    if "?" not in photo_url:
+        photo_url += "?type=fullsize"
+
+    try:
+        resp = requests.get(photo_url, timeout=15)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Image fetch failed: {e}")
+
+    # Decode to numpy array
+    img_array = np.frombuffer(resp.content, dtype=np.uint8)
+    frame = _cv2.imdecode(img_array, _cv2.IMREAD_COLOR)
+    if frame is None:
+        raise HTTPException(status_code=502, detail="Failed to decode image")
+
+    # Run YOLO inference in a thread to avoid blocking the event loop
+    def _run_yolo():
+        engine = _get_vision_engine()
+        return engine._detect_vehicles(frame, roi_polygon=None)
+
+    detections = await asyncio.to_thread(_run_yolo)
+
+    # Filter out detections inside exclusion zones (static false positives)
+    config_path = os.path.join(os.path.dirname(__file__), "camera_config.json")
+    exclusion_zones: list[list[int]] = []
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            cam_cfg = json.load(f).get("cameras", {}).get(camera_id, {})
+            exclusion_zones = cam_cfg.get("exclusion_zones", [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
+    def _in_exclusion_zone(det: dict) -> bool:
+        x1, y1, x2, y2 = det["xyxy"]
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        for ez in exclusion_zones:
+            if len(ez) == 4 and ez[0] <= cx <= ez[2] and ez[1] <= cy <= ez[3]:
+                return True
+        return False
+
+    filtered = [d for d in detections if not _in_exclusion_zone(d)]
+
+    return {
+        "detections": [
+            {
+                "xyxy": d["xyxy"],
+                "class_name": d["class_name"],
+                "confidence": round(d["confidence"], 3),
+            }
+            for d in filtered
+        ],
+        "count": len(filtered),
+        "excluded_count": len(detections) - len(filtered),
+        "exclusion_zones": exclusion_zones,
+        "image_width": frame.shape[1],
+        "image_height": frame.shape[0],
+        "timestamp": datetime.now().isoformat(),
+    }
 
 
 @operator_app.get("/api/v1/anomalies")

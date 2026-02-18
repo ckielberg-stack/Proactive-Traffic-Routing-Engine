@@ -15,6 +15,7 @@ import pytest
 from src.models import CapacityState, QueuePrediction, SensorReading
 from src.physics_engine import (
     JAM_DENSITY_VEH_KM_LANE,
+    K_CRITICAL_VEH_KM_LANE,
     MIN_CAPACITY_DROP_VPH,
     PhysicsEngine,
 )
@@ -32,30 +33,32 @@ def engine() -> PhysicsEngine:
 
 @pytest.fixture
 def bottleneck_state() -> CapacityState:
-    """A camera showing a bottleneck: anomaly detected, low capacity."""
+    """A camera showing a bottleneck: density above k_critical, low capacity."""
     return CapacityState(
         timestamp=datetime(2026, 2, 16, 14, 0, 0),
         camera_id="CAM_03",
         vehicle_count=8,
         blocked_lanes=1,
         total_lanes=3,
-        estimated_capacity_vph=1200.0,  # Reduced from ~4500 free-flow
+        estimated_capacity_vph=1200.0,  # Reduced from ~6000 free-flow
+        observed_density_veh_km_lane=55.0,  # Above k_critical (45)
         is_anomaly=True,
-        anomaly_reason="vehicle_stopped",
+        anomaly_reason="density_exceeds_k_critical",
         confidence=0.85,
     )
 
 
 @pytest.fixture
 def normal_state() -> CapacityState:
-    """A camera showing normal traffic — no anomaly."""
+    """A camera showing normal traffic — density below k_critical."""
     return CapacityState(
         timestamp=datetime(2026, 2, 16, 14, 0, 0),
         camera_id="CAM_02",
         vehicle_count=15,
         blocked_lanes=0,
         total_lanes=3,
-        estimated_capacity_vph=4200.0,
+        estimated_capacity_vph=6000.0,
+        observed_density_veh_km_lane=10.0,  # Well below k_critical
         is_anomaly=False,
         anomaly_reason=None,
         confidence=0.92,
@@ -361,8 +364,9 @@ class TestPiecewisePrediction:
             blocked_lanes=0,
             total_lanes=3,
             estimated_capacity_vph=3900.0,  # Close to inflow of 4000
+            observed_density_veh_km_lane=50.0,  # Above k_critical to trigger
             is_anomaly=True,
-            anomaly_reason="minor_slowdown",
+            anomaly_reason="density_exceeds_k_critical",
         )
         predictions = engine.compute(
             capacity_states=[state],
@@ -370,6 +374,32 @@ class TestPiecewisePrediction:
             camera_chainage_map=chainage_map,
         )
         # 4000 - 3900 = 100, below MIN_CAPACITY_DROP_VPH (200)
+        assert len(predictions) == 0
+
+    def test_no_prediction_when_density_below_k_critical(
+        self,
+        engine: PhysicsEngine,
+        upstream_sensor: SensorReading,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """Even with is_anomaly=True, density below k_critical should produce no prediction."""
+        state = CapacityState(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            camera_id="CAM_03",
+            vehicle_count=5,
+            blocked_lanes=1,
+            total_lanes=3,
+            estimated_capacity_vph=1200.0,
+            observed_density_veh_km_lane=20.0,  # Below k_critical!
+            is_anomaly=True,
+            anomaly_reason="abnormal_aspect_ratio (1 boxes)",
+        )
+        predictions = engine.compute(
+            capacity_states=[state],
+            sensor=upstream_sensor,
+            camera_chainage_map=chainage_map,
+        )
+        # Density below k_critical → physics engine should skip this
         assert len(predictions) == 0
 
     def test_single_camera_no_chainage_uses_legacy_fallback(
