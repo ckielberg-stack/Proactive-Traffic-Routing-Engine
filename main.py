@@ -54,7 +54,7 @@ from main_loop import (
 from src.evaluation_logger import EvaluationLogger
 from src.incident_builder import build_incident_reports
 from src.anomaly_store import get_anomalies, get_total_count
-from src.models import SensorReading
+from src.models import CalibrationSnapshot, SensorReading, TravelTimeReading
 from src.operator_api import (
     app as operator_app,
     set_pipeline_snapshot,
@@ -71,7 +71,9 @@ _eval_logger: EvaluationLogger | None = None
 
 # In-memory state for dashboard pages
 _latest_sensor_readings: list[SensorReading] = []
+_latest_travel_times: list[TravelTimeReading] = []
 _latest_camera_states: list[dict] = []
+_latest_calibration: CalibrationSnapshot | None = None
 _latest_timestamp: str | None = None
 
 # Jinja2 templates
@@ -139,8 +141,12 @@ async def _tick_loop_background(
             )
 
             # --- Store state for dashboard pages ---
-            global _latest_sensor_readings, _latest_camera_states, _latest_timestamp
+            global _latest_sensor_readings, _latest_travel_times
+            global _latest_camera_states, _latest_timestamp
             _latest_sensor_readings = list(result.sensor_readings)
+            _latest_travel_times = list(result.travel_time_readings)
+            global _latest_calibration
+            _latest_calibration = result.calibration
             _latest_camera_states = [
                 {
                     "camera_id": s.camera_id,
@@ -309,6 +315,11 @@ async def page_map(request: Request):
     return templates.TemplateResponse(request, "map.html")
 
 
+@operator_app.get("/travel-times", include_in_schema=False, response_class=HTMLResponse)
+async def page_travel_times(request: Request):
+    """E4/E20 corridor travel times page."""
+    return templates.TemplateResponse(request, "travel_times.html")
+
 # --- Data API endpoints (for dashboard pages) ---
 
 
@@ -389,6 +400,96 @@ async def api_sensors() -> dict[str, Any]:
         "timestamp": _latest_timestamp,
     }
 
+
+@operator_app.get("/api/v1/travel-times")
+async def api_travel_times() -> dict[str, Any]:
+    """Latest travel time readings from TravelTimeRoute API.
+
+    Returns per-route-segment travel times with corridor-level summary.
+    """
+    routes: list[dict] = []
+    northbound: list[dict] = []
+    southbound: list[dict] = []
+
+    for t in _latest_travel_times:
+        entry = {
+            "route_id": t.route_id,
+            "name": t.name,
+            "travel_time_seconds": round(t.travel_time_seconds, 1),
+            "free_flow_seconds": round(t.free_flow_seconds, 1),
+            "delay_seconds": round(t.delay_seconds, 1),
+            "speed_kmh": round(t.speed_kmh, 1),
+            "length_meters": round(t.length_meters, 0),
+            "traffic_status": t.traffic_status,
+        }
+        routes.append(entry)
+
+        # Classify direction by route name
+        name_upper = t.name.upper()
+        if " N " in name_upper or name_upper.startswith("E4 N") or name_upper.startswith("E4/E20 N"):
+            northbound.append(entry)
+        elif " S " in name_upper or name_upper.startswith("E4 S") or name_upper.startswith("E4/E20 S"):
+            southbound.append(entry)
+
+    # Corridor summary
+    total_tt = sum(t.travel_time_seconds for t in _latest_travel_times)
+    total_ff = sum(t.free_flow_seconds for t in _latest_travel_times)
+    total_delay = sum(t.delay_seconds for t in _latest_travel_times)
+    slow_count = sum(1 for t in _latest_travel_times if t.traffic_status != "freeflow")
+
+    # Overall congestion status
+    if slow_count > len(_latest_travel_times) * 0.5:
+        corridor_status = "congested"
+    elif slow_count > 0:
+        corridor_status = "degraded"
+    else:
+        corridor_status = "freeflow"
+
+    # Format corridor TT as mm:ss
+    corridor_tt_min = int(total_tt // 60)
+    corridor_tt_sec = int(total_tt % 60)
+    corridor_ff_min = int(total_ff // 60)
+    corridor_ff_sec = int(total_ff % 60)
+
+    return {
+        "routes": routes,
+        "northbound_count": len(northbound),
+        "southbound_count": len(southbound),
+        "summary": {
+            "total_travel_time_seconds": round(total_tt, 1),
+            "total_free_flow_seconds": round(total_ff, 1),
+            "total_delay_seconds": round(total_delay, 1),
+            "corridor_travel_time": f"{corridor_tt_min}:{corridor_tt_sec:02d}",
+            "corridor_free_flow": f"{corridor_ff_min}:{corridor_ff_sec:02d}",
+            "slow_routes": slow_count,
+            "total_routes": len(_latest_travel_times),
+            "corridor_status": corridor_status,
+        },
+        "timestamp": _latest_timestamp,
+    }
+
+
+@operator_app.get("/api/v1/calibration/status")
+async def api_calibration_status() -> dict[str, Any]:
+    """Current physics calibration state from TravelTimeRoute data."""
+    if _latest_calibration is None:
+        return {
+            "status": "no_data",
+            "message": "No calibration data yet — waiting for first tick",
+        }
+
+    cal = _latest_calibration
+    return {
+        "status": "active",
+        "adapted_free_flow_speed": cal.adapted_free_flow_speed,
+        "correction_factor": cal.correction_factor,
+        "measured_free_flow_speed": cal.measured_free_flow_speed,
+        "freeflow_segment_count": cal.freeflow_segment_count,
+        "congested_segment_count": cal.congested_segment_count,
+        "accuracy_hit_rate": cal.accuracy_hit_rate,
+        "confidence": cal.confidence,
+        "timestamp": _latest_timestamp,
+    }
 
 @operator_app.get("/api/v1/logs")
 async def api_logs(lines: int = 200) -> dict[str, Any]:
@@ -550,9 +651,11 @@ def _get_vision_engine():
 async def api_camera_detections(camera_id: str) -> dict:
     """Run YOLO on a live camera image and return bounding boxes.
 
-    Returns {detections: [{xyxy, class_name, confidence}, ...], count, timestamp}.
+    Returns detections with ROI classification so the frontend can
+    distinguish in-zone vehicles from total frame detections.
     """
     import cv2 as _cv2
+    from src.roi_mapper import ROIMapper
 
     # Fetch image bytes
     cam_info = _get_camera_info()
@@ -603,16 +706,38 @@ async def api_camera_detections(camera_id: str) -> dict:
 
     filtered = [d for d in detections if not _in_exclusion_zone(d)]
 
+    # --- Classify detections into ROI segments ---
+    roi_mapper = ROIMapper(config_path)
+    segment_counts: dict[str, int] = {}
+    det_results = []
+
+    for d in filtered:
+        x1, y1, x2, y2 = d["xyxy"]
+        # Bottom-center = tire contact point (same convention as vision_engine)
+        bx = (x1 + x2) / 2
+        by = y2
+        region = roi_mapper.classify_detection(camera_id, bx, by)
+        in_roi = region is not None
+        seg_name = region.road_id if region else None
+
+        if seg_name:
+            segment_counts[seg_name] = segment_counts.get(seg_name, 0) + 1
+
+        det_results.append({
+            "xyxy": d["xyxy"],
+            "class_name": d["class_name"],
+            "confidence": round(d["confidence"], 3),
+            "in_roi": in_roi,
+            "segment": seg_name,
+        })
+
+    in_roi_count = sum(1 for d in det_results if d["in_roi"])
+
     return {
-        "detections": [
-            {
-                "xyxy": d["xyxy"],
-                "class_name": d["class_name"],
-                "confidence": round(d["confidence"], 3),
-            }
-            for d in filtered
-        ],
-        "count": len(filtered),
+        "detections": det_results,
+        "total_count": len(filtered),
+        "in_roi_count": in_roi_count,
+        "segments": segment_counts,
         "excluded_count": len(detections) - len(filtered),
         "exclusion_zones": exclusion_zones,
         "image_width": frame.shape[1],

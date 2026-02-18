@@ -368,6 +368,76 @@ document.addEventListener('keydown', (e) => {
 
 
 // ─────────────────────────────────────────────
+// Corridor Travel Times (TMC metric)
+// ─────────────────────────────────────────────
+
+async function refreshTravelTimes() {
+    const $tt = document.getElementById('metric-corridor-tt');
+    const $delay = document.getElementById('metric-corridor-delay');
+    if (!$tt || !$delay) return; // Not on TMC page
+
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/travel-times`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.summary) {
+            $tt.textContent = data.summary.corridor_travel_time || '—';
+
+            const delayVal = data.summary.total_delay_seconds || 0;
+            const prefix = delayVal > 0 ? '+' : '';
+            $delay.textContent = `${prefix}${Math.round(delayVal)}s`;
+
+            // Color code delay
+            $delay.className = 'metric-value ' + (
+                delayVal > 60 ? 'error' : delayVal > 0 ? 'warn' : 'ok'
+            );
+
+            // Color code TT based on corridor status
+            const status = data.summary.corridor_status;
+            $tt.className = 'metric-value ' + (
+                status === 'congested' ? 'error' :
+                    status === 'degraded' ? 'warn' : 'ok'
+            );
+        }
+    } catch (err) {
+        console.error('Travel times fetch error:', err);
+    }
+}
+
+
+// ─────────────────────────────────────────────
+// Physics Calibration (TMC metric)
+// ─────────────────────────────────────────────
+
+async function refreshCalibration() {
+    const $cal = document.getElementById('metric-cal');
+    if (!$cal) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/calibration/status`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.status === 'active') {
+            const speed = Math.round(data.adapted_free_flow_speed);
+            const conf = data.confidence;
+            $cal.textContent = `${speed} km/h`;
+            $cal.className = 'metric-value ' + (
+                conf === 'high' ? 'ok' : conf === 'medium' ? 'warn' : 'muted'
+            );
+            $cal.title = `Calibrated free-flow speed: ${speed} km/h (${conf} confidence, correction: ${data.correction_factor?.toFixed(3) || '—'})`;
+        } else {
+            $cal.textContent = '—';
+            $cal.className = 'metric-value muted';
+        }
+    } catch (err) {
+        console.error('Calibration fetch error:', err);
+    }
+}
+
+
+// ─────────────────────────────────────────────
 // Main polling loop
 // ─────────────────────────────────────────────
 
@@ -377,6 +447,8 @@ async function pollAll() {
         refreshIncidents(),
         refreshVMS(),
         refreshProphecyLog(),
+        refreshTravelTimes(),
+        refreshCalibration(),
     ]);
 }
 

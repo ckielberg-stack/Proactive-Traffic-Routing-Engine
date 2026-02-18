@@ -218,4 +218,59 @@ SENSOR_COORDS: dict[int, tuple[float, float]] = {
     2817: (59.3389, 18.011),
 }
 
+# --- Road Speed Limits per Sensor Station ---
+# Posted speed limit (km/h) for each sensor location.
+# Stations not listed here use DEFAULT_ROAD_SPEED_LIMIT.
+# The E4 corridor through Stockholm is generally 70 km/h.
+SENSOR_ROAD_SPEED_LIMITS: dict[int, int] = {
+    # Hallunda / Kungens Kurva — 70 km/h
+    1274: 70, 1286: 70,
+    # Bredäng / Mälarhöjden — 70 km/h
+    2851: 70, 2842: 70, 2603: 70, 2631: 70, 2634: 70,
+    2629: 70, 2612: 70, 2610: 70, 2625: 70, 2626: 70,
+    # Liljeholmen / Gullmarsplan — 70 km/h
+    2651: 70, 2653: 70, 2654: 70, 2645: 70, 2648: 70,
+    2619: 70, 2659: 70, 2663: 70,
+    # Årsta / Johanneshov — 70 km/h
+    2682: 70, 2694: 70, 2706: 70,
+    # Essingeleden / Kristineberg — 70 km/h
+    2768: 70, 2767: 70, 2766: 70, 2790: 70, 2786: 70,
+    2788: 70, 2817: 70,
+}
+DEFAULT_ROAD_SPEED_LIMIT: int = 70
+
+# --- Sensor Anomaly Detection Thresholds ---
+# Flag as "warning" when speed drops below this fraction of the speed limit
+SENSOR_SPEED_DROP_RATIO: float = 0.50     # 50% → e.g. 35 km/h on a 70 road
+# Flag as "severe" (triggers VMS recommendation) below this fraction
+SENSOR_SEVERE_DROP_RATIO: float = 0.35    # 35% → e.g. 24.5 km/h on a 70 road
+# --- TravelTimeRoute IDs (E4/E20 corridor, Stockholm) ---
+# Discovered from TravelTimeRoute API (schemaversion 1.5), CountyNo=1.
+# These cover Hallunda → Karlberg in both directions (N and S).
+# Route IDs are strings matching the Trafikverket 'Id' field.
+E4_TRAVEL_TIME_ROUTE_IDS: list[str] = [
+    # Northbound
+    "724",    # E4/E20 N Hallunda S (146b) - Hallunda N (146a)
+    "725",    # E4/E20 N Hallunda N (146a) - Fittja (147)
+    "726",    # E4/E20 N Fittja (147) - Vårby (148)
+    "634",    # E4/E20 N Bredäng (152) - Västertorp (153)
+    "635",    # E4/E20 N Västertorp (153) - Västberga (154)
+    "637",    # E4/E20 N Nyboda (Södertäljevägen till Essingeleden)
+    "640",    # E4/E20 N Nyboda (155) - Nybohov (156)
+    "641",    # E4/E20 N Nybohov (156) - Gröndal (157)
+    "642",    # E4/E20 N Gröndal (157) - Lilla Essingen
+    "643",    # E4/E20 N Lilla Essingen (159) - Fredhäll (160)
+    "10522",  # E4/E20 N Trafikplats Karlberg Norra
+    "10523",  # E4/E20 N Karlberg (163) – Norrtull (164)
+    "10524",  # E4/E20 N Trafikplats Karlberg Södra
+    "10525",  # E4 N Norrtull (164) - Haga Södra (165)
+    # Southbound
+    "709",    # E4/E20 S Hallunda N (146a) – Hallunda S (146b)
+    "625",    # E4/E20 S Nybohov (156) - Nyboda (155)
+    "626",    # E4/E20 S Nyboda (Essingeleden till Södertäljevägen)
+    "629",    # E4/E20 S Nyboda (155) - Västberga (154)
+    "624",    # E4/E20 S Gröndal (157) - Nybohov (156)
+    "631",    # E4/E20 S Västertorp (153) - Bredäng (152)
+    "778",    # E4 S Eugeniatunneln – Karlberg (163)
+]
 

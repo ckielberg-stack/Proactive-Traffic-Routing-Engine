@@ -375,6 +375,14 @@
           "capacity_vph": 6000,
           "num_lanes": 3
         }
+      ],
+      "exclusion_zones": [
+        [
+          868,
+          194,
+          943,
+          224
+        ]
       ]
     },
     "SE_STA_CAMERA_Orion_436": {
