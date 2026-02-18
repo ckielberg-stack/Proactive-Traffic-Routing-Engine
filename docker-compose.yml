@@ -23,6 +23,7 @@ services:
       - ./data:/app/data
       - ./static:/app/static
       - ./templates:/app/templates
+      - ./camera_config.json:/app/camera_config.json:ro
     command: [ "python", "-u", "main.py", "--host", "0.0.0.0", "--port", "8080" ]
     entrypoint: []
     depends_on:

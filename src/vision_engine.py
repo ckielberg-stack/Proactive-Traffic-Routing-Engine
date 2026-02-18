@@ -1,7 +1,7 @@
 """
 Vision & Capacity Engine for the Proactive Traffic Routing Engine (PTRE).
 
-Analyses highway camera frames with YOLOv8 to calculate real-time road
+Analyses highway camera frames with YOLO26 to calculate real-time road
 capacity (Vehicles Per Hour) and detect anomalies (accidents, blockages).
 
 Supports two modes:
@@ -77,6 +77,15 @@ ABNORMAL_ASPECT_RATIO: float = 3.5
 # Jam density (veh/km/lane) — imported from physics_engine to stay in sync
 JAM_DENSITY_VEH_KM_LANE: float = 133.0
 
+# --- Expert Audit Fix 1: Flow vs Capacity ---
+# Critical density at which flow breaks down into congestion (veh/km/lane).
+# Below k_critical, the road is in free-flow; above it, congestion has formed.
+K_CRITICAL_VEH_KM_LANE: float = 45.0
+
+# Static theoretical maximum capacity per lane (veh/h).
+# This is the ROAD'S capacity, NOT the observed flow.
+Q_CAP_VPH_PER_LANE: float = 2_000.0
+
 # ---------------------------------------------------------------------------
 # TODO: Implement Headlight/Taillight classification
 # In harsh Swedish winter nights, standard chassis detection fails.
@@ -105,7 +114,7 @@ class VisionEngine:
 
     def __init__(
         self,
-        model_path: str = "yolov8n.pt",
+        model_path: str = "yolo26n.pt",
         confidence: float = 0.25,
     ) -> None:
         self._model_path = model_path
@@ -177,14 +186,34 @@ class VisionEngine:
             return self._handle_black_image(now, camera_meta, sensor)
 
         # -- Step 2: Run YOLO inference --------------------------------------
-        detections = self._detect_vehicles(frame, roi_polygon)
+        # Run YOLO once on the full frame. Filter by ROI afterwards to
+        # avoid double inference while still knowing the total frame count
+        # for anomaly checks (prevents false positives when vehicles are
+        # visible in opposite-direction traffic outside the ROI).
+        all_frame_detections = self._detect_vehicles(frame, roi_polygon=None)
+        if roi_polygon and len(roi_polygon) >= 3:
+            h, w = frame.shape[:2]
+            roi_mask = np.zeros((h, w), dtype=np.uint8)
+            pts = np.array(roi_polygon, dtype=np.int32).reshape((-1, 1, 2))
+            cv2.fillPoly(roi_mask, [pts], 255)
+            detections = []
+            for d in all_frame_detections:
+                x1, _, x2, y2 = d["xyxy"]
+                cx = int((x1 + x2) / 2)
+                cy = min(int(y2), h - 1)
+                cx = min(cx, w - 1)
+                if roi_mask[cy, cx] != 0:
+                    detections.append(d)
+        else:
+            detections = all_frame_detections
 
         # -- Step 3: Check for anomalous bounding boxes ----------------------
         anomaly, anomaly_reason = self._check_anomalies(
-            detections, sensor, camera_meta
+            detections, sensor, camera_meta,
+            total_frame_detections=len(all_frame_detections),
         )
 
-        # -- Step 4: Estimate capacity ---------------------------------------
+        # -- Step 4: Estimate density (Expert Audit Fix 1) --------------------
         vehicle_count = len(detections)
         avg_conf = (
             float(np.mean([d["confidence"] for d in detections]))
@@ -192,10 +221,26 @@ class VisionEngine:
             else 0.0
         )
 
-        speed = sensor.average_speed_kmh if sensor else FREE_FLOW_SPEED_KMH
-        capacity_vph = self._estimate_capacity(
-            vehicle_count, speed, camera_meta.num_lanes
+        density_veh_km_lane = self._estimate_density(
+            vehicle_count, camera_meta.num_lanes
         )
+
+        # Determine capacity: use static Q_cap for free-flow;
+        # when density exceeds k_critical, compute reduced actual flow
+        # using q = k * v (fundamental diagram) as the bottleneck throughput.
+        speed = sensor.average_speed_kmh if sensor else FREE_FLOW_SPEED_KMH
+        if density_veh_km_lane > K_CRITICAL_VEH_KM_LANE:
+            # Congestion: actual flow = density × speed (reduced throughput)
+            capacity_vph = density_veh_km_lane * camera_meta.num_lanes * speed
+            max_cap = Q_CAP_VPH_PER_LANE * camera_meta.num_lanes
+            capacity_vph = min(capacity_vph, max_cap)
+            # Mark as congestion anomaly if not already flagged
+            if not anomaly:
+                anomaly = True
+                anomaly_reason = "density_exceeds_k_critical"
+        else:
+            # Free-flow: road is at full theoretical capacity
+            capacity_vph = Q_CAP_VPH_PER_LANE * camera_meta.num_lanes
 
         # If anomaly detected, reduce capacity proportionally
         blocked_lanes = 0
@@ -216,6 +261,7 @@ class VisionEngine:
             blocked_lanes=blocked_lanes,
             total_lanes=camera_meta.num_lanes,
             estimated_capacity_vph=round(capacity_vph, 1),
+            observed_density_veh_km_lane=round(density_veh_km_lane, 2),
             is_anomaly=anomaly,
             anomaly_reason=anomaly_reason,
             confidence=round(avg_conf, 3),
@@ -298,16 +344,27 @@ class VisionEngine:
                 else 0.0
             )
 
-            # Estimate capacity using per-ROI physical length
+            # Estimate density using per-ROI physical length
             roi_length_km = roi.roi_length_meters / 1000.0
-            capacity = self._estimate_capacity(
-                count, speed, roi.num_lanes, roi_length_km=roi_length_km,
+            density_vkl = self._estimate_density(
+                count, roi.num_lanes, roi_length_km=roi_length_km,
             )
+
+            # Determine capacity from density vs k_critical
+            if density_vkl > K_CRITICAL_VEH_KM_LANE:
+                capacity = density_vkl * roi.num_lanes * speed
+                capacity = min(capacity, Q_CAP_VPH_PER_LANE * roi.num_lanes)
+            else:
+                capacity = Q_CAP_VPH_PER_LANE * roi.num_lanes
 
             # Check anomalies within this segment
             anomaly, anomaly_reason = self._check_anomalies(
-                dets, sensor, camera_meta
+                dets, sensor, camera_meta,
+                total_frame_detections=len(all_detections),
             )
+            if density_vkl > K_CRITICAL_VEH_KM_LANE and not anomaly:
+                anomaly = True
+                anomaly_reason = "density_exceeds_k_critical"
 
             segments.append(
                 RoadSegmentState(
@@ -466,8 +523,27 @@ class VisionEngine:
         detections: list[dict],
         sensor: SensorReading | None,
         meta: CameraMetadata,
+        *,
+        total_frame_detections: int | None = None,
     ) -> tuple[bool, str | None]:
-        """Detect anomalous conditions from detections + sensor data."""
+        """Detect anomalous conditions from detections + sensor data.
+
+        Parameters
+        ----------
+        detections:
+            Vehicle detections *inside* the ROI polygon.
+        total_frame_detections:
+            Total vehicle detections in the *entire frame* (all ROIs +
+            unmatched).  Used for cases 2 & 3 to avoid false positives
+            when vehicles are visible outside the current ROI (e.g.
+            opposite-direction traffic).
+        """
+        # Fall back to ROI count if full-frame count not provided
+        frame_count = (
+            total_frame_detections
+            if total_frame_detections is not None
+            else len(detections)
+        )
 
         # Case 1: abnormally wide bounding boxes (sideways vehicle / debris)
         wide_boxes = [
@@ -476,65 +552,66 @@ class VisionEngine:
         if wide_boxes:
             return True, f"abnormal_aspect_ratio ({len(wide_boxes)} boxes)"
 
-        # Case 2: zero detections but high sensor inflow
+        # Case 2: zero detections IN ENTIRE FRAME but high sensor inflow.
+        # Only triggers when the camera truly sees nothing — not when
+        # vehicles are visible in other ROIs / opposite direction.
         if (
-            len(detections) == 0
+            frame_count == 0
             and sensor is not None
             and sensor.inflow_volume_vph > 500
         ):
             return True, "zero_detections_high_inflow"
 
-        # Case 3: sensor speed drop with few vehicles visible
+        # Case 3: sensor speed drop with few vehicles in entire frame
         if (
             sensor is not None
             and sensor.average_speed_kmh < FREE_FLOW_SPEED_KMH * SPEED_DROP_RATIO
-            and len(detections) < 2
+            and frame_count < 2
         ):
             return True, "speed_drop_low_detections"
 
         return False, None
 
-    def _estimate_capacity(
+    def _estimate_density(
         self,
         vehicle_count: int,
-        speed_kmh: float,
         num_lanes: int,
         roi_length_km: float = DEFAULT_ROI_LENGTH_KM,
     ) -> float:
-        """Estimate road capacity in Vehicles Per Hour.
+        """Estimate road density in vehicles per km per lane.
 
-        Uses a simplified Greenshields model:
-            density = vehicle_count / roi_length_km
-            capacity = density × speed
+        Expert Audit Fix 1: This method outputs DENSITY, not flow.
+        The old ``_estimate_capacity`` incorrectly computed ``q = k × v``
+        (current flow) and labelled it as capacity.  Now the Vision Engine's
+        only spatial job is to calculate localised density ``k``.
+
+        The caller decides whether ``k > k_critical`` (congestion) or not
+        (free-flow) and sets capacity accordingly.
 
         A safety clamp prevents density from exceeding the theoretical
-        jam density (133 veh/km/lane × lanes).  This guards against
-        absurd shockwave speeds when YOLO hallucinates overlapping
-        bounding boxes in snow/rain.
+        jam density (133 veh/km/lane).  This guards against absurd values
+        when YOLO hallucinates overlapping bounding boxes in snow/rain.
         """
         if vehicle_count == 0:
             return 0.0
 
         density_per_km = vehicle_count / roi_length_km
+        density_per_km_lane = density_per_km / max(num_lanes, 1)
 
-        # Safety clamp: cap at jam density × lanes
-        max_density = JAM_DENSITY_VEH_KM_LANE * num_lanes
-        if density_per_km > max_density:
+        # Safety clamp: cap at jam density per lane
+        if density_per_km_lane > JAM_DENSITY_VEH_KM_LANE:
             logger.warning(
-                "Density %.1f veh/km exceeds jam density %.1f "
-                "(count=%d, ROI=%.0f m) — clamping",
-                density_per_km,
-                max_density,
+                "Density %.1f veh/km/lane exceeds jam density %.1f "
+                "(count=%d, ROI=%.0f m, lanes=%d) — clamping",
+                density_per_km_lane,
+                JAM_DENSITY_VEH_KM_LANE,
                 vehicle_count,
                 roi_length_km * 1000,
+                num_lanes,
             )
-            density_per_km = max_density
+            density_per_km_lane = JAM_DENSITY_VEH_KM_LANE
 
-        capacity = density_per_km * speed_kmh
-
-        # Cap at theoretical maximum
-        max_capacity = FREE_FLOW_VPH_PER_LANE * num_lanes
-        return min(capacity, max_capacity)
+        return density_per_km_lane
 
     def _estimate_blocked_lanes(
         self,

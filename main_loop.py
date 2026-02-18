@@ -61,6 +61,7 @@ from src.models import (
     VMSStatusSnapshot,
 )
 from src.anomaly_store import record_anomaly, get_total_count
+from src.density_smoother import DensitySmoother
 from src.physics_engine import PhysicsEngine
 from src.roi_mapper import ROIMapper
 from src.vision_engine import VisionEngine
@@ -190,6 +191,7 @@ _retention_policy: RetentionPolicy | None = None
 _roi_mapper: ROIMapper | None = None
 _physics_engine: PhysicsEngine | None = None
 _vms_orchestrator: VMSOrchestrator | None = None
+_density_smoother: DensitySmoother | None = None
 
 
 def _get_vision_engine() -> VisionEngine:
@@ -226,6 +228,14 @@ def _get_vms_orchestrator() -> VMSOrchestrator:
     if _vms_orchestrator is None:
         _vms_orchestrator = VMSOrchestrator()
     return _vms_orchestrator
+
+
+def _get_density_smoother() -> DensitySmoother:
+    """Persistent density smoother — maintains EMA state across ticks."""
+    global _density_smoother
+    if _density_smoother is None:
+        _density_smoother = DensitySmoother(alpha=0.4)
+    return _density_smoother
 
 
 # ---------------------------------------------------------------------------
@@ -790,7 +800,15 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         except Exception as e:
             logger.error(f"VMS status fetch failed: {e}", exc_info=True)
 
-    # ---- Phase 2: Physics engine (shockwave propagation) ----
+    # ---- Phase 2: Apply temporal density smoothing (Expert Audit Fix 3) ----
+    smoother = _get_density_smoother()
+    for state in capacity_states:
+        smoothed = smoother.update(
+            state.camera_id, state.observed_density_veh_km_lane
+        )
+        state.observed_density_veh_km_lane = round(smoothed, 2)
+
+    # ---- Phase 3: Physics engine (shockwave propagation) ----
     physics = _get_physics_engine()
 
     # Build per-camera inflow map from nearest sensor stations

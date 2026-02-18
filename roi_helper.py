@@ -8,6 +8,13 @@ to camera_config.json.
 
 Controls:
 ─────────────────────────────────────────────────────────
+  EXCLUSION ZONE DRAWING:
+    X                Enter exclusion zone mode (draw rectangle)
+    LEFT CLICK       Set corner 1 (top-left), then corner 2 (bottom-right)
+    RIGHT CLICK      Undo last corner
+    ENTER / SPACE    Confirm zone
+    Z                Delete last exclusion zone (from draw mode)
+    ESC              Cancel back to draw mode
   DRAW MODE (default):
     LEFT CLICK       Add polygon vertex at cursor position
     RIGHT CLICK      Undo last vertex
@@ -235,9 +242,15 @@ STATE_EDITING = "editing"
 STATE_SELECT_DIRECTION = "select_direction"
 STATE_SELECT_LANES = "select_lanes"
 STATE_PERSPECTIVE_RULER = "perspective_ruler"
+STATE_BEV_CALIBRATION = "bev_calibration"  # Expert Audit Fix 2
+STATE_EXCLUSION_ZONE = "exclusion_zone"
 
 # Road marking reference: Swedish dashed centre line = 3 m dash + 9 m gap = 12 m
 RULER_DASH_SPACING_M = 12.0
+
+# Default BEV reference rectangle dimensions (meters)
+DEFAULT_BEV_WIDTH_M = 3.5   # One lane width
+DEFAULT_BEV_LENGTH_M = 12.0  # One dash cycle
 
 
 class PolygonDrawer:
@@ -251,11 +264,13 @@ class PolygonDrawer:
     coordinates are offset so clicks map to actual image pixel positions.
     """
 
-    def __init__(self, frame: np.ndarray, camera_id: str, existing_rois: list, meta: dict | None = None):
+    def __init__(self, frame: np.ndarray, camera_id: str, existing_rois: list,
+                 meta: dict | None = None, existing_exclusion_zones: list | None = None):
         self.original = frame.copy()
         self.camera_id = camera_id
         self.h, self.w = frame.shape[:2]
         self.rois = list(existing_rois)
+        self.exclusion_zones: list[list[int]] = list(existing_exclusion_zones or [])
         self.current_points: list[list[int]] = []
         self.mouse_pos = (0, 0)          # In IMAGE coordinate space
         self.mouse_pos_raw = (0, 0)      # Raw canvas coordinates
@@ -265,6 +280,9 @@ class PolygonDrawer:
         self._delete_armed = False  # D pressed once
         self._status_msg = ""  # Temporary status message
         self._status_until = 0.0  # When to clear status msg
+
+        # Exclusion zone drawing state
+        self._excl_corner1: tuple[int, int] | None = None
 
         # Perspective ruler state
         self._ruler_points: list[tuple[int, int]] = []  # (x, y) image coords
@@ -292,6 +310,34 @@ class PolygonDrawer:
             return
 
         # ── Perspective ruler mode (clicks add ruler points) ──
+        # ── Exclusion zone mode ──
+        if self.state == STATE_EXCLUSION_ZONE:
+            if img_y < 0:
+                return
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if self._excl_corner1 is None:
+                    self._excl_corner1 = (img_x, img_y)
+                    self._set_status("Corner 1 set — click bottom-right corner")
+                else:
+                    # Build rectangle from the two clicks
+                    x1 = min(self._excl_corner1[0], img_x)
+                    y1 = min(self._excl_corner1[1], img_y)
+                    x2 = max(self._excl_corner1[0], img_x)
+                    y2 = max(self._excl_corner1[1], img_y)
+                    self.exclusion_zones.append([x1, y1, x2, y2])
+                    self._excl_corner1 = None
+                    self.state = STATE_DRAWING
+                    self._set_status(
+                        f"Exclusion zone added: [{x1}, {y1}, {x2}, {y2}] "
+                        f"({len(self.exclusion_zones)} total)", 4.0
+                    )
+                    print(f"  🚫 Exclusion zone added: [{x1}, {y1}, {x2}, {y2}]")
+            elif event == cv2.EVENT_RBUTTONDOWN:
+                if self._excl_corner1 is not None:
+                    self._excl_corner1 = None
+                    self._set_status("Corner 1 undone — click top-left again")
+            return
+
         if self.state == STATE_PERSPECTIVE_RULER:
             if img_y < 0:
                 return
@@ -303,6 +349,25 @@ class PolygonDrawer:
                 if self._ruler_points:
                     self._ruler_points.pop()
                     self._set_status(f"Removed last point ({len(self._ruler_points)} remaining)")
+
+        # ── BEV calibration mode (clicks add rectangle corners) ──
+        if self.state == STATE_BEV_CALIBRATION:
+            if img_y < 0:
+                return
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if len(self._bev_points) < 4:
+                    self._bev_points.append((img_x, img_y))
+                    n = len(self._bev_points)
+                    labels = ["top-left", "top-right", "bottom-right", "bottom-left"]
+                    print(f"    🔲 BEV corner #{n} ({labels[n-1]}): ({img_x}, {img_y})")
+                    if n == 4:
+                        self._set_status("4 points set — press ENTER to compute H")
+                else:
+                    self._set_status("Already have 4 points — press ENTER")
+            elif event == cv2.EVENT_RBUTTONDOWN:
+                if self._bev_points:
+                    self._bev_points.pop()
+                    self._set_status(f"Undid — {len(self._bev_points)} points")
             return
 
         # ── Draw mode (ignore clicks in HUD area) ──
@@ -553,12 +618,93 @@ class PolygonDrawer:
             roi["roi_length_meters"] = max(length_m, 1.0)  # Floor at 1 m
 
             road_id = roi.get("road_id", "?")
+
+            # Expert Audit Fix 4: Warn if ROI depth exceeds YOLOv8n effective range
+            MAX_ROI_DEPTH_M = 150.0
+            if length_m > MAX_ROI_DEPTH_M:
+                print(
+                    f"  ⚠️  WARNING: ROI '{road_id}' depth {length_m:.0f}m exceeds "
+                    f"recommended max {MAX_ROI_DEPTH_M:.0f}m.\n"
+                    f"      YOLOv8n detection degrades past ~150m — "
+                    f"density will be underestimated."
+                )
+                self._set_status(
+                    f"⚠️ ROI '{road_id}' depth {length_m:.0f}m > {MAX_ROI_DEPTH_M:.0f}m limit!",
+                    5.0,
+                )
+
             print(f"  📏 {road_id}: Y=[{y_top}..{y_bottom}]px → {length_m:.1f} m")
 
         self._set_status(
             f"Perspective calibration done — {len(self.rois)} ROI(s) measured",
             5.0,
         )
+        return True
+
+    # -- BEV calibration (Expert Audit Fix 2) ----------------------------------
+
+    def enter_bev_mode(self) -> None:
+        """Switch to BEV calibration: click 4 corners of a known rectangle."""
+        self._bev_points: list[tuple[int, int]] = []
+        self._bev_width_m: float = DEFAULT_BEV_WIDTH_M
+        self._bev_length_m: float = DEFAULT_BEV_LENGTH_M
+        self._homography_matrix: np.ndarray | None = None
+        self.state = STATE_BEV_CALIBRATION
+        print("\n  🔲 BEV CALIBRATION (Expert Audit Fix 2)")
+        print("  Click exactly 4 corners of a known rectangle on the road.")
+        print("  Order: top-left → top-right → bottom-right → bottom-left")
+        print(f"  Default: {DEFAULT_BEV_WIDTH_M}m × {DEFAULT_BEV_LENGTH_M}m lane segment")
+        print("  RIGHT-CLICK to undo | ENTER to confirm | ESC to cancel\n")
+
+    def compute_bev_homography(self) -> bool:
+        """Compute 3×3 homography from 4 pixel points → physical rectangle.
+
+        Returns True if successful.
+        """
+        if len(self._bev_points) != 4:
+            self._set_status(f"Need exactly 4 points (have {len(self._bev_points)})")
+            return False
+
+        src = np.array(self._bev_points, dtype=np.float32)
+        # Destination: flat rectangle in meters
+        w, l = self._bev_width_m, self._bev_length_m
+        dst = np.array([[0, 0], [w, 0], [w, l], [0, l]], dtype=np.float32)
+
+        H = cv2.getPerspectiveTransform(src, dst)
+        self._homography_matrix = H
+
+        print(f"\n  ✅ Homography computed ({self._bev_width_m}m × {self._bev_length_m}m):")
+        for row in H:
+            print(f"     [{row[0]:12.6f}, {row[1]:12.6f}, {row[2]:12.6f}]")
+
+        # Also compute roi_length_meters for each ROI using the homography
+        for roi in self.rois:
+            y_coords = [pt[1] for pt in roi["polygon"]]
+            x_coords = [pt[0] for pt in roi["polygon"]]
+            cx = sum(x_coords) / len(x_coords)  # centroid X
+            y_top = min(y_coords)
+            y_bottom = max(y_coords)
+
+            # Transform top and bottom points through homography
+            pts_px = np.array([[[cx, y_top]], [[cx, y_bottom]]], dtype=np.float64)
+            pts_bev = cv2.perspectiveTransform(pts_px, H)
+            bev_top = pts_bev[0][0]
+            bev_bottom = pts_bev[1][0]
+            length_m = float(np.linalg.norm(bev_bottom - bev_top))
+            roi["roi_length_meters"] = round(max(length_m, 1.0), 1)
+
+            road_id = roi.get("road_id", "?")
+            print(f"  📏 {road_id}: BEV length = {length_m:.1f} m")
+
+            # Horizon hardcap (Fix 4)
+            MAX_ROI_DEPTH_M = 150.0
+            if length_m > MAX_ROI_DEPTH_M:
+                print(
+                    f"  ⚠️  WARNING: ROI '{road_id}' depth {length_m:.0f}m exceeds "
+                    f"recommended max {MAX_ROI_DEPTH_M:.0f}m."
+                )
+
+        self._set_status("BEV calibration done — H saved", 5.0)
         return True
 
     def render(self) -> np.ndarray:
@@ -607,6 +753,45 @@ class PolygonDrawer:
             length_str = f' {roi["roi_length_meters"]:.0f}m' if "roi_length_meters" in roi else ""
             label = f'{roi["road_id"]} ({roi["num_lanes"]}L{length_str})'
             display = pil_puttext(display, label, (cx - 60, cy), color, 0.55, 2)
+
+        # Draw exclusion zones as red dashed rectangles
+        for idx, ez in enumerate(self.exclusion_zones):
+            x1, y1, x2, y2 = ez
+            # Dashed rectangle using line segments
+            dash_len = 10
+            red = (0, 0, 255)  # BGR
+            for edge in [
+                ((x1, y1), (x2, y1)),  # top
+                ((x2, y1), (x2, y2)),  # right
+                ((x2, y2), (x1, y2)),  # bottom
+                ((x1, y2), (x1, y1)),  # left
+            ]:
+                pt_a, pt_b = edge
+                dx = pt_b[0] - pt_a[0]
+                dy = pt_b[1] - pt_a[1]
+                length = math.hypot(dx, dy)
+                if length == 0:
+                    continue
+                num_dashes = max(1, int(length / dash_len))
+                for d in range(0, num_dashes, 2):
+                    t0 = d / num_dashes
+                    t1 = min((d + 1) / num_dashes, 1.0)
+                    p0 = (int(pt_a[0] + dx * t0), int(pt_a[1] + dy * t0))
+                    p1 = (int(pt_a[0] + dx * t1), int(pt_a[1] + dy * t1))
+                    cv2.line(display, p0, p1, red, 2)
+            # Semi-transparent red fill
+            overlay = display.copy()
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), red, -1)
+            cv2.addWeighted(overlay, 0.1, display, 0.9, 0, display)
+            # Label
+            display = pil_puttext(display, f"EXCL {idx+1}", (x1 + 4, y1 + 16), red, 0.45, 2)
+
+        # Draw in-progress exclusion zone corner + live preview rectangle
+        if self.state == STATE_EXCLUSION_ZONE and self._excl_corner1 is not None:
+            c1x, c1y = self._excl_corner1
+            mx, my = self.mouse_pos
+            cv2.circle(display, (c1x, c1y), 6, (0, 0, 255), -1)
+            cv2.rectangle(display, (c1x, c1y), (mx, my), (0, 0, 255), 1)
 
         # Draw current in-progress polygon (draw mode only)
         if self.current_points and self.state == STATE_DRAWING:
@@ -671,8 +856,10 @@ class PolygonDrawer:
 
         # State-specific HUD lines
         if self.state == STATE_DRAWING:
+            excl_count = len(self.exclusion_zones)
+            excl_info = f"  |  Excl. zones: {excl_count}" if excl_count else ""
             hud_lines.append((
-                f"MODE: DRAW  |  Saved ROIs: {len(self.rois)}  |  Vertices: {len(self.current_points)}",
+                f"MODE: DRAW  |  Saved ROIs: {len(self.rois)}  |  Vertices: {len(self.current_points)}{excl_info}",
                 (200, 200, 200), 0.5, 1,
             ))
             hud_lines.append((
@@ -680,7 +867,7 @@ class PolygonDrawer:
                 (150, 200, 255), 0.45, 1,
             ))
             hud_lines.append((
-                "E: edit mode | R: restart | D+D: delete all | S: skip | Q/ESC: quit",
+                "E: edit | X: excl. zone | Z: del excl. | D+D: delete all | S: skip | Q/ESC: quit",
                 (150, 200, 255), 0.45, 1,
             ))
             hud_lines.append((
@@ -730,6 +917,21 @@ class PolygonDrawer:
             hud_lines.append((
                 "ESC: go back",
                 (150, 150, 150), 0.4, 1,
+            ))
+
+        elif self.state == STATE_EXCLUSION_ZONE:
+            corner_status = "Click TOP-LEFT corner" if self._excl_corner1 is None else "Click BOTTOM-RIGHT corner"
+            hud_lines.append((
+                f"EXCLUSION ZONE — {corner_status}",
+                (0, 100, 255), 0.6, 2,
+            ))
+            hud_lines.append((
+                "Draw a rectangle over fixed objects (lamps, signs) that cause false detections",
+                (200, 200, 200), 0.45, 1,
+            ))
+            hud_lines.append((
+                "RIGHT-CLICK: undo corner | ESC: cancel",
+                (150, 200, 255), 0.45, 1,
             ))
 
         elif self.state == STATE_PERSPECTIVE_RULER:
@@ -788,14 +990,18 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
         print("  ⏭  Skipping — could not load image")
         return False
 
-    # Load existing ROIs
+    # Load existing ROIs and exclusion zones
     cam_config = config.get("cameras", {}).get(camera_id, {})
     existing_rois = cam_config.get("rois", [])
+    existing_excl = cam_config.get("exclusion_zones", [])
 
     if existing_rois:
         print(f"  ℹ️  {len(existing_rois)} existing ROI(s) loaded")
+    if existing_excl:
+        print(f"  🚫 {len(existing_excl)} existing exclusion zone(s) loaded")
 
-    drawer = PolygonDrawer(frame, camera_id, existing_rois, meta=meta)
+    drawer = PolygonDrawer(frame, camera_id, existing_rois, meta=meta,
+                           existing_exclusion_zones=existing_excl)
 
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     # Expand window height to accommodate HUD above the image
@@ -836,6 +1042,25 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
                 drawer._set_status("Ruler cancelled")
             continue
 
+        # ── BEV calibration state (Expert Audit Fix 2) ──
+        if drawer.state == STATE_BEV_CALIBRATION:
+            if key == 13 or key == 32:  # ENTER/SPACE → compute
+                if drawer.compute_bev_homography():
+                    break
+            elif key == 27:  # ESC → cancel BEV, back to drawing
+                drawer.state = STATE_DRAWING
+                drawer._bev_points = []
+                drawer._set_status("BEV calibration cancelled")
+            continue
+
+        # ── Exclusion zone state ──
+        if drawer.state == STATE_EXCLUSION_ZONE:
+            if key == 27:  # ESC → cancel, back to drawing
+                drawer.state = STATE_DRAWING
+                drawer._excl_corner1 = None
+                drawer._set_status("Exclusion zone cancelled")
+            continue
+
         # ── Common keys for both draw and edit modes ──
         if key == 27 or key == ord("q"):  # ESC or Q → quit
             quit_all = True
@@ -845,11 +1070,23 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
             print("  ⏭  Skipped")
             break
 
-        elif key == ord("w"):  # Save & calibrate
+        elif key == ord("b"):  # BEV calibration (Expert Audit Fix 2)
+            if not drawer.rois:
+                drawer._set_status("No ROIs — draw at least one first")
+            else:
+                drawer.enter_bev_mode()
+
+        elif key == ord("w"):  # Save & calibrate (legacy perspective ruler)
             if not drawer.rois:
                 drawer._set_status("No ROIs to calibrate — draw at least one first")
             else:
                 drawer.enter_ruler_mode()
+
+        elif key == ord("x"):  # Enter exclusion zone drawing mode
+            drawer.state = STATE_EXCLUSION_ZONE
+            drawer._excl_corner1 = None
+            drawer._set_status("Exclusion zone mode — click top-left corner")
+            print("  🚫 Exclusion zone mode")
 
         elif key == ord("e"):  # Toggle edit/draw mode
             if drawer.state == STATE_DRAWING:
@@ -887,13 +1124,32 @@ def calibrate_camera(camera_id: str, config: dict) -> bool:
                     drawer._delete_armed = True
                     drawer._set_status("Press D again to confirm delete all ROIs", 3.0)
 
+            elif key == ord("z"):  # Delete last exclusion zone
+                if drawer.exclusion_zones:
+                    removed = drawer.exclusion_zones.pop()
+                    drawer._set_status(
+                        f"Removed exclusion zone {removed} ({len(drawer.exclusion_zones)} remaining)"
+                    )
+                    print(f"  🗑  Removed exclusion zone: {removed}")
+                else:
+                    drawer._set_status("No exclusion zones to remove")
+
     cv2.destroyAllWindows()
 
-    # Save ROIs to config
-    if drawer.rois:
+    # Save ROIs, exclusion zones, and homography to config
+    has_data = drawer.rois or drawer.exclusion_zones
+    if has_data:
         if "cameras" not in config:
             config["cameras"] = {}
-        config["cameras"][camera_id] = {"rois": drawer.rois}
+        cam_data: dict = {"rois": drawer.rois}
+        if drawer.exclusion_zones:
+            cam_data["exclusion_zones"] = drawer.exclusion_zones
+        # Expert Audit Fix 2: save homography matrix
+        if hasattr(drawer, '_homography_matrix') and drawer._homography_matrix is not None:
+            cam_data["homography_matrix"] = drawer._homography_matrix.tolist()
+            cam_data["bev_rect_width_m"] = drawer._bev_width_m
+            cam_data["bev_rect_length_m"] = drawer._bev_length_m
+        config["cameras"][camera_id] = cam_data
         save_config(config)
     elif camera_id in config.get("cameras", {}):
         # ROIs were deleted

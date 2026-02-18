@@ -7,6 +7,11 @@ static 2D images — it cannot infer geographic context or travel direction.
 This module bridges that gap by assigning each detection to a named road
 segment via point-in-polygon tests.
 
+Expert Audit Fix 2: When a homography matrix is present for a camera, all
+detection points are projected into Bird's-Eye View (BEV) coordinates before
+classification.  This eliminates perspective distortion errors from the
+1D polynomial approach.
+
 Usage::
 
     from src.roi_mapper import ROIMapper
@@ -24,6 +29,8 @@ import json
 import logging
 from pathlib import Path
 
+import cv2
+import numpy as np
 from pydantic import BaseModel, Field
 from shapely.geometry import Point, Polygon
 
@@ -80,6 +87,8 @@ class ROIMapper:
         self._config_path = Path(config_path)
         self._camera_rois: dict[str, list[ROIRegion]] = {}
         self._shapely_cache: dict[str, list[tuple[ROIRegion, Polygon]]] = {}
+        self._homography: dict[str, np.ndarray] = {}  # camera_id → 3×3 H matrix
+        self._exclusion_zones: dict[str, list[tuple[int, int, int, int]]] = {}
         self._load_config()
 
     # -- loading --------------------------------------------------------------
@@ -101,6 +110,48 @@ class ROIMapper:
 
         cameras_raw = raw.get("cameras", {})
         for cam_id, cam_data in cameras_raw.items():
+            # -- Load homography matrix if present (Expert Audit Fix 2) --
+            h_raw = cam_data.get("homography_matrix")
+            if h_raw is not None:
+                try:
+                    H = np.array(h_raw, dtype=np.float64)
+                    if H.shape == (3, 3):
+                        self._homography[cam_id] = H
+                        logger.info(
+                            "BEV homography loaded for camera '%s'", cam_id
+                        )
+                    else:
+                        logger.warning(
+                            "homography_matrix for '%s' has wrong shape %s — ignoring",
+                            cam_id,
+                            H.shape,
+                        )
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        "Invalid homography_matrix for '%s': %s — ignoring",
+                        cam_id,
+                        e,
+                    )
+            else:
+                logger.debug(
+                    "Camera '%s' has no homography_matrix — using pixel-space fallback",
+                    cam_id,
+                )
+
+            # -- Load exclusion zones (static false-positive suppression) --
+            ez_raw = cam_data.get("exclusion_zones", [])
+            zones: list[tuple[int, int, int, int]] = []
+            for zone in ez_raw:
+                if isinstance(zone, list) and len(zone) == 4:
+                    zones.append(tuple(int(v) for v in zone))  # type: ignore[arg-type]
+            if zones:
+                self._exclusion_zones[cam_id] = zones
+                logger.info(
+                    "Loaded %d exclusion zone(s) for camera '%s'",
+                    len(zones),
+                    cam_id,
+                )
+
             rois: list[ROIRegion] = []
             for roi_raw in cam_data.get("rois", []):
                 try:
@@ -132,9 +183,76 @@ class ROIMapper:
                 ]
 
         logger.info(
-            "ROI config loaded: %d camera(s) with ROI definitions",
+            "ROI config loaded: %d camera(s) with ROI definitions, "
+            "%d with BEV homography, %d with exclusion zones",
             len(self._camera_rois),
+            len(self._homography),
+            len(self._exclusion_zones),
         )
+
+    # -- Exclusion zones (static false-positive suppression) -------------------
+
+    def get_exclusion_zones(
+        self, camera_id: str,
+    ) -> list[tuple[int, int, int, int]]:
+        """Return exclusion zone rectangles ``(x1, y1, x2, y2)`` for a camera."""
+        return self._exclusion_zones.get(camera_id, [])
+
+    def is_excluded(self, camera_id: str, cx: float, cy: float) -> bool:
+        """Return True if point (cx, cy) falls inside any exclusion zone."""
+        for x1, y1, x2, y2 in self._exclusion_zones.get(camera_id, []):
+            if x1 <= cx <= x2 and y1 <= cy <= y2:
+                return True
+        return False
+
+    # -- BEV transform (Expert Audit Fix 2) -----------------------------------
+
+    def has_homography(self, camera_id: str) -> bool:
+        """Return True if this camera has a BEV homography matrix."""
+        return camera_id in self._homography
+
+    def pixel_to_bev(
+        self, camera_id: str, x: float, y: float
+    ) -> tuple[float, float] | None:
+        """Project a pixel point to Bird's-Eye View coordinates.
+
+        Returns (bev_x, bev_y) in physical meters, or None if no
+        homography is available for this camera.
+        """
+        H = self._homography.get(camera_id)
+        if H is None:
+            return None
+
+        pts = np.array([[[x, y]]], dtype=np.float64)
+        transformed = cv2.perspectiveTransform(pts, H)
+        bev_x, bev_y = transformed[0][0]
+        return (float(bev_x), float(bev_y))
+
+    def transform_polygon_to_bev(
+        self, camera_id: str, polygon: list[list[int]]
+    ) -> list[list[float]] | None:
+        """Transform an entire ROI polygon to BEV coordinates.
+
+        Returns list of [bev_x, bev_y] points, or None if no homography.
+        """
+        H = self._homography.get(camera_id)
+        if H is None:
+            return None
+
+        pts = np.array([polygon], dtype=np.float64)
+        transformed = cv2.perspectiveTransform(pts, H)
+        return [[float(p[0]), float(p[1])] for p in transformed[0]]
+
+    def compute_roi_area_m2(self, camera_id: str, roi: ROIRegion) -> float | None:
+        """Compute the physical area of an ROI in BEV plane (m²).
+
+        Returns None if no homography is available.
+        """
+        bev_poly = self.transform_polygon_to_bev(camera_id, roi.polygon)
+        if bev_poly is None:
+            return None
+
+        return Polygon(bev_poly).area
 
     # -- public API -----------------------------------------------------------
 
@@ -154,6 +272,10 @@ class ROIMapper:
         Uses the **bottom-center** convention: callers should pass
         ``x = (x1 + x2) / 2``, ``y = y2`` (tire contact point on road).
 
+        When a homography matrix is available for this camera,
+        both the detection point and ROI polygons are projected to
+        BEV coordinates for accurate comparison (Expert Audit Fix 2).
+
         Returns the matching ROIRegion, or None if the point falls
         outside all defined ROIs (detection should be discarded).
         """
@@ -161,6 +283,22 @@ class ROIMapper:
         if not cached:
             return None
 
+        # If homography is available, project to BEV plane
+        if self.has_homography(camera_id):
+            bev_pt = self.pixel_to_bev(camera_id, x, y)
+            if bev_pt is not None:
+                point = Point(bev_pt[0], bev_pt[1])
+                for roi, _pixel_poly in cached:
+                    bev_poly_pts = self.transform_polygon_to_bev(
+                        camera_id, roi.polygon
+                    )
+                    if bev_poly_pts:
+                        bev_poly = Polygon(bev_poly_pts)
+                        if bev_poly.contains(point):
+                            return roi
+                return None
+
+        # Fallback: pixel-space point-in-polygon (legacy behavior)
         point = Point(x, y)
         for roi, poly in cached:
             if poly.contains(point):

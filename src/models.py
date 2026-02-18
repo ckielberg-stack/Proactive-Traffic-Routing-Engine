@@ -61,6 +61,11 @@ class CapacityState(BaseModel):
     estimated_capacity_vph: float = Field(
         ge=0, description="Estimated throughput at the bottleneck"
     )
+    observed_density_veh_km_lane: float = Field(
+        ge=0.0,
+        default=0.0,
+        description="Visual density in veh/km/lane from YOLO detections",
+    )
     is_anomaly: bool = False
     anomaly_reason: str | None = None
     confidence: float = Field(

@@ -1,5 +1,8 @@
 """
 Unit tests for the PTRE domain models and vision engine.
+
+Updated for Expert Audit Fix 1: Vision Engine now outputs density
+(veh/km/lane) instead of flow-as-capacity.
 """
 
 from datetime import datetime
@@ -10,7 +13,11 @@ import pytest
 from src.models import CameraMetadata, CapacityState, SensorReading
 from src.vision_engine import (
     BLACK_IMAGE_THRESHOLD,
+    DEFAULT_ROI_LENGTH_KM,
     FREE_FLOW_SPEED_KMH,
+    JAM_DENSITY_VEH_KM_LANE,
+    K_CRITICAL_VEH_KM_LANE,
+    Q_CAP_VPH_PER_LANE,
     SPEED_DROP_RATIO,
     VisionEngine,
 )
@@ -74,6 +81,19 @@ class TestCapacityStateModel:
         )
         assert state.vehicle_count == 5
         assert state.is_anomaly is False
+        assert state.observed_density_veh_km_lane == 0.0  # default
+
+    def test_valid_construction_with_density(self) -> None:
+        state = CapacityState(
+            timestamp=datetime.now(),
+            camera_id="cam1",
+            vehicle_count=5,
+            blocked_lanes=0,
+            total_lanes=3,
+            estimated_capacity_vph=1500.0,
+            observed_density_veh_km_lane=33.3,
+        )
+        assert state.observed_density_veh_km_lane == 33.3
 
     def test_negative_vehicle_count_rejected(self) -> None:
         with pytest.raises(Exception):
@@ -107,6 +127,18 @@ class TestCapacityStateModel:
                 total_lanes=1,
                 estimated_capacity_vph=0,
                 confidence=1.5,
+            )
+
+    def test_negative_density_rejected(self) -> None:
+        with pytest.raises(Exception):
+            CapacityState(
+                timestamp=datetime.now(),
+                camera_id="cam1",
+                vehicle_count=0,
+                blocked_lanes=0,
+                total_lanes=1,
+                estimated_capacity_vph=0,
+                observed_density_veh_km_lane=-1.0,
             )
 
 
@@ -185,23 +217,58 @@ class TestVisionEngineBlackImage:
         assert state.anomaly_reason == "image_unreadable"
 
 
-class TestVisionEngineCapacityEstimation:
-    """Test the Greenshields capacity estimation logic."""
+# ======================================================================
+# Density estimation tests (Expert Audit Fix 1)
+# ======================================================================
 
-    def test_zero_vehicles_gives_zero_capacity(self, engine: VisionEngine) -> None:
-        cap = engine._estimate_capacity(vehicle_count=0, speed_kmh=100, num_lanes=3)
-        assert cap == 0.0
 
-    def test_positive_vehicles(self, engine: VisionEngine) -> None:
-        # 10 vehicles / 0.3 km = 33.3 veh/km × 80 km/h = 2666.7 VPH
-        cap = engine._estimate_capacity(vehicle_count=10, speed_kmh=80, num_lanes=3)
-        assert cap > 0
-        assert cap <= 6000  # 3 lanes × 2000 max
+class TestVisionEngineDensityEstimation:
+    """Test the new density-based estimation (replaces Greenshields capacity)."""
 
-    def test_capacity_capped_at_max(self, engine: VisionEngine) -> None:
-        # Very high density should be capped
-        cap = engine._estimate_capacity(vehicle_count=100, speed_kmh=100, num_lanes=2)
-        assert cap == 4000.0  # 2 × 2000
+    def test_zero_vehicles_gives_zero_density(self, engine: VisionEngine) -> None:
+        density = engine._estimate_density(vehicle_count=0, num_lanes=3)
+        assert density == 0.0
+
+    def test_basic_density_calculation(self, engine: VisionEngine) -> None:
+        # 10 vehicles / 0.1 km ROI / 3 lanes = 33.33 veh/km/lane
+        density = engine._estimate_density(
+            vehicle_count=10, num_lanes=3, roi_length_km=0.1
+        )
+        assert abs(density - 33.33) < 0.1
+
+    def test_density_per_lane_normalisation(self, engine: VisionEngine) -> None:
+        # Same vehicle count, different lanes → different density
+        d1 = engine._estimate_density(vehicle_count=10, num_lanes=1)
+        d2 = engine._estimate_density(vehicle_count=10, num_lanes=2)
+        assert d1 > d2  # More lanes → lower per-lane density
+
+    def test_density_clamped_at_jam_density(self, engine: VisionEngine) -> None:
+        # 200 vehicles in 0.1 km with 1 lane = 2000 veh/km/lane → clamped to 133
+        density = engine._estimate_density(
+            vehicle_count=200, num_lanes=1, roi_length_km=0.1
+        )
+        assert density == JAM_DENSITY_VEH_KM_LANE
+
+    def test_density_below_k_critical(self, engine: VisionEngine) -> None:
+        # 3 vehicles / 0.1 km / 3 lanes = 10 veh/km/lane → below k_critical
+        density = engine._estimate_density(
+            vehicle_count=3, num_lanes=3, roi_length_km=0.1
+        )
+        assert density < K_CRITICAL_VEH_KM_LANE
+
+    def test_density_above_k_critical(self, engine: VisionEngine) -> None:
+        # 15 vehicles / 0.1 km / 3 lanes = 50 veh/km/lane → above k_critical
+        density = engine._estimate_density(
+            vehicle_count=15, num_lanes=3, roi_length_km=0.1
+        )
+        assert density > K_CRITICAL_VEH_KM_LANE
+
+    def test_custom_roi_length(self, engine: VisionEngine) -> None:
+        # 10 vehicles / 0.5 km / 2 lanes = 10 veh/km/lane
+        density = engine._estimate_density(
+            vehicle_count=10, num_lanes=2, roi_length_km=0.5
+        )
+        assert abs(density - 10.0) < 0.1
 
 
 class TestVisionEngineIsBlack:
