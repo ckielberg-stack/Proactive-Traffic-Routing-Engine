@@ -31,6 +31,7 @@ import time
 import cv2
 import numpy as np
 import requests
+from PIL import ImageFont, ImageDraw, Image
 
 from config import API_KEY, API_URL, CAMERA_IDS, CAMERA_COORDS, MAX_RETRIES, RETRY_BACKOFF
 
@@ -48,6 +49,49 @@ COLORS = [
     (128, 255, 128),# Light green
 ]
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+# Load a TrueType font for Unicode rendering (PIL)
+try:
+    _PIL_FONT_BASE = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
+except OSError:
+    _PIL_FONT_BASE = ImageFont.load_default()
+
+_pil_font_cache: dict[int, ImageFont.FreeTypeFont] = {}
+
+def _get_pil_font(size: int) -> ImageFont.FreeTypeFont:
+    """Get a cached PIL font at the given pixel size."""
+    if size not in _pil_font_cache:
+        try:
+            _pil_font_cache[size] = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", size)
+        except OSError:
+            _pil_font_cache[size] = ImageFont.load_default()
+    return _pil_font_cache[size]
+
+def pil_puttext(img: np.ndarray, text: str, org: tuple[int, int],
+                color_bgr: tuple[int, int, int], scale: float = 0.5,
+                thickness: int = 1) -> np.ndarray:
+    """Draw Unicode text on an OpenCV image using PIL.
+    
+    `scale` maps to approximate font size: size = int(scale * 28 + 6).
+    `thickness` > 1 renders a bold effect via slight offsets.
+    """
+    font_size = int(scale * 28 + 6)
+    font = _get_pil_font(font_size)
+    # Convert BGR → RGB for PIL
+    color_rgb = (color_bgr[2], color_bgr[1], color_bgr[0])
+    pil_img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(pil_img)
+    x, y = org
+    # Adjust y: cv2.putText uses baseline, PIL uses top-left
+    y_adjusted = y - font_size + 2
+    if thickness > 1:
+        # Simulate bold by drawing at slight offsets
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                draw.text((x + dx, y_adjusted + dy), text, font=font, fill=color_rgb)
+    else:
+        draw.text((x, y_adjusted), text, font=font, fill=color_rgb)
+    return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +326,7 @@ class PolygonDrawer:
             cx = int(np.mean(pts[:, 0]))
             cy = int(np.mean(pts[:, 1]))
             label = f'{roi["road_id"]} ({roi["num_lanes"]}L)'
-            cv2.putText(display, label, (cx - 60, cy), FONT, 0.55, color, 2)
+            display = pil_puttext(display, label, (cx - 60, cy), color, 0.55, 2)
 
         # Draw current in-progress polygon
         if self.current_points:
@@ -387,7 +431,7 @@ class PolygonDrawer:
         cv2.rectangle(display, (0, 0), (self.w, hud_height), (0, 0, 0), -1)
         hud_y = 22
         for text, color, scale, thickness in hud_lines:
-            cv2.putText(display, text, (10, hud_y), FONT, scale, color, thickness)
+            display = pil_puttext(display, text, (10, hud_y), color, scale, thickness)
             hud_y += 22
 
         return display

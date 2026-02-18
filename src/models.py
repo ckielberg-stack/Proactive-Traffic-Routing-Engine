@@ -19,6 +19,9 @@ class SensorReading(BaseModel):
     """Upstream radar / loop-detector sensor data."""
 
     timestamp: datetime
+    site_id: int | None = Field(
+        default=None, description="TrafficFlow SiteId (for per-node mapping)"
+    )
     inflow_volume_vph: float = Field(
         ge=0, description="Vehicles per hour measured upstream of the camera"
     )
@@ -110,12 +113,35 @@ class MultiSegmentCapacity(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class SegmentSpeed(BaseModel):
+    """Per-segment shockwave speed in the piecewise LWR model.
+
+    Each segment represents the stretch between two adjacent camera nodes.
+    The wave speed varies per segment because local inflow differs (due to
+    on-ramps, off-ramps, and merging traffic).
+    """
+
+    from_camera: str = Field(description="Downstream camera (closer to bottleneck)")
+    to_camera: str = Field(description="Upstream camera (farther from bottleneck)")
+    distance_km: float = Field(ge=0, description="Segment length in km")
+    wave_speed_kmh: float = Field(
+        description="LWR shockwave speed for this segment (km/h)"
+    )
+    local_inflow_vph: float = Field(
+        ge=0, description="Measured inflow at the upstream end of this segment"
+    )
+
+
 class QueuePrediction(BaseModel):
     """Output of the Shockwave Prediction Engine (Phase 3).
 
     Describes the backward-propagating queue from a bottleneck.
     ``lengths_at_minutes`` maps future time offsets (minutes) to predicted
     queue length in kilometres.
+
+    The piecewise model populates ``segment_speeds`` with per-segment
+    wave speed data.  ``growth_speed_kmh`` is retained as a distance-
+    weighted average for backward compatibility.
     """
 
     timestamp: datetime
@@ -126,7 +152,11 @@ class QueuePrediction(BaseModel):
         description="Linear reference (km) along the highway from a fixed datum"
     )
     growth_speed_kmh: float = Field(
-        description="Speed at which the queue tail moves upstream (km/h)"
+        description="Distance-weighted average wave speed upstream (km/h)"
+    )
+    segment_speeds: list[SegmentSpeed] = Field(
+        default_factory=list,
+        description="Per-segment wave speeds from bottleneck upstream",
     )
     lengths_at_minutes: dict[int, float] = Field(
         description="Mapping of T+N minutes → predicted queue length in km"

@@ -38,16 +38,13 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from config import API_KEY, CAMERA_IDS, DATA_DIR, INTERVAL_SECONDS
+from config import API_KEY, CAMERA_COORDS, CAMERA_IDS, DATA_DIR, INTERVAL_SECONDS
 from main_loop import build_camera_chainage_map, setup_file_logger, tick_once
 from src.evaluation_logger import EvaluationLogger
+from src.incident_builder import build_incident_reports
 from src.operator_api import (
     app as operator_app,
-    set_active_incidents,
-    set_active_predictions,
-    set_active_recommendations,
-    set_active_vms_statuses,
-    set_last_tick_time,
+    set_pipeline_snapshot,
 )
 
 logger = logging.getLogger("ptre.main")
@@ -106,16 +103,18 @@ async def _tick_loop_background(
             # Run the synchronous tick in a thread so we don't block uvicorn
             result = await asyncio.to_thread(tick_once, camera_ids)
 
-            # --- Inject into Operator API state ---
-            set_active_predictions(result.queue_predictions)
-            set_active_recommendations(result.vms_recommendations)
-            set_active_vms_statuses(result.vms_statuses)
-            set_last_tick_time(result.timestamp)
-
-            # Incidents: build from capacity states with anomalies
-            # (The operator API expects IncidentReport — we synthesize from
-            #  anomaly-flagged CapacityState for now.)
-            # set_active_incidents(...)  # TODO: full incident builder
+            # --- Inject into Operator API state (single atomic snapshot) ---
+            incidents = build_incident_reports(
+                result.capacity_states,
+                camera_coords=CAMERA_COORDS,
+            )
+            set_pipeline_snapshot(
+                incidents=incidents,
+                predictions=result.queue_predictions,
+                vms_statuses=result.vms_statuses,
+                recommendations=result.vms_recommendations,
+                last_tick_time=result.timestamp,
+            )
 
             # --- Evaluation Logger ---
             _eval_logger.evaluate_pending(

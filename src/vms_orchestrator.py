@@ -96,8 +96,9 @@ class VMSOrchestrator:
     ) -> float:
         """Calculate the chainage (km) of the queue tail at T+``time_minutes``.
 
-        The queue tail moves *upstream* (decreasing chainage) from the
-        bottleneck origin at ``growth_speed_kmh``.
+        When piecewise segment data is available, walks backward through
+        segments accumulating time.  Otherwise falls back to the legacy
+        linear ``growth_speed_kmh`` extrapolation.
 
         Parameters
         ----------
@@ -111,6 +112,12 @@ class VMSOrchestrator:
         float
             Chainage (km) of the predicted queue tail.
         """
+        # Use lengths_at_minutes if the exact horizon is pre-computed
+        if time_minutes in prediction.lengths_at_minutes:
+            distance_km = prediction.lengths_at_minutes[time_minutes]
+            return prediction.origin_chainage_km - distance_km
+
+        # Fallback: linear extrapolation with weighted-average speed
         distance_km = prediction.growth_speed_kmh * (time_minutes / 60.0)
         return prediction.origin_chainage_km - distance_km
 

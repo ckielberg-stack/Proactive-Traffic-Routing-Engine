@@ -1,8 +1,11 @@
 """
-Unit tests for the Shockwave Prediction Engine (Phase 3).
+Unit tests for the Piecewise Shockwave Prediction Engine (Phase 3).
 
-Tests the LWR kinematic wave model:
+Tests the LWR kinematic wave model with multi-segment spatial iteration:
     wave_speed = (Q_in - Q_cap) / (k_jam - k_in)
+
+The piecewise engine walks backward through camera nodes segment-by-segment,
+using local inflow at each node to compute per-segment wave speeds.
 """
 
 from datetime import datetime
@@ -32,7 +35,7 @@ def bottleneck_state() -> CapacityState:
     """A camera showing a bottleneck: anomaly detected, low capacity."""
     return CapacityState(
         timestamp=datetime(2026, 2, 16, 14, 0, 0),
-        camera_id="CAM_TEST_01",
+        camera_id="CAM_03",
         vehicle_count=8,
         blocked_lanes=1,
         total_lanes=3,
@@ -48,7 +51,7 @@ def normal_state() -> CapacityState:
     """A camera showing normal traffic — no anomaly."""
     return CapacityState(
         timestamp=datetime(2026, 2, 16, 14, 0, 0),
-        camera_id="CAM_TEST_02",
+        camera_id="CAM_02",
         vehicle_count=15,
         blocked_lanes=0,
         total_lanes=3,
@@ -71,16 +74,29 @@ def upstream_sensor() -> SensorReading:
 
 @pytest.fixture
 def chainage_map() -> dict[str, float]:
-    return {"CAM_TEST_01": 8.0, "CAM_TEST_02": 5.0}
+    """Five cameras sorted south→north by chainage."""
+    return {
+        "CAM_01": 0.0,
+        "CAM_02": 0.5,
+        "CAM_03": 1.0,
+        "CAM_04": 1.5,
+        "CAM_05": 2.0,
+    }
 
 
 @pytest.fixture
 def coords_map() -> dict[str, tuple[float, float]]:
-    return {"CAM_TEST_01": (59.30, 18.00), "CAM_TEST_02": (59.27, 17.91)}
+    return {
+        "CAM_01": (59.25, 17.90),
+        "CAM_02": (59.27, 17.91),
+        "CAM_03": (59.30, 18.00),
+        "CAM_04": (59.32, 18.01),
+        "CAM_05": (59.33, 18.02),
+    }
 
 
 # ======================================================================
-# LWR wave speed tests
+# LWR wave speed tests (unchanged — tests the core formula)
 # ======================================================================
 
 
@@ -146,12 +162,12 @@ class TestLWRWaveSpeed:
 
 
 # ======================================================================
-# Queue prediction computation tests
+# Piecewise queue prediction tests
 # ======================================================================
 
 
-class TestQueuePrediction:
-    def test_produces_prediction_for_bottleneck(
+class TestPiecewisePrediction:
+    def test_produces_prediction_with_segments(
         self,
         engine: PhysicsEngine,
         bottleneck_state: CapacityState,
@@ -159,19 +175,88 @@ class TestQueuePrediction:
         chainage_map: dict[str, float],
         coords_map: dict[str, tuple[float, float]],
     ) -> None:
-        """Bottleneck camera with anomaly should produce a prediction."""
+        """Bottleneck with upstream nodes should produce segment speeds."""
         predictions = engine.compute(
             capacity_states=[bottleneck_state],
             sensor=upstream_sensor,
             camera_chainage_map=chainage_map,
             camera_coords_map=coords_map,
+            node_inflows={
+                "CAM_01": 4000.0,
+                "CAM_02": 4000.0,
+                "CAM_03": 4000.0,
+            },
         )
         assert len(predictions) == 1
         pred = predictions[0]
         assert isinstance(pred, QueuePrediction)
-        assert pred.camera_id == "CAM_TEST_01"
-        assert pred.growth_speed_kmh > 0
-        assert pred.origin_chainage_km == 8.0
+        assert pred.camera_id == "CAM_03"
+        # Should have segments going upstream from CAM_03 → CAM_02 → CAM_01
+        assert len(pred.segment_speeds) == 2
+        assert pred.segment_speeds[0].from_camera == "CAM_03"
+        assert pred.segment_speeds[0].to_camera == "CAM_02"
+        assert pred.segment_speeds[1].from_camera == "CAM_02"
+        assert pred.segment_speeds[1].to_camera == "CAM_01"
+
+    def test_varying_inflows_produce_different_segment_speeds(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """Different local inflows should produce different wave speeds."""
+        sensor = SensorReading(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            inflow_volume_vph=4000.0,
+            average_speed_kmh=95.0,
+        )
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=sensor,
+            camera_chainage_map=chainage_map,
+            node_inflows={
+                "CAM_01": 3000.0,  # Lower inflow (past an off-ramp)
+                "CAM_02": 5000.0,  # Higher inflow (on-ramp added cars)
+                "CAM_03": 4000.0,  # Bottleneck local inflow
+            },
+        )
+        assert len(predictions) == 1
+        pred = predictions[0]
+        assert len(pred.segment_speeds) == 2
+        # CAM_02 has higher inflow → faster wave speed
+        # CAM_01 has lower inflow → slower wave speed
+        speed_cam02 = pred.segment_speeds[0].wave_speed_kmh  # CAM_03→CAM_02
+        speed_cam01 = pred.segment_speeds[1].wave_speed_kmh  # CAM_02→CAM_01
+        assert speed_cam02 > speed_cam01
+
+    def test_wave_speed_zero_halts_iteration(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """When local inflow ≤ bottleneck capacity, iteration stops (correction #3)."""
+        sensor = SensorReading(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            inflow_volume_vph=4000.0,
+            average_speed_kmh=95.0,
+        )
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=sensor,
+            camera_chainage_map=chainage_map,
+            node_inflows={
+                "CAM_01": 800.0,   # Below bottleneck capacity → queue stops here
+                "CAM_02": 4000.0,  # Normal inflow
+                "CAM_03": 4000.0,  # Bottleneck
+            },
+        )
+        assert len(predictions) == 1
+        pred = predictions[0]
+        # Should only have 1 segment (CAM_03→CAM_02), because at CAM_01
+        # inflow (800) < capacity (1200), so wave_speed ≤ 0 → halt
+        assert len(pred.segment_speeds) == 1
+        assert pred.segment_speeds[0].to_camera == "CAM_02"
 
     def test_no_prediction_for_normal_traffic(
         self,
@@ -186,52 +271,92 @@ class TestQueuePrediction:
         )
         assert len(predictions) == 0
 
-    def test_no_prediction_without_sensor(
+    def test_no_prediction_without_sensor_or_inflows(
         self,
         engine: PhysicsEngine,
         bottleneck_state: CapacityState,
     ) -> None:
-        """Without sensor data, no physics computation is possible."""
+        """Without sensor data or node_inflows, no physics computation."""
         predictions = engine.compute(
             capacity_states=[bottleneck_state],
             sensor=None,
         )
         assert len(predictions) == 0
 
-    def test_queue_lengths_at_time_horizons(
+    def test_global_sensor_fallback(
         self,
         engine: PhysicsEngine,
         bottleneck_state: CapacityState,
         upstream_sensor: SensorReading,
         chainage_map: dict[str, float],
     ) -> None:
-        """Queue lengths should increase with time."""
+        """When node_inflows not provided, falls back to global sensor."""
         predictions = engine.compute(
             capacity_states=[bottleneck_state],
             sensor=upstream_sensor,
             camera_chainage_map=chainage_map,
         )
         assert len(predictions) == 1
-        lengths = predictions[0].lengths_at_minutes
+        pred = predictions[0]
+        # All segments should use the global sensor's inflow
+        for seg in pred.segment_speeds:
+            assert seg.local_inflow_vph == 4000.0
 
-        # Check that all default horizons are present
+    def test_lengths_increase_with_time(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        upstream_sensor: SensorReading,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """Queue lengths should increase with time horizons."""
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=upstream_sensor,
+            camera_chainage_map=chainage_map,
+            node_inflows={
+                "CAM_01": 4000.0,
+                "CAM_02": 4000.0,
+                "CAM_03": 4000.0,
+            },
+        )
+        assert len(predictions) == 1
+        lengths = predictions[0].lengths_at_minutes
         assert 1 in lengths
         assert 3 in lengths
         assert 5 in lengths
         assert 10 in lengths
-
-        # Lengths should increase with time
         assert lengths[1] < lengths[3] < lengths[5] < lengths[10]
+
+    def test_prediction_has_correct_coordinates(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        upstream_sensor: SensorReading,
+        chainage_map: dict[str, float],
+        coords_map: dict[str, tuple[float, float]],
+    ) -> None:
+        """Prediction should carry the bottleneck camera's coordinates."""
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=upstream_sensor,
+            camera_chainage_map=chainage_map,
+            camera_coords_map=coords_map,
+        )
+        pred = predictions[0]
+        assert pred.origin_lat == 59.30
+        assert pred.origin_lng == 18.00
 
     def test_no_prediction_when_drop_below_threshold(
         self,
         engine: PhysicsEngine,
         upstream_sensor: SensorReading,
+        chainage_map: dict[str, float],
     ) -> None:
         """If capacity drop is too small, no prediction is generated."""
         state = CapacityState(
             timestamp=datetime(2026, 2, 16, 14, 0, 0),
-            camera_id="CAM_TEST_01",
+            camera_id="CAM_03",
             vehicle_count=10,
             blocked_lanes=0,
             total_lanes=3,
@@ -242,28 +367,60 @@ class TestQueuePrediction:
         predictions = engine.compute(
             capacity_states=[state],
             sensor=upstream_sensor,
+            camera_chainage_map=chainage_map,
         )
         # 4000 - 3900 = 100, below MIN_CAPACITY_DROP_VPH (200)
         assert len(predictions) == 0
 
-    def test_prediction_has_correct_coordinates(
+    def test_single_camera_no_chainage_uses_legacy_fallback(
         self,
         engine: PhysicsEngine,
         bottleneck_state: CapacityState,
         upstream_sensor: SensorReading,
-        chainage_map: dict[str, float],
-        coords_map: dict[str, tuple[float, float]],
     ) -> None:
-        """Prediction should carry the camera's geographic coordinates."""
+        """Without chainage map, falls back to single-segment behavior."""
         predictions = engine.compute(
             capacity_states=[bottleneck_state],
             sensor=upstream_sensor,
+        )
+        assert len(predictions) == 1
+        pred = predictions[0]
+        assert pred.growth_speed_kmh > 0
+        # No segment data in legacy fallback
+        assert len(pred.segment_speeds) == 0
+        # Should still have lengths_at_minutes from linear projection
+        assert 5 in pred.lengths_at_minutes
+
+    def test_growth_speed_is_weighted_average(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """growth_speed_kmh should be the harmonic (distance-weighted) average."""
+        sensor = SensorReading(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            inflow_volume_vph=4000.0,
+            average_speed_kmh=95.0,
+        )
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=sensor,
             camera_chainage_map=chainage_map,
-            camera_coords_map=coords_map,
+            node_inflows={
+                "CAM_01": 4000.0,
+                "CAM_02": 4000.0,
+                "CAM_03": 4000.0,
+            },
         )
         pred = predictions[0]
-        assert pred.origin_lat == 59.30
-        assert pred.origin_lng == 18.00
+        # With uniform inflow, all segment speeds should be equal
+        # and growth_speed_kmh should match them
+        if len(pred.segment_speeds) >= 2:
+            s0 = pred.segment_speeds[0].wave_speed_kmh
+            s1 = pred.segment_speeds[1].wave_speed_kmh
+            assert abs(s0 - s1) < 0.01  # Same inflow → same speed
+            assert abs(pred.growth_speed_kmh - s0) < 0.01
 
 
 # ======================================================================
@@ -283,3 +440,24 @@ class TestEdgeCases:
     def test_custom_jam_density(self) -> None:
         engine = PhysicsEngine(jam_density=150.0)
         assert engine.jam_density == 150.0
+
+    def test_node_inflows_without_sensor(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """node_inflows alone (no global sensor) should work."""
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=None,
+            camera_chainage_map=chainage_map,
+            node_inflows={
+                "CAM_01": 4000.0,
+                "CAM_02": 4000.0,
+                "CAM_03": 4000.0,
+            },
+        )
+        assert len(predictions) == 1
+        # Should have segments even without global sensor
+        assert len(predictions[0].segment_speeds) >= 1

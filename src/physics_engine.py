@@ -1,28 +1,29 @@
 """
-Shockwave Prediction Engine (Phase 3) — LWR Kinematic Wave Model.
+Shockwave Prediction Engine (Phase 3) — Piecewise LWR Kinematic Wave Model.
 
 Computes backward-propagating queue dynamics using the Lighthill–Whitham–
-Richards (LWR) model.  Each tick receives the *current* bottleneck capacity
-(from the vision engine) and the *current* upstream inflow (from the sensor
-API) and calculates the instantaneous shockwave speed.
+Richards (LWR) model with **multi-segment spatial iteration**.  Instead of
+a single linear queue projection, the engine walks backward through camera
+nodes segment-by-segment, using the local inflow at each node.
 
-Key Formula
------------
+This naturally handles lateral sources (on-ramps) and sinks (off-ramps):
+the observed inflow at Node N inherently includes any downstream ramp
+traffic relative to Node N-1, without needing an explicit ramp database.
+
+Key Formula (per segment)
+-------------------------
     wave_speed = (Q_in - Q_cap) / (k_jam - k_in)
 
 Where:
-    Q_in   = upstream inflow volume (veh/h)
-    Q_cap  = bottleneck capacity (veh/h)
+    Q_in   = local inflow at the upstream end of the segment (veh/h)
+    Q_cap  = bottleneck capacity (veh/h) — the flow constraint
     k_jam  = jam density ≈ 133 veh/km/lane (Swedish standard)
     k_in   = inflow density = Q_in / v_in
 
-A *positive* wave speed means the queue tail is propagating upstream
-(i.e. the queue is growing).  Zero means the queue is stationary.
-A negative value means the queue is dissolving.
+Iteration halts when wave_speed ≤ 0 at a segment (queue stops growing
+or dissolves upstream of an off-ramp / low-demand zone).
 
-This engine is **stateless per tick**: it does not maintain cross-tick
-memory.  Historical trend analysis can be done offline against the
-persisted JSONL data.
+This engine is **stateless per tick**.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from src.models import CapacityState, QueuePrediction, SensorReading
+from src.models import CapacityState, QueuePrediction, SegmentSpeed, SensorReading
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +60,11 @@ MIN_CAPACITY_DROP_VPH: float = 200.0
 
 
 class PhysicsEngine:
-    """Stateless LWR shockwave calculator.
+    """Piecewise LWR shockwave calculator.
 
     Call :meth:`compute` once per tick with the current vision and sensor
     data.  Returns a list of ``QueuePrediction`` — one for each detected
-    bottleneck.
+    bottleneck — with per-segment wave speeds.
     """
 
     def __init__(
@@ -87,6 +88,7 @@ class PhysicsEngine:
         camera_chainage_map: dict[str, float] | None = None,
         camera_coords_map: dict[str, tuple[float, float]] | None = None,
         now: datetime | None = None,
+        node_inflows: dict[str, float] | None = None,
     ) -> list[QueuePrediction]:
         """Evaluate all capacity states and return queue predictions.
 
@@ -95,30 +97,43 @@ class PhysicsEngine:
         capacity_states:
             Vision engine outputs for this tick.
         sensor:
-            Upstream sensor reading (inflow volume + speed).
+            Global upstream sensor reading (fallback inflow).
         camera_chainage_map:
             ``{camera_id: chainage_km}`` — linear reference for each camera.
         camera_coords_map:
             ``{camera_id: (lat, lng)}`` — geographic coordinates.
         now:
             Timestamp to stamp the output.  Defaults to ``datetime.now()``.
+        node_inflows:
+            ``{camera_id: measured_volume_vph}`` — per-node inflow
+            estimates from sensors or visual fallback.  If a node is
+            missing, falls back to the global ``sensor`` reading.
         """
         now = now or datetime.now()
         camera_chainage_map = camera_chainage_map or {}
         camera_coords_map = camera_coords_map or {}
+        node_inflows = node_inflows or {}
 
         predictions: list[QueuePrediction] = []
 
-        if sensor is None:
+        if sensor is None and not node_inflows:
             logger.debug("No sensor data — skipping physics computation")
             return predictions
+
+        # Build sorted node list: (chainage_km, camera_id) ascending
+        sorted_nodes = sorted(camera_chainage_map.items(), key=lambda x: x[1])
 
         for state in capacity_states:
             if not state.is_anomaly:
                 continue  # No bottleneck detected by vision
 
-            prediction = self._evaluate_bottleneck(
-                state, sensor, camera_chainage_map, camera_coords_map, now,
+            prediction = self._evaluate_bottleneck_piecewise(
+                state=state,
+                sensor=sensor,
+                sorted_nodes=sorted_nodes,
+                coords_map=camera_coords_map,
+                node_inflows=node_inflows,
+                now=now,
             )
             if prediction is not None:
                 predictions.append(prediction)
@@ -126,25 +141,45 @@ class PhysicsEngine:
         return predictions
 
     # ------------------------------------------------------------------
-    # Internal
+    # Internal — Piecewise iteration
     # ------------------------------------------------------------------
 
-    def _evaluate_bottleneck(
+    def _evaluate_bottleneck_piecewise(
         self,
         state: CapacityState,
-        sensor: SensorReading,
-        chainage_map: dict[str, float],
+        sensor: SensorReading | None,
+        sorted_nodes: list[tuple[str, float]],
         coords_map: dict[str, tuple[float, float]],
+        node_inflows: dict[str, float],
         now: datetime,
     ) -> QueuePrediction | None:
-        """Run LWR calculation for a single bottleneck camera."""
+        """Run piecewise LWR calculation for a single bottleneck.
 
-        inflow_vph = sensor.inflow_volume_vph
+        Walks backward (upstream) from the bottleneck through camera
+        nodes, computing per-segment wave speeds using local inflow
+        at each node.
+
+        Iteration halts when:
+        - We run out of upstream nodes
+        - Wave speed becomes ≤ 0 (queue stops growing)
+        """
         bottleneck_capacity_vph = state.estimated_capacity_vph
         total_lanes = max(state.total_lanes, 1)
 
-        # Check if the capacity drop is significant enough
-        capacity_drop = inflow_vph - bottleneck_capacity_vph
+        # Global sensor fallback values
+        global_inflow = sensor.inflow_volume_vph if sensor else None
+        global_speed = sensor.average_speed_kmh if sensor else self.free_flow_speed
+
+        # First check: does inflow even exceed capacity?
+        # Use per-node inflow for the bottleneck camera, or global sensor
+        bottleneck_inflow = node_inflows.get(state.camera_id, global_inflow)
+        if bottleneck_inflow is None:
+            logger.debug(
+                f"Camera {state.camera_id}: no inflow data available"
+            )
+            return None
+
+        capacity_drop = bottleneck_inflow - bottleneck_capacity_vph
         if capacity_drop < MIN_CAPACITY_DROP_VPH:
             logger.debug(
                 f"Camera {state.camera_id}: capacity drop {capacity_drop:.0f} VPH "
@@ -152,33 +187,114 @@ class PhysicsEngine:
             )
             return None
 
-        # Compute wave speed using LWR formula
-        wave_speed = self._lwr_wave_speed(
-            inflow_vph=inflow_vph,
-            bottleneck_capacity_vph=bottleneck_capacity_vph,
-            upstream_speed_kmh=sensor.average_speed_kmh,
-            num_lanes=total_lanes,
+        # Find bottleneck position in sorted node list
+        bottleneck_idx = None
+        for i, (cam_id, _ch) in enumerate(sorted_nodes):
+            if cam_id == state.camera_id:
+                bottleneck_idx = i
+                break
+
+        # --- Determine upstream direction ---
+        # For northbound traffic (Södertälje → Stockholm): upstream = south
+        #   = decreasing chainage → iterate backward (idx - 1, idx - 2, ...)
+        # For southbound traffic: upstream = north
+        #   = increasing chainage → iterate forward (idx + 1, idx + 2, ...)
+        # Default to northbound if no direction info available.
+        direction = "northbound"  # TODO: derive from CapacityState/ROI road_id
+        upstream_step = -1 if direction == "northbound" else 1
+
+        # --- Piecewise backward iteration ---
+        segment_speeds: list[SegmentSpeed] = []
+
+        if bottleneck_idx is not None and sorted_nodes:
+            prev_cam_id = state.camera_id
+            prev_chainage = sorted_nodes[bottleneck_idx][1]
+            idx = bottleneck_idx + upstream_step
+
+            while 0 <= idx < len(sorted_nodes):
+                upstream_cam_id, upstream_chainage = sorted_nodes[idx]
+                distance_km = abs(prev_chainage - upstream_chainage)
+
+                if distance_km < 0.001:
+                    # Skip degenerate zero-distance segments
+                    idx += upstream_step
+                    continue
+
+                # Get local inflow at this upstream node
+                local_inflow = node_inflows.get(upstream_cam_id, global_inflow)
+                if local_inflow is None:
+                    break  # No inflow data — can't continue
+
+                # Compute segment wave speed
+                wave_speed = self._lwr_wave_speed(
+                    inflow_vph=local_inflow,
+                    bottleneck_capacity_vph=bottleneck_capacity_vph,
+                    upstream_speed_kmh=global_speed,
+                    num_lanes=total_lanes,
+                )
+
+                # GUARD: if wave speed ≤ 0, queue stops growing here
+                if wave_speed <= 0:
+                    logger.debug(
+                        f"Segment {prev_cam_id}→{upstream_cam_id}: "
+                        f"wave_speed={wave_speed:.2f} ≤ 0, halting iteration"
+                    )
+                    break
+
+                segment_speeds.append(SegmentSpeed(
+                    from_camera=prev_cam_id,
+                    to_camera=upstream_cam_id,
+                    distance_km=round(distance_km, 4),
+                    wave_speed_kmh=round(wave_speed, 2),
+                    local_inflow_vph=local_inflow,
+                ))
+
+                prev_cam_id = upstream_cam_id
+                prev_chainage = upstream_chainage
+                idx += upstream_step
+
+        # --- Compute lengths_at_minutes via time accumulation ---
+        lengths_at_minutes = self._compute_lengths_piecewise(
+            segment_speeds, self.time_horizons
         )
 
-        if wave_speed <= 0:
-            logger.debug(
-                f"Camera {state.camera_id}: wave speed {wave_speed:.2f} km/h "
-                f"(non-positive → queue not growing)"
+        # --- Weighted average growth_speed for backward compat ---
+        if segment_speeds:
+            total_dist = sum(s.distance_km for s in segment_speeds)
+            if total_dist > 0:
+                avg_speed = total_dist / sum(
+                    s.distance_km / s.wave_speed_kmh
+                    for s in segment_speeds
+                )
+            else:
+                avg_speed = segment_speeds[0].wave_speed_kmh
+        else:
+            # No segments — fall back to simple single-segment calculation
+            avg_speed = self._lwr_wave_speed(
+                inflow_vph=bottleneck_inflow,
+                bottleneck_capacity_vph=bottleneck_capacity_vph,
+                upstream_speed_kmh=global_speed,
+                num_lanes=total_lanes,
             )
-            return None
+            if avg_speed <= 0:
+                return None
+            # Simple linear projection (legacy behavior)
+            lengths_at_minutes = {
+                t: round(avg_speed * (t / 60), 3)
+                for t in self.time_horizons
+            }
 
-        # Project queue length at each time horizon
-        lengths_at_minutes = {
-            t: round(wave_speed * (t / 60), 3)  # km = (km/h) × (min/60)
-            for t in self.time_horizons
-        }
-
-        chainage_km = chainage_map.get(state.camera_id, 0.0)
         coords = coords_map.get(state.camera_id, (0.0, 0.0))
+        chainage_km = 0.0
+        for cam_id, ch in sorted_nodes:
+            if cam_id == state.camera_id:
+                chainage_km = ch
+                break
 
         logger.info(
-            f"🌊 Queue prediction @ {state.camera_id}: "
-            f"wave={wave_speed:.1f} km/h, "
+            f"🌊 Piecewise prediction @ {state.camera_id}: "
+            f"segments={len(segment_speeds)}, "
+            f"avg_wave={avg_speed:.1f} km/h, "
             f"Q+5min={lengths_at_minutes.get(5, 0):.2f} km"
         )
 
@@ -188,9 +304,79 @@ class PhysicsEngine:
             origin_lat=coords[0],
             origin_lng=coords[1],
             origin_chainage_km=chainage_km,
-            growth_speed_kmh=round(wave_speed, 2),
+            growth_speed_kmh=round(avg_speed, 2),
+            segment_speeds=segment_speeds,
             lengths_at_minutes=lengths_at_minutes,
         )
+
+    # ------------------------------------------------------------------
+    # Piecewise time-distance accumulation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _compute_lengths_piecewise(
+        segments: list[SegmentSpeed],
+        time_horizons: list[int],
+    ) -> dict[int, float]:
+        """Compute queue lengths at each time horizon via segment accumulation.
+
+        Walks through segments, summing transit time per segment.  For each
+        time horizon T, interpolates within the segment where T is reached.
+        """
+        if not segments:
+            return {}
+
+        # Pre-compute cumulative time and distance through segments
+        cum_time_h: list[float] = []   # Cumulative hours to traverse each segment
+        cum_dist_km: list[float] = []  # Cumulative distance
+        total_time = 0.0
+        total_dist = 0.0
+
+        for seg in segments:
+            seg_time_h = seg.distance_km / seg.wave_speed_kmh  # hours
+            total_time += seg_time_h
+            total_dist += seg.distance_km
+            cum_time_h.append(total_time)
+            cum_dist_km.append(total_dist)
+
+        result: dict[int, float] = {}
+        for t_min in time_horizons:
+            t_hours = t_min / 60.0
+            if t_hours <= 0:
+                result[t_min] = 0.0
+                continue
+
+            # Find how far the queue extends in t_hours
+            queue_km = 0.0
+            time_used = 0.0
+
+            for i, seg in enumerate(segments):
+                seg_time_h = seg.distance_km / seg.wave_speed_kmh
+                remaining_time = t_hours - time_used
+
+                if seg_time_h <= remaining_time:
+                    # Queue traverses this entire segment
+                    queue_km += seg.distance_km
+                    time_used += seg_time_h
+                else:
+                    # Queue partially traverses this segment — interpolate
+                    fraction = remaining_time / seg_time_h
+                    queue_km += seg.distance_km * fraction
+                    break
+            else:
+                # Queue extends beyond all known segments — extrapolate
+                # using the last segment's wave speed
+                remaining_time = t_hours - time_used
+                if remaining_time > 0 and segments:
+                    queue_km += segments[-1].wave_speed_kmh * remaining_time
+
+            result[t_min] = round(queue_km, 3)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # LWR core formula (unchanged)
+    # ------------------------------------------------------------------
 
     def _lwr_wave_speed(
         self,

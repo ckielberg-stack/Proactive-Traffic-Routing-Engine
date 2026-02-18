@@ -1,8 +1,8 @@
 """
 Konfiguration för Trafikverkets kamera- och sensordata-insamling.
 
-Sträcka: E4/E20 Hallunda → Stockholm (Tomteboda)
-53 trafikflödeskameror längs sträckan.
+Sträcka: E4/E20 Hallunda → Stockholm (Karlbergskanalen)
+46 trafikflödeskameror längs sträckan.
 """
 import os
 from dotenv import load_dotenv
@@ -52,8 +52,6 @@ CAMERA_IDS: list[str] = [
     "SE_STA_CAMERA_0_50438754",      # Tpl Västberga Norra
     "SE_STA_CAMERA_0_50438752",      # Västberga Allé Södra
     "SE_STA_CAMERA_0_50438750",      # Västberga Allé
-    # — Åbyvägen (ramp mot E4/E20) —
-    "SE_STA_CAMERA_Orion_326",       # Tpl Åbyvägen mot E4/E20
     # — Nyboda —
     "SE_STA_CAMERA_0_50438748",      # Tpl Nyboda Södra
     "SE_STA_CAMERA_0_50438746",      # Tpl Nyboda
@@ -81,15 +79,9 @@ CAMERA_IDS: list[str] = [
     # — Kristineberg —
     "SE_STA_CAMERA_0_50438700",      # Tpl Kristineberg
     "SE_STA_CAMERA_0_50438696",      # Tpl Kristineberg Norra
-    # — Hornsberg / Karlberg / Tomteboda —
+    # — Hornsberg / Karlbergskanalen —
     "SE_STA_CAMERA_0_50438694",      # Hornsberg
     "SE_STA_CAMERA_0_50438692",      # Karlbergskanalen
-    "SE_STA_CAMERA_0_597",           # Tpl Tomteboda Södra
-    "SE_STA_CAMERA_0_50438690",      # Tpl Tomteboda
-    "SE_STA_CAMERA_0_600",           # Tpl Karlberg Västra
-    "SE_STA_CAMERA_0_601",           # Tpl Karlberg
-    "SE_STA_CAMERA_0_598",           # Tpl Tomteboda Östra
-    "SE_STA_CAMERA_0_599",           # Tomteboda Postterminal
 ]
 
 # Camera coordinates for dashboard map (lat, lng) — south to north
@@ -117,7 +109,6 @@ CAMERA_COORDS: dict[str, tuple[float, float]] = {
     "SE_STA_CAMERA_0_50438754":     (59.2972, 18.0057),
     "SE_STA_CAMERA_0_50438752":     (59.2988, 18.0100),
     "SE_STA_CAMERA_0_50438750":     (59.2994, 18.0130),
-    "SE_STA_CAMERA_Orion_326":      (59.2964, 18.0367),
     "SE_STA_CAMERA_0_50438748":     (59.3000, 18.0170),
     "SE_STA_CAMERA_0_50438746":     (59.3012, 18.0203),
     "SE_STA_CAMERA_0_50438740":     (59.3009, 18.0238),
@@ -141,12 +132,6 @@ CAMERA_COORDS: dict[str, tuple[float, float]] = {
     "SE_STA_CAMERA_0_50438696":     (59.3368, 18.0111),
     "SE_STA_CAMERA_0_50438694":     (59.3389, 18.0114),
     "SE_STA_CAMERA_0_50438692":     (59.3410, 18.0112),
-    "SE_STA_CAMERA_0_597":          (59.3429, 18.0099),
-    "SE_STA_CAMERA_0_50438690":     (59.3434, 18.0088),
-    "SE_STA_CAMERA_0_600":          (59.3441, 18.0191),
-    "SE_STA_CAMERA_0_601":          (59.3444, 18.0262),
-    "SE_STA_CAMERA_0_598":          (59.3447, 18.0109),
-    "SE_STA_CAMERA_0_599":          (59.3452, 18.0141),
 }
 
 # --- Insamling ---
@@ -198,4 +183,39 @@ SENSOR_SITE_IDS: list[int] = [
     2788,   # lat 59.3341, northBound
     2817,   # lat 59.3389, northBound
 ]
+
+# Sensor station coordinates (lat, lng) — for nearest-camera matching
+SENSOR_COORDS: dict[int, tuple[float, float]] = {
+    1274: (59.2549, 17.860),
+    1286: (59.2549, 17.860),
+    2851: (59.2937, 17.996),
+    2842: (59.2961, 18.000),
+    2603: (59.2972, 18.004),
+    2631: (59.2980, 18.007),
+    2634: (59.2981, 18.007),
+    2629: (59.2989, 18.010),
+    2612: (59.2994, 18.012),
+    2610: (59.2995, 18.012),
+    2625: (59.2997, 18.013),
+    2626: (59.2998, 18.013),
+    2651: (59.3007, 18.017),
+    2653: (59.3010, 18.018),
+    2654: (59.3011, 18.018),
+    2645: (59.3021, 18.020),
+    2648: (59.3026, 18.021),
+    2619: (59.3027, 18.021),
+    2659: (59.3042, 18.019),
+    2663: (59.3061, 18.015),
+    2682: (59.3150, 18.003),
+    2694: (59.3212, 17.997),
+    2706: (59.3256, 18.004),
+    2768: (59.3272, 18.010),
+    2767: (59.3272, 18.010),
+    2766: (59.3272, 18.010),
+    2790: (59.3321, 18.010),
+    2786: (59.3326, 18.010),
+    2788: (59.3341, 18.010),
+    2817: (59.3389, 18.011),
+}
+
 
