@@ -1,7 +1,7 @@
 """
 Vision & Capacity Engine for the Proactive Traffic Routing Engine (PTRE).
 
-Analyses highway camera frames with YOLO26 to calculate real-time road
+Analyses highway camera frames with YOLO to calculate real-time road
 capacity (Vehicles Per Hour) and detect anomalies (accidents, blockages).
 
 Supports two modes:
@@ -114,7 +114,7 @@ class VisionEngine:
 
     def __init__(
         self,
-        model_path: str = "yolo26n.pt",
+        model_path: str = "yolov8n.pt",
         confidence: float = 0.25,
     ) -> None:
         self._model_path = model_path

@@ -1,5 +1,9 @@
 .env
+.ai/
+.DS_Store
 data/
+storage/
+*.pt
 __pycache__/
 *.pyc
 venv/

@@ -1,8 +1,32 @@
-# 🚦 PTRE — Proactive Traffic Routing Engine
+# PTRE — Proactive Traffic Routing Engine
 
-**Automated Incident Verification and Predictive VMS Copilot** for Swedish traffic management operators (Trafikverket / Trafik Stockholm).
+**Open-source prototype for automated incident verification and predictive VMS recommendations.**
 
-PTRE monitors live cameras along the E4/E20 corridor (Hallunda → Stockholm/Karlbergskanalen, ~15 km northbound), runs YOLO vehicle detection on each camera every 60 seconds, feeds the resulting capacity estimates into a kinematic-wave queue model, and produces preemptive Variable Message Sign (VMS) recommendations *before* congestion reaches each gantry. A web dashboard and a versioned operator API expose the live pipeline state to control-room staff.
+PTRE is an experimental traffic-management research project for Swedish road data. It monitors live cameras along the E4/E20 corridor (Hallunda → Stockholm/Karlbergskanalen, ~15 km northbound), runs YOLO vehicle detection on each camera every 60 seconds, feeds the resulting capacity estimates into a kinematic-wave queue model, and produces preemptive Variable Message Sign (VMS) recommendations *before* congestion reaches each gantry.
+
+This repository is intentionally published as a **prototype**, not as a finished control-room product. It is meant to be read, forked, tested, challenged, and developed further by people interested in traffic operations, computer vision, DATEX II, prediction models, operator tooling, and public-infrastructure software.
+
+## Prototype Status
+
+PTRE is useful as a working reference implementation, but it is not production certified.
+
+- It depends on live Trafikverket API access and corridor-specific configuration.
+- The VMS "ground truth" uses Situation API records as a proxy because live VMS panel state is not exposed publicly.
+- The queue model, confidence scoring, camera ROIs, and operator UX need field validation before any operational use.
+- Local runtime data, captured frames, anomaly images, and training images are intentionally excluded from the public repo.
+- You should treat the current system as a foundation for experiments, not as safety-critical traffic-control software.
+
+## What To Build Next
+
+Good directions for contributors:
+
+- Port the corridor configuration to other Swedish roads or other traffic-data providers.
+- Improve camera ROI calibration and add a repeatable calibration workflow.
+- Replace heuristic confidence scoring with evaluated, versioned model metrics.
+- Add synthetic and replay-based test fixtures so contributors can run more of the system without live API access.
+- Improve the DATEX II export path and validate it against downstream consumers.
+- Separate prototype dashboard concerns from stable API contracts.
+- Add sample, non-sensitive demo data so the UI can be explored without publishing captured camera frames.
 
 ## Overview
 
@@ -13,8 +37,11 @@ PTRE monitors live cameras along the E4/E20 corridor (Hallunda → Stockholm/Kar
 | **Outputs** | 8 VMS gantries with ETA recommendations · DATEX II XML export · operator dashboard · `/api/v1/*` endpoints |
 | **Cadence** | 60-second tick — concurrent fetch → YOLO → physics → recommendations |
 | **Stack** | Python 3.12 · FastAPI · Ultralytics YOLOv8 · OpenCV · Shapely · Pydantic · pytest |
+| **Status** | Open-source prototype · research/demo use · needs validation before operational use |
 
 ## Quick Start
+
+To try PTRE as it is, you need your own Trafikverket API key. Create one through Trafikverket's developer/API portal, then place it in a local `.env` file as shown below. The repository does not include credentials or live runtime data.
 
 ```bash
 # 1. Virtual environment + dependencies
@@ -23,7 +50,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 2. API key (create a .env file in the repo root)
-echo 'TRAFIKVERKET_API_KEY=your_key_here' > .env
+cp .env.example .env
+# Then edit .env and set TRAFIKVERKET_API_KEY.
 
 # 3. Smoke test — run a single tick and exit
 python main.py --once
@@ -37,6 +65,10 @@ open http://localhost:8081/        # TMC dashboard
 ```
 
 `main.py` is the unified entry point — it runs the tick loop in a background thread (`asyncio.to_thread`) while serving the FastAPI app, dashboard pages, and operator API on the same port. Override with `--port 8080` to match the Docker Compose `dashboard` service.
+
+The live Trafikverket API key belongs in `.env`. Do not commit local `.env`, `data/`, `storage/`, or captured images.
+
+YOLO model weights are also kept out of Git. By default the vision engine uses `yolov8n.pt`; Ultralytics will download/cache the weight file locally on first use if it is not already present.
 
 ## Architecture
 
@@ -77,7 +109,7 @@ Once `python main.py` is running, the dashboard is at **http://localhost:8081/**
 | `/sensors` | Sensor data | TrafficFlow station readings (volume vph, speed km/h), mapped to nearest camera |
 | `/travel-times` | Travel times | Per-route delay vs free-flow, corridor-level congestion status |
 | `/map` | Corridor map | Interactive Leaflet map of cameras, sensors, and VMS gantries |
-| `/anomalies` | Anomaly log | Persisted anomaly events with annotated frames (from `storage/anomalies/`) |
+| `/anomalies` | Anomaly log | Persisted anomaly events with annotated frames from local `storage/anomalies/` |
 | `/system` | System health | Last-tick timestamp, pipeline stats, calibration confidence |
 | `/logs` | Live logs | Tail of `data/mainloop.log` with level filtering |
 
@@ -155,6 +187,7 @@ Helpers serving the dashboard pages. Defined in [main.py](main.py). Treat as int
 |---|---|
 | `.env` (env var `TRAFIKVERKET_API_KEY`) | **Required** — Trafikverket Datex API key |
 | `.env` (optional `DATA_DIR`) | Override the default `./data` output directory |
+| local YOLO `.pt` weights | Downloaded/cached locally by Ultralytics; not committed to Git |
 | [config.py](config.py) | Camera IDs (46), sensor SiteIds (30), TravelTimeRoute IDs (21), bounding box, retry/backoff, anomaly thresholds |
 | [camera_config.json](camera_config.json) | Per-camera ROI polygons, exclusion zones, homography matrices |
 | [vms_config.json](vms_config.json) | 8 VMS gantries with `vms_id`, `lat`/`lng`, `chainage_km`, direction |
@@ -179,6 +212,8 @@ storage/
 ```
 
 Most processing happens in memory — only metadata, predictions, and anomaly frames persist.
+
+`data/` and `storage/` are local runtime directories and are ignored by Git. They may contain captured traffic-camera frames, logs, generated annotations, and other environment-specific artifacts. The public repository should not depend on those files being present.
 
 ## VMS Ground-Truth Strategy
 
@@ -225,9 +260,26 @@ docker compose up -d
 
 Both containers share `./data` via volume mount. The collector's health check fails if `data/collector.log` is older than 3 minutes.
 
+## Contributing
+
+This project is open for further development. See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines. Practical contributions are especially welcome when they make the prototype easier to validate, replay, port, or operate safely:
+
+- small, testable changes over large rewrites
+- fixtures or replay data that do not expose private keys or captured operational material
+- clear notes about assumptions, failure modes, and confidence limits
+- docs that help others reproduce a result with their own Trafikverket API key
+
+Before opening a pull request, run the unit tests and keep generated runtime files out of Git.
+
 ## Documentation
 
 - [docs/roadmap.md](docs/roadmap.md) — phases, ADRs, and remaining work
 - [docs/project_state.md](docs/project_state.md) — current status snapshot
 - [docs/handoff.md](docs/handoff.md) — context for the next contributor
 - [docs/notes/](docs/notes/) · [docs/plans/](docs/plans/) — working notes and plan drafts
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
+
+PTRE uses [Ultralytics YOLO](https://github.com/ultralytics/ultralytics), which is distributed under AGPL-3.0 unless you have a separate Enterprise license from Ultralytics.
