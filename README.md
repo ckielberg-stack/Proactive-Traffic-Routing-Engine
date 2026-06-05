@@ -16,6 +16,21 @@ PTRE is useful as a working reference implementation, but it is not production c
 - Local runtime data, captured frames, anomaly images, and training images are intentionally excluded from the public repo.
 - You should treat the current system as a foundation for experiments, not as safety-critical traffic-control software.
 
+## Handoff: What This Prototype Is Solving
+
+The main handoff is this: PTRE is trying to turn sparse public traffic data into an earlier, explainable VMS decision. Human operators can see that a crash or slowdown exists; this prototype focuses on the part that is hard to do manually in real time: estimating how fast the queue tail will propagate upstream and which VMS gantry should warn drivers before the queue arrives.
+
+The current work has been aimed at four connected problems:
+
+| Problem | Current approach | Where to continue |
+|---|---|---|
+| **Detect capacity loss from cameras** | YOLO vehicle detection, ROI polygons, density estimation, anomaly flags | Improve ROI calibration, add Swedish traffic-camera training data, validate false positives in night/winter/glare conditions |
+| **Turn observations into physics** | LWR shockwave calculation in [src/physics_engine.py](src/physics_engine.py), using upstream inflow, bottleneck capacity, jam density, and per-segment queue-tail propagation | Field-validate the model, compare against replay data, tune density/capacity assumptions, and make multi-direction corridor support explicit |
+| **Recommend VMS action before impact** | [src/vms_orchestrator.py](src/vms_orchestrator.py) maps predicted queue-tail ETAs to configured gantries in [vms_config.json](vms_config.json) | Validate gantry targeting rules with operators and connect to a real VMS status feed if available |
+| **Measure whether PTRE was early and right** | Situation API `SPEEDMANAGEMENTID` records are used as a proxy for human action; [src/evaluation_logger.py](src/evaluation_logger.py) records camera-to-camera "Prophecy" predictions | Replace proxy ground truth with authoritative activation logs, add replay fixtures, and publish repeatable evaluation metrics |
+
+For the deepest next-contributor context, start with [docs/handoff.md](docs/handoff.md). It explains the tick cycle, the piecewise LWR shockwave algorithm, the VMS recommendation flow, and known limitations in more detail than this README.
+
 ## What To Build Next
 
 Good directions for contributors:
@@ -172,7 +187,7 @@ Helpers serving the dashboard pages. Defined in [main.py](main.py). Treat as int
 | [src/vision_engine.py](src/vision_engine.py) | YOLOv8 perception → vehicle detections + capacity estimation |
 | [src/roi_mapper.py](src/roi_mapper.py) | Pixel → road-segment classification with BEV homography support |
 | [src/density_smoother.py](src/density_smoother.py) | Smooths observed traffic density across ticks to suppress flicker |
-| [src/physics_engine.py](src/physics_engine.py) | LWR kinematic wave model — shockwave propagation, queue tail speed |
+| [src/physics_engine.py](src/physics_engine.py) | LWR shockwave algorithm — bottleneck detection, piecewise queue-tail propagation, T+1/3/5/10 min lengths |
 | [src/travel_time_calibrator.py](src/travel_time_calibrator.py) | Adapts free-flow speed from TravelTimeRoute API observations |
 | [src/vms_orchestrator.py](src/vms_orchestrator.py) | Maps queue tail trajectory → gantry ETAs → VMS recommendations |
 | [src/incident_builder.py](src/incident_builder.py) | Converts capacity states + YOLO frames into `IncidentReport` objects |
