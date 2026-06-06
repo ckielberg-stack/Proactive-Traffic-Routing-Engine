@@ -87,10 +87,10 @@ The tick is orchestrated by `tick_once()` in `main_loop.py` and driven by `_tick
 ### 1. Data Ingestion (`main_loop.py`, `config.py`)
 
 - **Camera API:** Fetches 53 cameras from the Trafikverket Camera API. Images are decoded in RAM (`cv2.imdecode(np.frombuffer(...))`), processed, and immediately discarded. No disk write unless the retention policy triggers.
-- **Sensor API:** Polls `TrafficFlow` for upstream radar/loop-detector data (vehicles per hour + average speed). Aggregated into a single mean `SensorReading` per tick.
+- **Sensor API:** Polls `TrafficFlow` for upstream radar/loop-detector data (vehicles per hour + average speed). Data is mapped to route-linear camera nodes as `SegmentTrafficState`; an aggregate `SensorReading` remains only as fallback.
 - **Situation API (VMS proxy):** Polls `Situation.Deviation` records filtered by `MessageCode = 'Hastighetsbegränsning gäller'` and `SPEEDMANAGEMENTID` IDs. This is the **closest available proxy** for when a human operator activates a VMS sign. In production, this would be replaced by a direct TMC feed.
 - **Camera exclusion:** Cameras can be excluded via `data/excluded_cameras.json`. The main loop re-reads this file every tick (no restart needed).
-- **Camera chainage:** Camera positions are mapped to a linear chainage (km along the E4 corridor) by sorting latitudes south→north and interpolating over the 15.8 km corridor. This feeds the physics engine.
+- **Camera chainage:** Camera and sensor positions are projected onto a checked-in E4 northbound route reference, then scaled to the 15.8 km VMS datum. This feeds the physics engine, sensor-to-node inflow/speed mapping, and VMS position matching.
 
 ### 2. Vision Engine (`src/vision_engine.py`)
 
@@ -191,6 +191,8 @@ Each segment produces a SegmentSpeed:
   - distance_km: physical distance between adjacent cameras
   - wave_speed_kmh: LWR speed for this segment
   - local_inflow_vph: measured inflow at the upstream end
+  - local_speed_kmh: speed used for upstream density
+  - inflow_source / speed_source: local vs fallback provenance
 ```
 
 #### Queue Length Computation
@@ -320,14 +322,15 @@ MultiSegmentCapacity                   # Multi-ROI wrapper
 
 SegmentSpeed                           # Per-segment wave speed
   ├── distance_km, wave_speed_kmh
-  └── local_inflow_vph
+  └── local_inflow_vph, local_speed_kmh, inflow_source, speed_source
 
 QueuePrediction                        # Physics Engine output
   ├── camera_id, bottleneck_capacity_vph
   ├── origin_chainage_km, origin_lat/lng
   ├── growth_speed_kmh                 # Weighted-average wave speed
   ├── segments: list[SegmentSpeed]     # Per-segment breakdown
-  └── lengths_at_minutes: {1: km, 3: km, 5: km, 10: km}
+  ├── lengths_at_minutes: {1: km, 3: km, 5: km, 10: km}
+  └── local/fallback/missing segment counts + data_confidence
 
 VMSRecommendation                      # VMS Orchestrator output
   ├── vms_id, vms_name

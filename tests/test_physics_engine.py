@@ -12,7 +12,12 @@ from datetime import datetime
 
 import pytest
 
-from src.models import CapacityState, QueuePrediction, SensorReading
+from src.models import (
+    CapacityState,
+    QueuePrediction,
+    SegmentTrafficState,
+    SensorReading,
+)
 from src.physics_engine import (
     JAM_DENSITY_VEH_KM_LANE,
     K_CRITICAL_VEH_KM_LANE,
@@ -232,6 +237,55 @@ class TestPiecewisePrediction:
         speed_cam01 = pred.segment_speeds[1].wave_speed_kmh  # CAM_02→CAM_01
         assert speed_cam02 > speed_cam01
 
+    def test_varying_local_speeds_produce_different_segment_speeds(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """Same inflow but different local speeds should alter LWR wave speed."""
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=None,
+            camera_chainage_map=chainage_map,
+            node_traffic_states={
+                "CAM_01": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=90.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+                "CAM_02": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=40.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+                "CAM_03": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=50.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+            },
+        )
+
+        assert len(predictions) == 1
+        pred = predictions[0]
+        assert len(pred.segment_speeds) == 2
+        speed_cam02 = pred.segment_speeds[0].wave_speed_kmh
+        speed_cam01 = pred.segment_speeds[1].wave_speed_kmh
+        assert speed_cam02 != speed_cam01
+        assert speed_cam02 > speed_cam01
+        assert pred.segment_speeds[0].local_speed_kmh == 40.0
+        assert pred.segment_speeds[0].speed_source == "traffic_flow"
+        assert pred.local_data_segments == 2
+        assert pred.fallback_data_segments == 0
+        assert pred.data_confidence == "high"
+
     def test_wave_speed_zero_halts_iteration(
         self,
         engine: PhysicsEngine,
@@ -304,6 +358,44 @@ class TestPiecewisePrediction:
         # All segments should use the global sensor's inflow
         for seg in pred.segment_speeds:
             assert seg.local_inflow_vph == 4000.0
+
+    def test_missing_local_speed_uses_explicit_fallback_diagnostics(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        upstream_sensor: SensorReading,
+    ) -> None:
+        """Missing local speed falls back to aggregate sensor speed visibly."""
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=upstream_sensor,
+            camera_chainage_map={"CAM_02": 0.5, "CAM_03": 1.0},
+            node_traffic_states={
+                "CAM_02": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    inflow_source="traffic_flow",
+                    confidence="medium",
+                ),
+                "CAM_03": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=55.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+            },
+        )
+
+        assert len(predictions) == 1
+        pred = predictions[0]
+        assert len(pred.segment_speeds) == 1
+        segment = pred.segment_speeds[0]
+        assert segment.local_speed_kmh == upstream_sensor.average_speed_kmh
+        assert segment.inflow_source == "traffic_flow"
+        assert segment.speed_source == "aggregate"
+        assert pred.local_data_segments == 0
+        assert pred.fallback_data_segments == 1
+        assert pred.data_confidence == "medium"
 
     def test_lengths_increase_with_time(
         self,

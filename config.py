@@ -134,6 +134,16 @@ CAMERA_COORDS: dict[str, tuple[float, float]] = {
     "SE_STA_CAMERA_0_50438692":     (59.3410, 18.0112),
 }
 
+# Chainage datum used by physics and VMS: km from Hallunda heading northbound.
+E4_NORTHBOUND_CORRIDOR_LENGTH_KM: float = 15.8
+
+# Offline route reference, preserving the curated E4 northbound monitoring order.
+E4_NORTHBOUND_ROUTE_POINTS: list[tuple[float, float]] = [
+    CAMERA_COORDS[camera_id]
+    for camera_id in CAMERA_IDS
+    if camera_id in CAMERA_COORDS
+]
+
 # --- Insamling ---
 INTERVAL_SECONDS = 60  # Hur ofta bilder och sensordata hämtas
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -246,10 +256,8 @@ SENSOR_SPEED_DROP_RATIO: float = 0.50     # 50% → e.g. 35 km/h on a 70 road
 SENSOR_SEVERE_DROP_RATIO: float = 0.35    # 35% → e.g. 24.5 km/h on a 70 road
 # --- TravelTimeRoute IDs (E4/E20 corridor, Stockholm) ---
 # Discovered from TravelTimeRoute API (schemaversion 1.5), CountyNo=1.
-# These cover Hallunda → Karlberg in both directions (N and S).
 # Route IDs are strings matching the Trafikverket 'Id' field.
-E4_TRAVEL_TIME_ROUTE_IDS: list[str] = [
-    # Northbound
+E4_NORTHBOUND_TRAVEL_TIME_ROUTE_IDS: list[str] = [
     "724",    # E4/E20 N Hallunda S (146b) - Hallunda N (146a)
     "725",    # E4/E20 N Hallunda N (146a) - Fittja (147)
     "726",    # E4/E20 N Fittja (147) - Vårby (148)
@@ -264,6 +272,11 @@ E4_TRAVEL_TIME_ROUTE_IDS: list[str] = [
     "10523",  # E4/E20 N Karlberg (163) – Norrtull (164)
     "10524",  # E4/E20 N Trafikplats Karlberg Södra
     "10525",  # E4 N Norrtull (164) - Haga Södra (165)
+]
+
+# Combined fetch list covers Hallunda → Karlberg in both directions.
+E4_TRAVEL_TIME_ROUTE_IDS: list[str] = [
+    *E4_NORTHBOUND_TRAVEL_TIME_ROUTE_IDS,
     # Southbound
     "709",    # E4/E20 S Hallunda N (146a) – Hallunda S (146b)
     "625",    # E4/E20 S Nybohov (156) - Nyboda (155)
@@ -273,4 +286,3 @@ E4_TRAVEL_TIME_ROUTE_IDS: list[str] = [
     "631",    # E4/E20 S Västertorp (153) - Bredäng (152)
     "778",    # E4 S Eugeniatunneln – Karlberg (163)
 ]
-

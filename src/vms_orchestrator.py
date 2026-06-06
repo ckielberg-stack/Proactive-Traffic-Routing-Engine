@@ -21,9 +21,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
+from config import E4_NORTHBOUND_CORRIDOR_LENGTH_KM, E4_NORTHBOUND_ROUTE_POINTS
 from src.models import (
     QueuePrediction,
     SensorAnomaly,
@@ -31,6 +33,7 @@ from src.models import (
     VMSRecommendation,
     VMSStatusSnapshot,
 )
+from src.route_chainage import RouteProjector
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +66,19 @@ class VMSOrchestrator:
         Path to the ``vms_config.json`` file.  Defaults to project root.
     """
 
-    def __init__(self, config_path: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        config_path: Path | str | None = None,
+        route_points: Sequence[tuple[float, float]] | None = None,
+        corridor_length_km: float = E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+    ) -> None:
         self._config_path = Path(config_path) if config_path else DEFAULT_VMS_CONFIG
+        self._route_points = (
+            list(route_points)
+            if route_points is not None
+            else E4_NORTHBOUND_ROUTE_POINTS
+        )
+        self._corridor_length_km = corridor_length_km
         self._gantries: list[VMSGantry] = []
         self._load_config()
 
@@ -165,6 +179,30 @@ class VMSOrchestrator:
         if not self._gantries:
             return None
         return min(self._gantries, key=lambda g: abs(g.lat - lat))
+
+    def find_nearest_vms_by_chainage(
+        self,
+        chainage_km: float,
+    ) -> VMSGantry | None:
+        """Find the VMS gantry nearest to a route-linear chainage."""
+        if not self._gantries:
+            return None
+        return min(self._gantries, key=lambda g: abs(g.chainage_km - chainage_km))
+
+    def find_nearest_vms_by_position(
+        self,
+        lat: float,
+        lng: float,
+    ) -> VMSGantry | None:
+        """Find the VMS nearest to a lat/lng position on the route datum."""
+        projector = RouteProjector(
+            self._route_points,
+            self._corridor_length_km,
+        )
+        chainage_km = projector.project_chainage((lat, lng))
+        if chainage_km is None:
+            return None
+        return self.find_nearest_vms_by_chainage(chainage_km)
 
     # ------------------------------------------------------------------
     # Recommendation generation
@@ -311,8 +349,8 @@ class VMSOrchestrator:
             if anomaly.severity != "severe":
                 continue
 
-            # Find the nearest VMS to this sensor station
-            vms = self.find_nearest_vms_by_lat(anomaly.lat)
+            # Find the nearest VMS to this sensor station on the route datum.
+            vms = self.find_nearest_vms_by_position(anomaly.lat, anomaly.lng)
             if vms is None or vms.vms_id in seen_vms:
                 continue
 

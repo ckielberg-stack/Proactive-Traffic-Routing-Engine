@@ -31,7 +31,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from src.models import CapacityState, QueuePrediction, SegmentSpeed, SensorReading
+from src.models import (
+    CapacityState,
+    QueuePrediction,
+    SegmentSpeed,
+    SegmentTrafficState,
+    SensorReading,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +100,7 @@ class PhysicsEngine:
         camera_coords_map: dict[str, tuple[float, float]] | None = None,
         now: datetime | None = None,
         node_inflows: dict[str, float] | None = None,
+        node_traffic_states: dict[str, SegmentTrafficState] | None = None,
     ) -> list[QueuePrediction]:
         """Evaluate all capacity states and return queue predictions.
 
@@ -113,15 +120,27 @@ class PhysicsEngine:
             ``{camera_id: measured_volume_vph}`` — per-node inflow
             estimates from sensors or visual fallback.  If a node is
             missing, falls back to the global ``sensor`` reading.
+        node_traffic_states:
+            ``{camera_id: SegmentTrafficState}`` — per-node inflow/speed
+            estimates with source/confidence diagnostics. Takes precedence
+            over ``node_inflows``.
         """
         now = now or datetime.now()
         camera_chainage_map = camera_chainage_map or {}
         camera_coords_map = camera_coords_map or {}
         node_inflows = node_inflows or {}
+        node_traffic_states = node_traffic_states or {
+            camera_id: SegmentTrafficState(
+                local_inflow_vph=inflow_vph,
+                inflow_source="traffic_flow",
+                confidence="medium",
+            )
+            for camera_id, inflow_vph in node_inflows.items()
+        }
 
         predictions: list[QueuePrediction] = []
 
-        if sensor is None and not node_inflows:
+        if sensor is None and not node_traffic_states:
             logger.debug("No sensor data — skipping physics computation")
             return predictions
 
@@ -138,7 +157,7 @@ class PhysicsEngine:
                 sensor=sensor,
                 sorted_nodes=sorted_nodes,
                 coords_map=camera_coords_map,
-                node_inflows=node_inflows,
+                node_traffic_states=node_traffic_states,
                 now=now,
             )
             if prediction is not None:
@@ -156,7 +175,7 @@ class PhysicsEngine:
         sensor: SensorReading | None,
         sorted_nodes: list[tuple[str, float]],
         coords_map: dict[str, tuple[float, float]],
-        node_inflows: dict[str, float],
+        node_traffic_states: dict[str, SegmentTrafficState],
         now: datetime,
     ) -> QueuePrediction | None:
         """Run piecewise LWR calculation for a single bottleneck.
@@ -175,10 +194,23 @@ class PhysicsEngine:
         # Global sensor fallback values
         global_inflow = sensor.inflow_volume_vph if sensor else None
         global_speed = sensor.average_speed_kmh if sensor else self.free_flow_speed
+        global_inflow_source = "aggregate" if sensor else "missing"
+        global_speed_source = "aggregate" if sensor else "model_free_flow"
 
         # First check: does inflow even exceed capacity?
         # Use per-node inflow for the bottleneck camera, or global sensor
-        bottleneck_inflow = node_inflows.get(state.camera_id, global_inflow)
+        bottleneck_inflow, bottleneck_inflow_source = self._resolve_local_inflow(
+            state.camera_id,
+            node_traffic_states,
+            global_inflow,
+            global_inflow_source,
+        )
+        bottleneck_speed, bottleneck_speed_source = self._resolve_local_speed(
+            state.camera_id,
+            node_traffic_states,
+            global_speed,
+            global_speed_source,
+        )
         if bottleneck_inflow is None:
             logger.debug(
                 f"Camera {state.camera_id}: no inflow data available"
@@ -211,6 +243,9 @@ class PhysicsEngine:
 
         # --- Piecewise backward iteration ---
         segment_speeds: list[SegmentSpeed] = []
+        local_data_segments = 0
+        fallback_data_segments = 0
+        missing_data_segments = 0
 
         if bottleneck_idx is not None and sorted_nodes:
             prev_cam_id = state.camera_id
@@ -226,16 +261,28 @@ class PhysicsEngine:
                     idx += upstream_step
                     continue
 
-                # Get local inflow at this upstream node
-                local_inflow = node_inflows.get(upstream_cam_id, global_inflow)
+                # Get local inflow and speed at this upstream node.
+                local_inflow, inflow_source = self._resolve_local_inflow(
+                    upstream_cam_id,
+                    node_traffic_states,
+                    global_inflow,
+                    global_inflow_source,
+                )
                 if local_inflow is None:
+                    missing_data_segments += 1
                     break  # No inflow data — can't continue
+                local_speed, speed_source = self._resolve_local_speed(
+                    upstream_cam_id,
+                    node_traffic_states,
+                    global_speed,
+                    global_speed_source,
+                )
 
                 # Compute segment wave speed
                 wave_speed = self._lwr_wave_speed(
                     inflow_vph=local_inflow,
                     bottleneck_capacity_vph=bottleneck_capacity_vph,
-                    upstream_speed_kmh=global_speed,
+                    upstream_speed_kmh=local_speed,
                     num_lanes=total_lanes,
                 )
 
@@ -253,7 +300,14 @@ class PhysicsEngine:
                     distance_km=round(distance_km, 4),
                     wave_speed_kmh=round(wave_speed, 2),
                     local_inflow_vph=local_inflow,
+                    local_speed_kmh=round(local_speed, 1),
+                    inflow_source=inflow_source,
+                    speed_source=speed_source,
                 ))
+                if inflow_source == "traffic_flow" and speed_source == "traffic_flow":
+                    local_data_segments += 1
+                else:
+                    fallback_data_segments += 1
 
                 prev_cam_id = upstream_cam_id
                 prev_chainage = upstream_chainage
@@ -279,16 +333,29 @@ class PhysicsEngine:
             avg_speed = self._lwr_wave_speed(
                 inflow_vph=bottleneck_inflow,
                 bottleneck_capacity_vph=bottleneck_capacity_vph,
-                upstream_speed_kmh=global_speed,
+                upstream_speed_kmh=bottleneck_speed,
                 num_lanes=total_lanes,
             )
             if avg_speed <= 0:
                 return None
+            if (
+                bottleneck_inflow_source == "traffic_flow"
+                and bottleneck_speed_source == "traffic_flow"
+            ):
+                local_data_segments = 1
+            else:
+                fallback_data_segments = 1
             # Simple linear projection (legacy behavior)
             lengths_at_minutes = {
                 t: round(avg_speed * (t / 60), 3)
                 for t in self.time_horizons
             }
+
+        data_confidence = self._data_confidence(
+            local_data_segments,
+            fallback_data_segments,
+            missing_data_segments,
+        )
 
         coords = coords_map.get(state.camera_id, (0.0, 0.0))
         chainage_km = 0.0
@@ -300,6 +367,10 @@ class PhysicsEngine:
         logger.info(
             f"🌊 Piecewise prediction @ {state.camera_id}: "
             f"segments={len(segment_speeds)}, "
+            f"local={local_data_segments}, "
+            f"fallback={fallback_data_segments}, "
+            f"missing={missing_data_segments}, "
+            f"confidence={data_confidence}, "
             f"avg_wave={avg_speed:.1f} km/h, "
             f"Q+5min={lengths_at_minutes.get(5, 0):.2f} km"
         )
@@ -313,7 +384,49 @@ class PhysicsEngine:
             growth_speed_kmh=round(avg_speed, 2),
             segment_speeds=segment_speeds,
             lengths_at_minutes=lengths_at_minutes,
+            local_data_segments=local_data_segments,
+            fallback_data_segments=fallback_data_segments,
+            missing_data_segments=missing_data_segments,
+            data_confidence=data_confidence,
         )
+
+    @staticmethod
+    def _resolve_local_inflow(
+        camera_id: str,
+        node_traffic_states: dict[str, SegmentTrafficState],
+        global_inflow: float | None,
+        global_inflow_source: str,
+    ) -> tuple[float | None, str]:
+        traffic_state = node_traffic_states.get(camera_id)
+        if traffic_state and traffic_state.local_inflow_vph is not None:
+            return traffic_state.local_inflow_vph, traffic_state.inflow_source
+        return global_inflow, global_inflow_source
+
+    @staticmethod
+    def _resolve_local_speed(
+        camera_id: str,
+        node_traffic_states: dict[str, SegmentTrafficState],
+        global_speed: float,
+        global_speed_source: str,
+    ) -> tuple[float, str]:
+        traffic_state = node_traffic_states.get(camera_id)
+        if traffic_state and traffic_state.local_speed_kmh is not None:
+            return traffic_state.local_speed_kmh, traffic_state.speed_source
+        return global_speed, global_speed_source
+
+    @staticmethod
+    def _data_confidence(
+        local_data_segments: int,
+        fallback_data_segments: int,
+        missing_data_segments: int,
+    ) -> str:
+        if missing_data_segments > 0:
+            return "low"
+        if fallback_data_segments > 0:
+            return "medium"
+        if local_data_segments > 0:
+            return "high"
+        return "low"
 
     # ------------------------------------------------------------------
     # Piecewise time-distance accumulation

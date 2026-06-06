@@ -106,7 +106,11 @@ def vms_config_path(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def orchestrator(vms_config_path: Path) -> VMSOrchestrator:
-    return VMSOrchestrator(config_path=vms_config_path)
+    return VMSOrchestrator(
+        config_path=vms_config_path,
+        route_points=[(59.25, 18.00), (59.30, 18.00), (59.35, 18.01)],
+        corridor_length_km=10.0,
+    )
 
 
 # ======================================================================
@@ -373,23 +377,39 @@ class TestSensorVMSRecommendations:
 
 
 # ======================================================================
-# find_nearest_vms_by_lat tests
+# VMS route-position lookup tests
 # ======================================================================
 
 
-class TestFindNearestVMSByLat:
-    def test_finds_nearest_gantry(self, orchestrator: VMSOrchestrator) -> None:
-        """Picks the gantry closest by latitude."""
-        # lat=59.31 is closer to Test Gantry South (59.30)
-        vms = orchestrator.find_nearest_vms_by_lat(59.31)
+class TestFindNearestVMSByChainage:
+    def test_finds_nearest_gantry_by_chainage(
+        self, orchestrator: VMSOrchestrator
+    ) -> None:
+        """Picks the gantry closest by route-linear chainage."""
+        vms = orchestrator.find_nearest_vms_by_chainage(5.2)
         assert vms is not None
         assert vms.vms_id == "VMS-TEST-001"
 
-    def test_finds_north_gantry(self, orchestrator: VMSOrchestrator) -> None:
-        """lat=59.34 is closer to Test Gantry North (59.35)."""
-        vms = orchestrator.find_nearest_vms_by_lat(59.34)
+    def test_finds_north_gantry_by_chainage(
+        self, orchestrator: VMSOrchestrator
+    ) -> None:
+        vms = orchestrator.find_nearest_vms_by_chainage(9.0)
         assert vms is not None
         assert vms.vms_id == "VMS-TEST-002"
+
+    def test_position_lookup_projects_to_route_chainage(
+        self, orchestrator: VMSOrchestrator
+    ) -> None:
+        vms = orchestrator.find_nearest_vms_by_position(59.345, 18.009)
+        assert vms is not None
+        assert vms.vms_id == "VMS-TEST-002"
+
+    def test_latitude_lookup_is_compatibility_only(
+        self, orchestrator: VMSOrchestrator
+    ) -> None:
+        vms = orchestrator.find_nearest_vms_by_lat(59.31)
+        assert vms is not None
+        assert vms.vms_id == "VMS-TEST-001"
 
     def test_no_gantries_returns_none(self, tmp_path: Path) -> None:
         """Empty gantry list → returns None."""
@@ -398,7 +418,7 @@ class TestFindNearestVMSByLat:
         config_path = tmp_path / "empty.json"
         config_path.write_text(json.dumps({"gantries": []}))
         empty_orch = VMSOrchestrator(config_path=config_path)
-        assert empty_orch.find_nearest_vms_by_lat(59.30) is None
+        assert empty_orch.find_nearest_vms_by_chainage(5.0) is None
 
 
 # ======================================================================
