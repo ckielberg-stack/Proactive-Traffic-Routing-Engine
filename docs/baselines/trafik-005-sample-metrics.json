@@ -1,0 +1,81 @@
+{
+  "config": {
+    "corridor_length_km": 10.0,
+    "late_hit_tolerance_minutes": 5.0,
+    "prediction_expiry_minutes": 30.0
+  },
+  "corridor": {
+    "congested_segment_count": 2,
+    "expired_prediction_count": 1,
+    "false_positive_count": 1,
+    "false_positive_rate": 0.5,
+    "matched_congestion_count": 1,
+    "matched_prediction_count": 1,
+    "mean_abs_eta_error_minutes": 2.5,
+    "mean_distance_error_km": 2.5,
+    "mean_eta_error_minutes": -2.5,
+    "mean_lead_time_minutes": 5.0,
+    "mean_vms_lead_time_minutes": 5.0,
+    "missed_congestion_count": 1,
+    "precision": 0.5,
+    "prediction_count": 2,
+    "recall": 0.5
+  },
+  "false_positives": [
+    {
+      "camera_id": "CAM_N",
+      "prediction_id": "sample-expired",
+      "status": "expired_prediction",
+      "timestamp": "2026-06-06T12:30:00"
+    }
+  ],
+  "matches": [
+    {
+      "camera_id": "CAM_N",
+      "congestion_time": "2026-06-06T12:05:00",
+      "distance_error_km": 2.5,
+      "eta_error_minutes": -2.5,
+      "event_id": "congestion-3",
+      "lead_time_minutes": 5.0,
+      "predicted_eta_minutes": 7.5,
+      "predicted_tail_chainage_km": 5.0,
+      "prediction_id": "sample-hit",
+      "prediction_time": "2026-06-06T12:00:00",
+      "route_id": "724",
+      "segment_midpoint_km": 2.5,
+      "status": "hit",
+      "vms_activation_time": "2026-06-06T12:06:00",
+      "vms_id": "VMS-SAMPLE"
+    }
+  ],
+  "misses": [
+    {
+      "event_id": "congestion-6",
+      "route_id": "725",
+      "status": "missed_congestion",
+      "timestamp": "2026-06-06T13:10:00"
+    }
+  ],
+  "segments": {
+    "724": {
+      "congested_count": 1,
+      "hit_count": 1,
+      "mean_abs_eta_error_minutes": 2.5,
+      "mean_distance_error_km": 2.5,
+      "mean_eta_error_minutes": -2.5,
+      "missed_count": 0
+    },
+    "725": {
+      "congested_count": 1,
+      "hit_count": 0,
+      "mean_abs_eta_error_minutes": null,
+      "mean_distance_error_km": null,
+      "mean_eta_error_minutes": null,
+      "missed_count": 1
+    }
+  },
+  "source_files": [
+    "tests/fixtures/replay_sample.jsonl"
+  ],
+  "version": "replay-eval-v1"
+}
