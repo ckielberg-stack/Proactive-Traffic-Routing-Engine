@@ -432,6 +432,52 @@ def _save_annotated_image(
         return None
 
 
+def _aggregate_multi_roi_capacity(
+    multi_state: MultiSegmentCapacity,
+    camera_meta: CameraMetadata,
+) -> tuple[CapacityState, dict[str, dict]]:
+    """Collapse per-ROI vision output into the camera-level state."""
+    total_vehicles = sum(s.vehicle_count for s in multi_state.segments)
+    total_capacity = sum(s.capacity_vph for s in multi_state.segments)
+    any_anomaly = any(s.is_anomaly for s in multi_state.segments)
+    anomaly_reasons = [
+        s.anomaly_reason
+        for s in multi_state.segments
+        if s.is_anomaly and s.anomaly_reason
+    ]
+    max_density = max(
+        (s.observed_density_veh_km_lane for s in multi_state.segments),
+        default=0.0,
+    )
+
+    state = CapacityState(
+        timestamp=multi_state.timestamp,
+        camera_id=multi_state.camera_id,
+        vehicle_count=total_vehicles,
+        blocked_lanes=0,
+        total_lanes=camera_meta.num_lanes,
+        estimated_capacity_vph=round(total_capacity, 1),
+        observed_density_veh_km_lane=round(max_density, 2),
+        is_anomaly=any_anomaly,
+        anomaly_reason="; ".join(anomaly_reasons) if anomaly_reasons else None,
+        confidence=round(
+            float(np.mean([s.confidence for s in multi_state.segments]))
+            if multi_state.segments else 0.0,
+            3,
+        ),
+    )
+    road_segments_data = {
+        seg.road_id: {
+            "direction": seg.direction,
+            "count": seg.vehicle_count,
+            "capacity_vph": seg.capacity_vph,
+            "density_veh_km_lane": seg.observed_density_veh_km_lane,
+        }
+        for seg in multi_state.segments
+    }
+    return state, road_segments_data
+
+
 def fetch_cameras(camera_ids: list[str], now: datetime) -> tuple[list[dict], list[CapacityState]]:
     """Fetch camera images into RAM, run YOLO, apply retention, return metadata."""
     if not camera_ids:
@@ -497,33 +543,9 @@ def fetch_cameras(camera_ids: list[str], now: datetime) -> tuple[list[dict], lis
         road_segments_data = None
         if roi_mapper.has_rois(cam_id):
             multi_state = engine.analyze_multi_roi(frame, meta, roi_mapper)
-            total_vehicles = sum(s.vehicle_count for s in multi_state.segments)
-            total_capacity = sum(s.capacity_vph for s in multi_state.segments)
-            any_anomaly = any(s.is_anomaly for s in multi_state.segments)
-            anomaly_reasons = [s.anomaly_reason for s in multi_state.segments if s.is_anomaly]
-
-            state = CapacityState(
-                timestamp=multi_state.timestamp,
-                camera_id=cam_id,
-                vehicle_count=total_vehicles,
-                blocked_lanes=0,
-                total_lanes=meta.num_lanes,
-                estimated_capacity_vph=round(total_capacity, 1),
-                is_anomaly=any_anomaly,
-                anomaly_reason="; ".join(anomaly_reasons) if anomaly_reasons else None,
-                confidence=round(
-                    float(np.mean([s.confidence for s in multi_state.segments]))
-                    if multi_state.segments else 0.0, 3,
-                ),
+            state, road_segments_data = _aggregate_multi_roi_capacity(
+                multi_state, meta,
             )
-            road_segments_data = {
-                seg.road_id: {
-                    "direction": seg.direction,
-                    "count": seg.vehicle_count,
-                    "capacity_vph": seg.capacity_vph,
-                }
-                for seg in multi_state.segments
-            }
         else:
             state = engine.analyze_array(frame, meta)
 
