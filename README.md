@@ -81,6 +81,12 @@ open http://localhost:8081/        # TMC dashboard
 
 `main.py` is the unified entry point — it runs the tick loop in a background thread (`asyncio.to_thread`) while serving the FastAPI app, dashboard pages, and operator API on the same port. Override with `--port 8080` to match the Docker Compose `dashboard` service.
 
+Validate ROI physical-length calibration before trusting density-driven predictions:
+
+```bash
+python -m src.roi_length_calibration validate --config camera_config.json
+```
+
 The live Trafikverket API key belongs in `.env`. Do not commit local `.env`, `data/`, `storage/`, or captured images.
 
 YOLO model weights are also kept out of Git. By default the vision engine uses `yolov8n.pt`; Ultralytics will download/cache the weight file locally on first use if it is not already present.
