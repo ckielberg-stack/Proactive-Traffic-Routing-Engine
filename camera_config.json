@@ -29,7 +29,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 95.1,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -97,7 +100,10 @@
           "road_id": "E4_Southbound",
           "direction_relative_to_camera": "towards",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 23.5,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         },
         {
           "polygon": [
@@ -161,7 +167,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 4000,
-          "num_lanes": 2
+          "num_lanes": 2,
+          "roi_length_meters": 33.6,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -209,7 +218,10 @@
           "road_id": "E4_Southbound",
           "direction_relative_to_camera": "towards",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 21.7,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         },
         {
           "polygon": [
@@ -257,7 +269,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 4000,
-          "num_lanes": 2
+          "num_lanes": 2,
+          "roi_length_meters": 28.2,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -293,7 +308,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 54.5,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -333,7 +351,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 52.5,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -373,7 +394,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 63.3,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ],
       "exclusion_zones": [
@@ -445,7 +469,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 49.7,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -505,7 +532,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 50.5,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -553,7 +583,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 76.4,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -601,7 +634,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 53.4,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -653,7 +689,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 80.7,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -709,7 +748,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 77.1,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -757,7 +799,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 69.3,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -809,7 +854,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 78.9,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -861,7 +909,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 61.9,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -933,7 +984,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 71.8,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -997,7 +1051,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 73.3,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1065,7 +1122,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 66.0,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1125,7 +1185,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 45.2,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1177,7 +1240,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 33.0,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1233,7 +1299,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 24.2,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1277,7 +1346,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 26.1,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1317,7 +1389,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 4000,
-          "num_lanes": 2
+          "num_lanes": 2,
+          "roi_length_meters": 17.8,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1365,7 +1440,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 4000,
-          "num_lanes": 2
+          "num_lanes": 2,
+          "roi_length_meters": 17.2,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1429,7 +1507,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 4000,
-          "num_lanes": 2
+          "num_lanes": 2,
+          "roi_length_meters": 14.3,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1481,7 +1562,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 4000,
-          "num_lanes": 2
+          "num_lanes": 2,
+          "roi_length_meters": 14.5,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1521,7 +1605,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 4000,
-          "num_lanes": 2
+          "num_lanes": 2,
+          "roi_length_meters": 45.9,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1577,7 +1664,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 32.2,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1621,7 +1711,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 29.4,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1677,7 +1770,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 55.7,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1717,7 +1813,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 34.7,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1757,7 +1856,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 35.1,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1805,7 +1907,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 27.2,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1849,7 +1954,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 51.9,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1913,7 +2021,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 48.1,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -1973,7 +2084,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 34.4,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2001,7 +2115,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 28.0,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2045,7 +2162,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 30.9,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2085,7 +2205,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 8000,
-          "num_lanes": 4
+          "num_lanes": 4,
+          "roi_length_meters": 33.0,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2121,7 +2244,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 36.7,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2177,7 +2303,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 24.4,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2221,7 +2350,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 29.7,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2269,7 +2401,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 18.8,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2313,7 +2448,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 28.1,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2345,7 +2483,10 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 25.9,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     },
@@ -2393,9 +2534,18 @@
           "road_id": "E4_Northbound",
           "direction_relative_to_camera": "away",
           "capacity_vph": 6000,
-          "num_lanes": 3
+          "num_lanes": 3,
+          "roi_length_meters": 16.1,
+          "roi_length_source": "lane_width_geometry_estimate",
+          "roi_length_confidence": "estimated"
         }
       ]
     }
+  },
+  "roi_length_calibration": {
+    "source": "lane_width_geometry_estimate",
+    "lane_width_meters": 3.5,
+    "method": "PCA major/minor axis scaled by num_lanes * lane_width_meters",
+    "updated_rois": 48
   }
 }
