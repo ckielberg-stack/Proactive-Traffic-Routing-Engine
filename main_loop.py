@@ -48,6 +48,9 @@ from config import (
     CAMERA_IDS,
     DATA_DIR,
     DEFAULT_ROAD_SPEED_LIMIT,
+    E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+    E4_NORTHBOUND_ROUTE_POINTS,
+    E4_NORTHBOUND_TRAVEL_TIME_ROUTE_IDS,
     E4_TRAVEL_TIME_ROUTE_IDS,
     INTERVAL_SECONDS,
     MAX_RETRIES,
@@ -65,6 +68,7 @@ from src.models import (
     MultiSegmentCapacity,
     SensorAnomaly,
     SensorReading,
+    SegmentTrafficState,
     TickResult,
     TravelTimeReading,
     VMSStatusSnapshot,
@@ -74,6 +78,10 @@ from src.anomaly_store import record_anomaly, get_total_count
 from src.density_smoother import DensitySmoother
 from src.physics_engine import PhysicsEngine
 from src.roi_mapper import ROIMapper
+from src.route_chainage import (
+    build_route_chainage_map,
+    find_nearest_by_chainage,
+)
 from src.vision_engine import VisionEngine
 from src.vms_orchestrator import VMSOrchestrator
 
@@ -260,61 +268,105 @@ def _get_density_smoother() -> DensitySmoother:
 # Camera chainage mapping (for physics engine)
 # ---------------------------------------------------------------------------
 
-# Maps camera_id → approximate chainage (km) along the E4 corridor.
-# Derived from sorted latitude of CAMERA_COORDS — south to north.
-# In production this would come from the VMS config or a separate mapping.
 def build_camera_chainage_map(
     camera_coords: dict[str, tuple[float, float]] | None = None,
+    route_points: list[tuple[float, float]] | None = None,
+    corridor_length_km: float = E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
 ) -> dict[str, float]:
-    """Build a rough chainage map from camera coordinates.
-
-    Sort cameras by latitude (south → north) and assign proportional
-    chainage along the 15.8 km corridor (matching vms_config.json datum).
+    """Build a route-linear camera chainage map.
 
     Parameters
     ----------
     camera_coords:
         Mapping of camera_id → (lat, lng).  Falls back to
         ``config.CAMERA_COORDS`` when not provided.
+    route_points:
+        Ordered route control points from Hallunda heading northbound.
+    corridor_length_km:
+        Chainage length matching the VMS datum.
     """
     coords = camera_coords if camera_coords is not None else CAMERA_COORDS
-    if not coords:
-        return {}
-
-    sorted_cameras = sorted(coords.items(), key=lambda x: x[1][0])
-    min_lat = sorted_cameras[0][1][0]
-    max_lat = sorted_cameras[-1][1][0]
-    lat_range = max_lat - min_lat
-
-    corridor_km = 15.8  # From vms_config.json — Hallunda to Kristineberg
-
-    chainage_map: dict[str, float] = {}
-    for cam_id, (lat, _lng) in sorted_cameras:
-        if lat_range > 0:
-            fraction = (lat - min_lat) / lat_range
-        else:
-            fraction = 0.0
-        chainage_map[cam_id] = round(fraction * corridor_km, 2)
-
-    return chainage_map
+    route = route_points if route_points is not None else E4_NORTHBOUND_ROUTE_POINTS
+    return {
+        str(camera_id): chainage
+        for camera_id, chainage in build_route_chainage_map(
+            coords,
+            route,
+            corridor_length_km,
+        ).items()
+    }
 
 
 # Backward-compatible alias
 _build_camera_chainage_map = build_camera_chainage_map
 
 
-def build_node_inflows(
-    sensor_readings: list[SensorReading],
-    camera_coords: dict[str, tuple[float, float]] | None = None,
-) -> dict[str, float]:
-    """Map sensor station readings to the nearest camera node.
+def build_travel_time_speed_states(
+    travel_time_readings: list[TravelTimeReading],
+    camera_chainage_map: dict[str, float] | None = None,
+    route_ids: list[str] | None = None,
+    corridor_length_km: float = E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+) -> dict[str, SegmentTrafficState]:
+    """Map ordered northbound TravelTimeRoute speeds onto camera chainage spans."""
+    if not travel_time_readings:
+        return {}
 
-    For each sensor with a ``site_id`` and known coordinates, find the
-    camera with the smallest latitude distance and assign its measured
-    volume as that camera's local inflow.
+    camera_chainages = camera_chainage_map or build_camera_chainage_map()
+    ordered_route_ids = route_ids or E4_NORTHBOUND_TRAVEL_TIME_ROUTE_IDS
+    route_order = {route_id: idx for idx, route_id in enumerate(ordered_route_ids)}
+    northbound = [
+        reading for reading in travel_time_readings
+        if reading.route_id in route_order
+        and reading.length_meters > 0
+        and reading.speed_kmh > 0
+    ]
+    if not camera_chainages or not northbound:
+        return {}
+
+    northbound.sort(key=lambda reading: route_order[reading.route_id])
+    total_length_m = sum(reading.length_meters for reading in northbound)
+    if total_length_m <= 0:
+        return {}
+
+    states: dict[str, SegmentTrafficState] = {}
+    span_start_km = 0.0
+    for idx, reading in enumerate(northbound):
+        span_length_km = (reading.length_meters / total_length_m) * corridor_length_km
+        span_end_km = corridor_length_km if idx == len(northbound) - 1 else (
+            span_start_km + span_length_km
+        )
+
+        for camera_id, chainage_km in camera_chainages.items():
+            in_span = (
+                span_start_km <= chainage_km <= span_end_km
+                if idx == len(northbound) - 1
+                else span_start_km <= chainage_km < span_end_km
+            )
+            if not in_span or camera_id in states:
+                continue
+            states[camera_id] = SegmentTrafficState(
+                local_speed_kmh=round(reading.speed_kmh, 1),
+                speed_source="travel_time",
+                confidence="medium",
+            )
+
+        span_start_km = span_end_km
+
+    return states
+
+
+def build_node_traffic_states(
+    sensor_readings: list[SensorReading],
+    travel_time_readings: list[TravelTimeReading] | None = None,
+    camera_coords: dict[str, tuple[float, float]] | None = None,
+    sensor_coords: dict[int, tuple[float, float]] | None = None,
+    route_points: list[tuple[float, float]] | None = None,
+    corridor_length_km: float = E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+) -> dict[str, SegmentTrafficState]:
+    """Map local TrafficFlow and TravelTimeRoute data to camera nodes.
 
     When multiple sensors map to the same camera, their flows are summed
-    (they typically represent different lanes at the same location).
+    and their speeds are volume-weighted when volume is available.
 
     Parameters
     ----------
@@ -323,40 +375,128 @@ def build_node_inflows(
     camera_coords:
         Mapping of camera_id → (lat, lng).  Falls back to
         ``config.CAMERA_COORDS`` when not provided.
+    sensor_coords:
+        Mapping of TrafficFlow SiteId → (lat, lng). Falls back to
+        ``config.SENSOR_COORDS`` when not provided.
+    route_points:
+        Ordered route control points from Hallunda heading northbound.
+    corridor_length_km:
+        Chainage length matching the VMS datum.
 
     Returns
     -------
-    dict[str, float]
-        Mapping of camera_id → total inflow volume (VPH).
+    dict[str, SegmentTrafficState]
+        Mapping of camera_id → local traffic state.
     """
-    from config import SENSOR_COORDS
-
     coords = camera_coords if camera_coords is not None else CAMERA_COORDS
-    if not coords or not sensor_readings:
+    sensors = sensor_coords if sensor_coords is not None else SENSOR_COORDS
+    route = route_points if route_points is not None else E4_NORTHBOUND_ROUTE_POINTS
+    if not coords:
         return {}
 
-    cam_items = list(coords.items())  # [(cam_id, (lat, lng)), ...]
+    camera_chainages = build_camera_chainage_map(
+        coords,
+        route_points=route,
+        corridor_length_km=corridor_length_km,
+    )
+    states: dict[str, SegmentTrafficState] = {}
 
-    node_inflows: dict[str, float] = {}
+    if travel_time_readings:
+        states.update(build_travel_time_speed_states(
+            travel_time_readings,
+            camera_chainage_map=camera_chainages,
+            corridor_length_km=corridor_length_km,
+        ))
+
+    if not sensors or not sensor_readings:
+        return states
+
+    sensor_chainages = build_route_chainage_map(
+        sensors,
+        route,
+        corridor_length_km,
+    )
+    if not camera_chainages or not sensor_chainages:
+        return states
+
+    aggregates: dict[str, dict[str, float | int]] = {}
 
     for reading in sensor_readings:
         if reading.site_id is None:
             continue
-        sensor_pos = SENSOR_COORDS.get(reading.site_id)
-        if sensor_pos is None:
+        sensor_chainage = sensor_chainages.get(reading.site_id)
+        if sensor_chainage is None:
             continue
 
-        # Find nearest camera by latitude (corridor is roughly N-S)
-        best_cam = min(
-            cam_items,
-            key=lambda c: abs(c[1][0] - sensor_pos[0]),
-        )[0]
+        best_cam = find_nearest_by_chainage(sensor_chainage, camera_chainages)
+        if best_cam is None:
+            continue
 
-        node_inflows[best_cam] = (
-            node_inflows.get(best_cam, 0.0) + reading.inflow_volume_vph
+        best_cam_id = str(best_cam)
+        aggregate = aggregates.setdefault(
+            best_cam_id,
+            {
+                "volume": 0.0,
+                "weighted_speed": 0.0,
+                "speed_weight": 0.0,
+                "speed_sum": 0.0,
+                "speed_count": 0,
+            },
+        )
+        aggregate["volume"] = float(aggregate["volume"]) + reading.inflow_volume_vph
+        aggregate["speed_sum"] = float(aggregate["speed_sum"]) + reading.average_speed_kmh
+        aggregate["speed_count"] = int(aggregate["speed_count"]) + 1
+        if reading.inflow_volume_vph > 0:
+            aggregate["weighted_speed"] = (
+                float(aggregate["weighted_speed"])
+                + reading.average_speed_kmh * reading.inflow_volume_vph
+            )
+            aggregate["speed_weight"] = (
+                float(aggregate["speed_weight"]) + reading.inflow_volume_vph
+            )
+
+    for camera_id, aggregate in aggregates.items():
+        volume = float(aggregate["volume"])
+        speed_weight = float(aggregate["speed_weight"])
+        speed_count = int(aggregate["speed_count"])
+        if speed_weight > 0:
+            speed = float(aggregate["weighted_speed"]) / speed_weight
+        elif speed_count > 0:
+            speed = float(aggregate["speed_sum"]) / speed_count
+        else:
+            speed = None
+
+        states[camera_id] = SegmentTrafficState(
+            local_inflow_vph=round(volume, 1),
+            local_speed_kmh=round(speed, 1) if speed is not None else None,
+            inflow_source="traffic_flow",
+            speed_source="traffic_flow" if speed is not None else "missing",
+            confidence="high" if speed is not None else "medium",
         )
 
-    return node_inflows
+    return states
+
+
+def build_node_inflows(
+    sensor_readings: list[SensorReading],
+    camera_coords: dict[str, tuple[float, float]] | None = None,
+    sensor_coords: dict[int, tuple[float, float]] | None = None,
+    route_points: list[tuple[float, float]] | None = None,
+    corridor_length_km: float = E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+) -> dict[str, float]:
+    """Compatibility wrapper returning only per-camera inflow volumes."""
+    traffic_states = build_node_traffic_states(
+        sensor_readings,
+        camera_coords=camera_coords,
+        sensor_coords=sensor_coords,
+        route_points=route_points,
+        corridor_length_km=corridor_length_km,
+    )
+    return {
+        camera_id: state.local_inflow_vph
+        for camera_id, state in traffic_states.items()
+        if state.local_inflow_vph is not None
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -917,7 +1057,7 @@ def detect_sensor_anomalies(
         coords = SENSOR_COORDS.get(reading.site_id, (0.0, 0.0))
 
         # Find nearest camera for cross-referencing
-        nearest_cam = _find_nearest_camera(coords[0]) if coords[0] else None
+        nearest_cam = _find_nearest_camera(coords[0], coords[1]) if coords[0] else None
 
         anomaly = SensorAnomaly(
             timestamp=now,
@@ -958,13 +1098,41 @@ def detect_sensor_anomalies(
     return anomalies
 
 
-def _find_nearest_camera(lat: float) -> str | None:
-    """Find the camera ID nearest to a given latitude."""
-    if not CAMERA_COORDS:
+def _find_nearest_camera(
+    lat: float,
+    lng: float | None = None,
+    camera_coords: dict[str, tuple[float, float]] | None = None,
+    route_points: list[tuple[float, float]] | None = None,
+    corridor_length_km: float = E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+) -> str | None:
+    """Find the camera ID nearest to a route position."""
+    coords = camera_coords if camera_coords is not None else CAMERA_COORDS
+    route = route_points if route_points is not None else E4_NORTHBOUND_ROUTE_POINTS
+    if not coords:
         return None
+    if lng is not None:
+        camera_chainages = build_camera_chainage_map(
+            coords,
+            route_points=route,
+            corridor_length_km=corridor_length_km,
+        )
+        target_chainages = build_route_chainage_map(
+            {"target": (lat, lng)},
+            route,
+            corridor_length_km,
+        )
+        target_chainage = target_chainages.get("target")
+        nearest = (
+            find_nearest_by_chainage(target_chainage, camera_chainages)
+            if target_chainage is not None
+            else None
+        )
+        if nearest is not None:
+            return str(nearest)
+
     return min(
-        CAMERA_COORDS,
-        key=lambda cid: abs(CAMERA_COORDS[cid][0] - lat),
+        coords,
+        key=lambda cid: abs(coords[cid][0] - lat),
     )
 
 
@@ -1066,12 +1234,29 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     if calibration_snapshot and calibration_snapshot.confidence != "low":
         physics.free_flow_speed = calibration_snapshot.adapted_free_flow_speed
 
-    # Build per-camera inflow map from nearest sensor stations
-    node_inflows = build_node_inflows(sensor_readings)
-    if node_inflows:
+    # Build per-camera traffic state from sensor stations and travel-time spans
+    node_traffic_states = build_node_traffic_states(
+        sensor_readings,
+        travel_time_readings=travel_time_readings,
+    )
+    node_inflows = {
+        camera_id: state.local_inflow_vph
+        for camera_id, state in node_traffic_states.items()
+        if state.local_inflow_vph is not None
+    }
+    traffic_flow_speed_nodes = sum(
+        1 for state in node_traffic_states.values()
+        if state.speed_source == "traffic_flow"
+    )
+    travel_time_speed_nodes = sum(
+        1 for state in node_traffic_states.values()
+        if state.speed_source == "travel_time"
+    )
+    if node_traffic_states:
         logger.info(
-            f"🗺️  Mapped {len(sensor_readings)} sensors → "
-            f"{len(node_inflows)} camera nodes"
+            f"🗺️  Traffic states: {len(node_inflows)} inflow nodes, "
+            f"{traffic_flow_speed_nodes} TrafficFlow speed nodes, "
+            f"{travel_time_speed_nodes} TravelTime fallback speed nodes"
         )
 
     # Aggregate sensor as fallback for cameras without a nearby station
@@ -1091,8 +1276,16 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         camera_chainage_map=_camera_chainage_map,
         camera_coords_map=CAMERA_COORDS,
         now=now,
-        node_inflows=node_inflows if node_inflows else None,
+        node_traffic_states=node_traffic_states if node_traffic_states else None,
     )
+    if queue_predictions:
+        local_segments = sum(p.local_data_segments for p in queue_predictions)
+        fallback_segments = sum(p.fallback_data_segments for p in queue_predictions)
+        missing_segments = sum(p.missing_data_segments for p in queue_predictions)
+        logger.info(
+            f"🌊 Segment data sources: local={local_segments}, "
+            f"fallback={fallback_segments}, missing={missing_segments}"
+        )
 
     # Post-physics: evaluate prediction accuracy against TravelTime data
     if calibration_snapshot and travel_time_readings:

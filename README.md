@@ -127,7 +127,7 @@ Once `python main.py` is running, the dashboard is at **http://localhost:8081/**
 |---|---|---|
 | `/` | TMC overview | Active incidents, VMS recommendations, Camera-to-Camera Prophecy hit rate |
 | `/cameras` | Camera grid | Live thumbnails with YOLO overlay, ROI polygons, per-camera capacity drop |
-| `/sensors` | Sensor data | TrafficFlow station readings (volume vph, speed km/h), mapped to nearest camera |
+| `/sensors` | Sensor data | TrafficFlow station readings (volume vph, speed km/h), mapped to nearest route-linear camera node |
 | `/travel-times` | Travel times | Per-route delay vs free-flow, corridor-level congestion status |
 | `/map` | Corridor map | Interactive Leaflet map of cameras, sensors, and VMS gantries |
 | `/anomalies` | Anomaly log | Persisted anomaly events with annotated frames from local `storage/anomalies/` |

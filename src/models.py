@@ -118,6 +118,33 @@ class MultiSegmentCapacity(BaseModel):
     )
 
 
+class SegmentTrafficState(BaseModel):
+    """Per-camera traffic state used by the piecewise physics model."""
+
+    local_inflow_vph: float | None = Field(
+        default=None,
+        ge=0,
+        description="Measured or fallback inflow at the camera node",
+    )
+    local_speed_kmh: float | None = Field(
+        default=None,
+        ge=0,
+        description="Measured or fallback upstream speed at the camera node",
+    )
+    inflow_source: str = Field(
+        default="missing",
+        description="Source of local_inflow_vph, e.g. traffic_flow or aggregate",
+    )
+    speed_source: str = Field(
+        default="missing",
+        description="Source of local_speed_kmh, e.g. traffic_flow or travel_time",
+    )
+    confidence: str = Field(
+        default="low",
+        description="'high', 'medium', or 'low' based on data locality",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Phase 3: Physics Engine output
 # ---------------------------------------------------------------------------
@@ -139,6 +166,15 @@ class SegmentSpeed(BaseModel):
     )
     local_inflow_vph: float = Field(
         ge=0, description="Measured inflow at the upstream end of this segment"
+    )
+    local_speed_kmh: float = Field(
+        ge=0, description="Speed used for the upstream end of this segment"
+    )
+    inflow_source: str = Field(
+        default="unknown", description="Source of local_inflow_vph"
+    )
+    speed_source: str = Field(
+        default="unknown", description="Source of local_speed_kmh"
     )
 
 
@@ -170,6 +206,25 @@ class QueuePrediction(BaseModel):
     )
     lengths_at_minutes: dict[int, float] = Field(
         description="Mapping of T+N minutes → predicted queue length in km"
+    )
+    local_data_segments: int = Field(
+        ge=0,
+        default=0,
+        description="Segments using local TrafficFlow inflow and speed",
+    )
+    fallback_data_segments: int = Field(
+        ge=0,
+        default=0,
+        description="Segments using at least one fallback data source",
+    )
+    missing_data_segments: int = Field(
+        ge=0,
+        default=0,
+        description="Segments where missing data halted or degraded physics",
+    )
+    data_confidence: str = Field(
+        default="low",
+        description="'high', 'medium', or 'low' based on segment data locality",
     )
 
 
