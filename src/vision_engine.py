@@ -311,6 +311,7 @@ class VisionEngine:
                         direction=roi.direction_relative_to_camera,
                         vehicle_count=0,
                         capacity_vph=0.0,
+                        observed_density_veh_km_lane=0.0,
                         num_lanes=roi.num_lanes,
                     )
                     for roi in rois
@@ -372,6 +373,7 @@ class VisionEngine:
                     direction=roi.direction_relative_to_camera,
                     vehicle_count=count,
                     capacity_vph=round(capacity, 1),
+                    observed_density_veh_km_lane=round(density_vkl, 2),
                     num_lanes=roi.num_lanes,
                     is_anomaly=anomaly,
                     anomaly_reason=anomaly_reason,

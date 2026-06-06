@@ -83,6 +83,11 @@ class RoadSegmentState(BaseModel):
     direction: str = Field(description="'towards' or 'away' relative to camera")
     vehicle_count: int = Field(ge=0)
     capacity_vph: float = Field(ge=0)
+    observed_density_veh_km_lane: float = Field(
+        ge=0.0,
+        default=0.0,
+        description="Visual density in veh/km/lane for this road segment",
+    )
     num_lanes: int = Field(ge=1, default=2)
     is_anomaly: bool = False
     anomaly_reason: str | None = None
