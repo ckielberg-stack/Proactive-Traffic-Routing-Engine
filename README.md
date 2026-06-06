@@ -87,6 +87,12 @@ Validate ROI physical-length calibration before trusting density-driven predicti
 python -m src.roi_length_calibration validate --config camera_config.json
 ```
 
+Replay persisted ticks and write versioned prediction metrics without live API access:
+
+```bash
+python -m src.replay_evaluator tests/fixtures/replay_sample.jsonl --output docs/baselines/trafik-005-sample-metrics.json --corridor-length-km 10.0
+```
+
 The live Trafikverket API key belongs in `.env`. Do not commit local `.env`, `data/`, `storage/`, or captured images.
 
 YOLO model weights are also kept out of Git. By default the vision engine uses `yolov8n.pt`; Ultralytics will download/cache the weight file locally on first use if it is not already present.
@@ -199,6 +205,7 @@ Helpers serving the dashboard pages. Defined in [main.py](main.py). Treat as int
 | [src/incident_builder.py](src/incident_builder.py) | Converts capacity states + YOLO frames into `IncidentReport` objects |
 | [src/anomaly_store.py](src/anomaly_store.py) | Persistent anomaly event log (JSONL) with annotated frames |
 | [src/evaluation_logger.py](src/evaluation_logger.py) | Records predictions and evaluates them against subsequent ticks (Prophecy) |
+| [src/replay_evaluator.py](src/replay_evaluator.py) | Offline JSONL replay metrics for prediction precision, recall, ETA error, distance error, and VMS lead time |
 | [src/operator_api.py](src/operator_api.py) | FastAPI app — `/api/v1/operator/*`, DATEX II export, atomic state injection |
 | [src/models.py](src/models.py) | Pydantic domain models — `IncidentReport`, `QueuePrediction`, `VMSRecommendation`, etc. |
 
@@ -263,6 +270,7 @@ Run `pytest -v` for the current count. The 10 unit test modules under [tests/](t
 - [test_vms_orchestrator.py](tests/test_vms_orchestrator.py) — Recommendation generation
 - [test_incident_builder.py](tests/test_incident_builder.py) — Capacity → IncidentReport
 - [test_evaluation_logger.py](tests/test_evaluation_logger.py) — Camera-to-Camera Prophecy
+- [test_replay_evaluator.py](tests/test_replay_evaluator.py) — Offline replay metrics and artifact generation
 - [test_sensor_anomaly.py](tests/test_sensor_anomaly.py) — Sensor anomaly detection
 - [test_operator_api.py](tests/test_operator_api.py) — FastAPI endpoints + DATEX II
 
