@@ -22,6 +22,8 @@ Build a **proactive** traffic routing engine that uses computer vision on live t
 
 > **Note:** Phases 4–5 from the original B2C roadmap (Geospatial Routing Integrator, routing penalty API) have been **removed** per ADR-004.
 
+> **Future work:** see [docs/proposals/traffic-safety-improvements.md](proposals/traffic-safety-improvements.md) — eight prioritized safety proposals (weather-adjusted physics, Situation-API capacity inputs, uncertainty bands, stopped-vehicle detection, SMHI forecasts, DATEX II weather export).
+
 ---
 
 ## COMPLETED WORK
