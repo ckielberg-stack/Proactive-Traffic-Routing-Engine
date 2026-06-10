@@ -34,6 +34,8 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from threading import Lock, local
+from typing import Callable
 
 import cv2
 import numpy as np
@@ -81,6 +83,12 @@ from src.roi_mapper import ROIMapper
 from src.route_chainage import (
     build_route_chainage_map,
     find_nearest_by_chainage,
+    RouteProjector,
+)
+from src.traffic_constants import (
+    FREE_FLOW_SPEED_KMH,
+    K_CRITICAL_VEH_KM_LANE,
+    Q_CAP_VPH_PER_LANE,
 )
 from src.vision_engine import VisionEngine
 from src.vms_orchestrator import VMSOrchestrator
@@ -149,11 +157,37 @@ def parse_point_wgs84(geom: str) -> tuple[float, float] | None:
         return None
 
 
+def get_deviation_wgs84(dev: dict) -> str | None:
+    """Read Deviation.Geometry.WGS84 from nested or flattened API payloads."""
+    geometry = dev.get("Geometry")
+    if isinstance(geometry, dict):
+        wgs84 = geometry.get("WGS84")
+        return str(wgs84) if wgs84 else None
+
+    wgs84 = dev.get("Geometry.WGS84")
+    return str(wgs84) if wgs84 else None
+
+
 def in_bbox(lat: float, lng: float) -> bool:
     return (
         BBOX["min_lat"] <= lat <= BBOX["max_lat"]
         and BBOX["min_lng"] <= lng <= BBOX["max_lng"]
     )
+
+
+def project_e4_northbound_chainage(position: tuple[float, float]) -> float | None:
+    """Project a lat/lng point onto the configured E4 northbound route datum."""
+    if not in_bbox(*position):
+        return None
+    try:
+        projector = RouteProjector(
+            E4_NORTHBOUND_ROUTE_POINTS,
+            E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+        )
+        chainage = projector.project_chainage(position)
+    except (TypeError, ValueError):
+        return None
+    return round(chainage, 2) if chainage is not None else None
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +240,8 @@ def decode_frame(raw_bytes: bytes) -> np.ndarray | None:
 # ---------------------------------------------------------------------------
 _vision_engine: VisionEngine | None = None
 _retention_policy: RetentionPolicy | None = None
+_camera_worker_local = local()
+_retention_lock = Lock()
 _roi_mapper: ROIMapper | None = None
 _physics_engine: PhysicsEngine | None = None
 _vms_orchestrator: VMSOrchestrator | None = None
@@ -218,6 +254,15 @@ def _get_vision_engine() -> VisionEngine:
     if _vision_engine is None:
         _vision_engine = VisionEngine()
     return _vision_engine
+
+
+def _get_camera_worker_vision_engine() -> VisionEngine:
+    """Return a thread-local vision engine for parallel camera inference."""
+    engine = getattr(_camera_worker_local, "vision_engine", None)
+    if engine is None:
+        engine = VisionEngine()
+        _camera_worker_local.vision_engine = engine
+    return engine
 
 
 def _get_retention_policy() -> RetentionPolicy:
@@ -577,16 +622,46 @@ def _aggregate_multi_roi_capacity(
     camera_meta: CameraMetadata,
 ) -> tuple[CapacityState, dict[str, dict]]:
     """Collapse per-ROI vision output into the camera-level state."""
-    total_vehicles = sum(s.vehicle_count for s in multi_state.segments)
-    total_capacity = sum(s.capacity_vph for s in multi_state.segments)
-    any_anomaly = any(s.is_anomaly for s in multi_state.segments)
+    segment_directions = {
+        id(seg): _traffic_direction_from_road_id(seg.road_id)
+        for seg in multi_state.segments
+    }
+    northbound_segments = [
+        seg
+        for seg in multi_state.segments
+        if segment_directions[id(seg)] == "northbound"
+    ]
+    has_directional_segments = any(
+        direction in {"northbound", "southbound"}
+        for direction in segment_directions.values()
+    )
+    if northbound_segments:
+        physics_segments = northbound_segments
+        traffic_direction = "northbound"
+        road_id = northbound_segments[0].road_id
+    elif has_directional_segments:
+        # The current physics/VMS corridor is northbound E4. Keep southbound
+        # ROI details in diagnostics, but do not promote them to a northbound
+        # bottleneck state.
+        physics_segments = []
+        traffic_direction = "northbound"
+        road_id = None
+    else:
+        physics_segments = multi_state.segments
+        traffic_direction = None
+        road_id = None
+
+    total_vehicles = sum(s.vehicle_count for s in physics_segments)
+    total_capacity = sum(s.capacity_vph for s in physics_segments)
+    total_lanes = sum(s.num_lanes for s in physics_segments) or camera_meta.num_lanes
+    any_anomaly = any(s.is_anomaly for s in physics_segments)
     anomaly_reasons = [
         s.anomaly_reason
-        for s in multi_state.segments
+        for s in physics_segments
         if s.is_anomaly and s.anomaly_reason
     ]
     max_density = max(
-        (s.observed_density_veh_km_lane for s in multi_state.segments),
+        (s.observed_density_veh_km_lane for s in physics_segments),
         default=0.0,
     )
 
@@ -595,14 +670,16 @@ def _aggregate_multi_roi_capacity(
         camera_id=multi_state.camera_id,
         vehicle_count=total_vehicles,
         blocked_lanes=0,
-        total_lanes=camera_meta.num_lanes,
+        total_lanes=total_lanes,
         estimated_capacity_vph=round(total_capacity, 1),
         observed_density_veh_km_lane=round(max_density, 2),
+        road_id=road_id,
+        traffic_direction=traffic_direction,
         is_anomaly=any_anomaly,
         anomaly_reason="; ".join(anomaly_reasons) if anomaly_reasons else None,
         confidence=round(
-            float(np.mean([s.confidence for s in multi_state.segments]))
-            if multi_state.segments else 0.0,
+            float(np.mean([s.confidence for s in physics_segments]))
+            if physics_segments else 0.0,
             3,
         ),
     )
@@ -612,10 +689,245 @@ def _aggregate_multi_roi_capacity(
             "count": seg.vehicle_count,
             "capacity_vph": seg.capacity_vph,
             "density_veh_km_lane": seg.observed_density_veh_km_lane,
+            "traffic_direction": segment_directions[id(seg)],
         }
         for seg in multi_state.segments
     }
     return state, road_segments_data
+
+
+def _traffic_direction_from_road_id(road_id: str) -> str | None:
+    """Best-effort normalized traffic direction from ROI road identifiers."""
+    normalized = road_id.lower().replace("-", "_")
+    parts = [part for chunk in normalized.split("_") for part in chunk.split()]
+    if "northbound" in parts or "nb" in parts:
+        return "northbound"
+    if "southbound" in parts or "sb" in parts:
+        return "southbound"
+    return None
+
+
+def _derive_capacity_from_fused_state(
+    state: CapacityState,
+    *,
+    local_speed_kmh: float | None,
+    fallback_speed_kmh: float | None,
+) -> None:
+    """Recompute camera-level capacity/anomaly after smoothing and speed fusion."""
+    if (
+        state.estimated_capacity_vph == 0.0
+        and state.observed_density_veh_km_lane == 0.0
+        and state.vehicle_count == 0
+        and state.confidence == 0.0
+    ):
+        return
+
+    if local_speed_kmh is not None:
+        speed = local_speed_kmh
+    elif fallback_speed_kmh is not None:
+        speed = fallback_speed_kmh
+    else:
+        speed = FREE_FLOW_SPEED_KMH
+    lanes = max(state.total_lanes, 1)
+    max_capacity = Q_CAP_VPH_PER_LANE * lanes
+    density = state.observed_density_veh_km_lane
+
+    if density > K_CRITICAL_VEH_KM_LANE:
+        state.estimated_capacity_vph = round(
+            min(density * lanes * speed, max_capacity),
+            1,
+        )
+        if not state.is_anomaly or state.anomaly_reason == "density_exceeds_k_critical":
+            state.is_anomaly = True
+            state.anomaly_reason = "density_exceeds_k_critical"
+    else:
+        state.estimated_capacity_vph = round(max_capacity, 1)
+        if state.anomaly_reason == "density_exceeds_k_critical":
+            state.is_anomaly = False
+            state.anomaly_reason = None
+
+    if state.is_anomaly and state.blocked_lanes > 0:
+        open_lanes = max(lanes - state.blocked_lanes, 0)
+        lane_fraction = open_lanes / lanes
+        state.estimated_capacity_vph = round(
+            state.estimated_capacity_vph * lane_fraction,
+            1,
+        )
+
+
+def _apply_fused_capacity_derivation(
+    capacity_states: list[CapacityState],
+    node_traffic_states: dict[str, SegmentTrafficState],
+    aggregate_sensor: SensorReading | None,
+    fallback_speed_kmh: float,
+) -> None:
+    """Apply post-smoothing capacity derivation using local traffic speeds."""
+    aggregate_speed = aggregate_sensor.average_speed_kmh if aggregate_sensor else None
+    for state in capacity_states:
+        node_state = node_traffic_states.get(state.camera_id)
+        local_speed = node_state.local_speed_kmh if node_state else None
+        _derive_capacity_from_fused_state(
+            state,
+            local_speed_kmh=local_speed,
+            fallback_speed_kmh=(
+                aggregate_speed
+                if aggregate_speed is not None
+                else fallback_speed_kmh
+            ),
+        )
+
+
+def _camera_worker_count(camera_count: int) -> int:
+    """Bound per-camera fetch/inference concurrency."""
+    if camera_count <= 0:
+        return 0
+    return min(camera_count, 8)
+
+
+def _camera_failure_record(
+    *,
+    now: datetime,
+    camera_id: str,
+    camera_name: str | None = None,
+    status: str,
+    duration_ms: int,
+    error: str | None = None,
+) -> dict:
+    record = {
+        "type": "vision_result",
+        "timestamp": now.isoformat(),
+        "camera_id": camera_id,
+        "status": status,
+        "duration_ms": duration_ms,
+    }
+    if camera_name:
+        record["camera_name"] = camera_name
+    if error:
+        record["error"] = error
+    return record
+
+
+def _process_camera(
+    cam: dict,
+    now: datetime,
+    engine_factory: Callable[[], VisionEngine],
+    retention: RetentionPolicy,
+    roi_mapper: ROIMapper,
+) -> tuple[dict | None, CapacityState | None]:
+    camera_started = time.monotonic()
+    cam_id = cam.get("Id", "unknown")
+    cam_name = cam.get("Name", cam_id)
+    photo_url = cam.get("PhotoUrl", "")
+    if not photo_url:
+        return None, None
+
+    try:
+        if cam.get("HasFullSizePhoto"):
+            photo_url = photo_url + "?type=fullsize"
+
+        raw_bytes = fetch_image_bytes(photo_url)
+        duration_ms = int((time.monotonic() - camera_started) * 1000)
+        if raw_bytes is None:
+            logger.warning("📷 %s fetch failed after %sms", cam_name, duration_ms)
+            return _camera_failure_record(
+                now=now,
+                camera_id=cam_id,
+                camera_name=cam_name,
+                status="fetch_failed",
+                duration_ms=duration_ms,
+            ), None
+
+        frame = decode_frame(raw_bytes)
+        duration_ms = int((time.monotonic() - camera_started) * 1000)
+        if frame is None:
+            logger.warning("📷 %s decode failed after %sms", cam_name, duration_ms)
+            return _camera_failure_record(
+                now=now,
+                camera_id=cam_id,
+                camera_name=cam_name,
+                status="decode_failed",
+                duration_ms=duration_ms,
+            ), None
+
+        coords = CAMERA_COORDS.get(cam_id, (0.0, 0.0))
+        meta = CameraMetadata(
+            camera_id=cam_id, name=cam_name, lat=coords[0], lng=coords[1],
+        )
+        engine = engine_factory()
+
+        road_segments_data = None
+        if roi_mapper.has_rois(cam_id):
+            multi_state = engine.analyze_multi_roi(frame, meta, roi_mapper)
+            state, road_segments_data = _aggregate_multi_roi_capacity(
+                multi_state, meta,
+            )
+        else:
+            state = engine.analyze_array(frame, meta)
+
+        with _retention_lock:
+            retained_path = retention.maybe_retain(raw_bytes, cam_id, now, state)
+
+        annotated_path: str | None = None
+        if state.is_anomaly:
+            annotated_frame = _draw_annotated_frame(
+                frame, engine, cam_id, state.anomaly_reason, now,
+            )
+            annotated_path = _save_annotated_image(
+                annotated_frame, cam_id, now,
+            )
+            record_anomaly(
+                DATA_DIR,
+                timestamp=now,
+                camera_id=cam_id,
+                camera_name=cam_name,
+                anomaly_reason=state.anomaly_reason,
+                confidence=state.confidence,
+                vehicle_count=state.vehicle_count,
+                capacity_vph=state.estimated_capacity_vph,
+                image_path=annotated_path,
+            )
+
+        duration_ms = int((time.monotonic() - camera_started) * 1000)
+        record = {
+            "type": "vision_result",
+            "timestamp": now.isoformat(),
+            "camera_id": cam_id,
+            "camera_name": cam_name,
+            "status": "ok",
+            "vehicle_count": state.vehicle_count,
+            "capacity_vph": state.estimated_capacity_vph,
+            "is_anomaly": state.is_anomaly,
+            "anomaly_reason": state.anomaly_reason,
+            "confidence": state.confidence,
+            "retained_path": retained_path,
+            "annotated_path": annotated_path,
+            "road_segments": road_segments_data,
+            "duration_ms": duration_ms,
+        }
+
+        anomaly_tag = f" 🚨 {state.anomaly_reason}" if state.is_anomaly else ""
+        logger.info(
+            f"📷 {cam_name} — {state.vehicle_count} vehicles, "
+            f"{state.estimated_capacity_vph:.0f} VPH in {duration_ms}ms{anomaly_tag}"
+        )
+        return record, state
+    except Exception as e:
+        duration_ms = int((time.monotonic() - camera_started) * 1000)
+        logger.error(
+            "Camera %s failed after %sms: %s",
+            cam_id,
+            duration_ms,
+            e,
+            exc_info=True,
+        )
+        return _camera_failure_record(
+            now=now,
+            camera_id=cam_id,
+            camera_name=cam_name,
+            status="error",
+            duration_ms=duration_ms,
+            error=str(e),
+        ), None
 
 
 def fetch_cameras(camera_ids: list[str], now: datetime) -> tuple[list[dict], list[CapacityState]]:
@@ -642,102 +954,59 @@ def fetch_cameras(camera_ids: list[str], now: datetime) -> tuple[list[dict], lis
 
     results = data.get("RESPONSE", {}).get("RESULT", [])
     cameras = results[0].get("Camera", []) if results else []
+    if not cameras:
+        logger.info("📷 Camera query returned no cameras")
+        return [], []
 
-    engine = _get_vision_engine()
+    engine_factory = _get_camera_worker_vision_engine
     retention = _get_retention_policy()
     roi_mapper = _get_roi_mapper()
 
     vision_records: list[dict] = []
     capacity_states: list[CapacityState] = []
 
-    for cam in cameras:
-        cam_id = cam.get("Id", "unknown")
-        cam_name = cam.get("Name", cam_id)
-        photo_url = cam.get("PhotoUrl", "")
-        if not photo_url:
-            continue
+    fetch_started = time.monotonic()
+    max_workers = _camera_worker_count(len(cameras))
+    logger.info(
+        "📷 Processing %s cameras with %s workers",
+        len(cameras),
+        max_workers,
+    )
 
-        if cam.get("HasFullSizePhoto"):
-            photo_url = photo_url + "?type=fullsize"
-
-        raw_bytes = fetch_image_bytes(photo_url)
-        if raw_bytes is None:
-            vision_records.append({
-                "type": "vision_result",
-                "timestamp": now.isoformat(),
-                "camera_id": cam_id,
-                "status": "fetch_failed",
-            })
-            continue
-
-        frame = decode_frame(raw_bytes)
-        if frame is None:
-            continue
-
-        coords = CAMERA_COORDS.get(cam_id, (0.0, 0.0))
-        meta = CameraMetadata(
-            camera_id=cam_id, name=cam_name, lat=coords[0], lng=coords[1],
-        )
-
-        # Run YOLO (stateless — each frame evaluated independently)
-        road_segments_data = None
-        if roi_mapper.has_rois(cam_id):
-            multi_state = engine.analyze_multi_roi(frame, meta, roi_mapper)
-            state, road_segments_data = _aggregate_multi_roi_capacity(
-                multi_state, meta,
-            )
-        else:
-            state = engine.analyze_array(frame, meta)
-
-        # Smart retention
-        retained_path = retention.maybe_retain(raw_bytes, cam_id, now, state)
-
-        # Anomaly persistence: save annotated image + log event
-        annotated_path: str | None = None
-        if state.is_anomaly:
-            annotated_frame = _draw_annotated_frame(
-                frame, engine, cam_id, state.anomaly_reason, now,
-            )
-            annotated_path = _save_annotated_image(
-                annotated_frame, cam_id, now,
-            )
-            record_anomaly(
-                DATA_DIR,
-                timestamp=now,
-                camera_id=cam_id,
-                camera_name=cam_name,
-                anomaly_reason=state.anomaly_reason,
-                confidence=state.confidence,
-                vehicle_count=state.vehicle_count,
-                capacity_vph=state.estimated_capacity_vph,
-                image_path=annotated_path,
-            )
-
-        record = {
-            "type": "vision_result",
-            "timestamp": now.isoformat(),
-            "camera_id": cam_id,
-            "camera_name": cam_name,
-            "status": "ok",
-            "vehicle_count": state.vehicle_count,
-            "capacity_vph": state.estimated_capacity_vph,
-            "is_anomaly": state.is_anomaly,
-            "anomaly_reason": state.anomaly_reason,
-            "confidence": state.confidence,
-            "retained_path": retained_path,
-            "annotated_path": annotated_path,
-            "road_segments": road_segments_data,
+    ordered_results: list[tuple[dict | None, CapacityState | None] | None] = [
+        None
+    ] * len(cameras)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(
+                _process_camera,
+                cam,
+                now,
+                engine_factory,
+                retention,
+                roi_mapper,
+            ): index
+            for index, cam in enumerate(cameras)
         }
-        vision_records.append(record)
-        capacity_states.append(state)
+        for future in as_completed(futures):
+            ordered_results[futures[future]] = future.result()
 
-        anomaly_tag = f" 🚨 {state.anomaly_reason}" if state.is_anomaly else ""
-        logger.info(
-            f"📷 {cam_name} — {state.vehicle_count} vehicles, "
-            f"{state.estimated_capacity_vph:.0f} VPH{anomaly_tag}"
-        )
+    for result in ordered_results:
+        if result is None:
+            continue
+        record, state = result
+        if record is not None:
+            vision_records.append(record)
+        if state is not None:
+            capacity_states.append(state)
 
-        del frame, raw_bytes
+    fetch_duration_ms = int((time.monotonic() - fetch_started) * 1000)
+    logger.info(
+        "📷 Camera batch completed in %sms: %s ok, %s failed/skipped",
+        fetch_duration_ms,
+        sum(1 for r in vision_records if r.get("status") == "ok"),
+        sum(1 for r in vision_records if r.get("status") != "ok"),
+    )
 
     return vision_records, capacity_states
 
@@ -873,6 +1142,13 @@ def fetch_vms_status(now: datetime) -> list[VMSStatusSnapshot]:
                 temp_limit = dev.get("TemporaryLimit", "") or ""
                 road = dev.get("RoadNumber", "")
                 location = dev.get("LocationDescriptor", "")
+                geometry_wgs84 = get_deviation_wgs84(dev)
+                position = parse_point_wgs84(geometry_wgs84 or "")
+                chainage_km = (
+                    project_e4_northbound_chainage(position)
+                    if position and road == "E4"
+                    else None
+                )
 
                 speed_limit = _parse_speed_limit(temp_limit)
                 display_msg = temp_limit if temp_limit else None
@@ -884,6 +1160,11 @@ def fetch_vms_status(now: datetime) -> list[VMSStatusSnapshot]:
                     is_active=bool(temp_limit),
                     displayed_message=display_msg,
                     speed_limit=speed_limit,
+                    road_number=road or None,
+                    geometry_wgs84=geometry_wgs84,
+                    lat=position[0] if position else None,
+                    lng=position[1] if position else None,
+                    chainage_km=chainage_km,
                 ))
 
     # Also include our configured gantries that have no matching
@@ -900,6 +1181,10 @@ def fetch_vms_status(now: datetime) -> list[VMSStatusSnapshot]:
                 is_active=False,
                 displayed_message=None,
                 speed_limit=None,
+                road_number=gantry.road,
+                lat=gantry.lat,
+                lng=gantry.lng,
+                chainage_km=gantry.chainage_km,
             ))
 
     active_count = sum(1 for s in statuses if s.is_active)
@@ -1156,6 +1441,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     """
     global _tick_count, _start_time, _camera_chainage_map
 
+    tick_started = time.monotonic()
     _tick_count += 1
     now = datetime.now()
     if not _start_time:
@@ -1175,6 +1461,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     vms_statuses: list[VMSStatusSnapshot] = []
     travel_time_readings: list[TravelTimeReading] = []
 
+    fetch_started = time.monotonic()
     with ThreadPoolExecutor(max_workers=4) as executor:
         future_cameras = executor.submit(fetch_cameras, camera_ids, now)
         future_sensors = executor.submit(fetch_sensor_data, now)
@@ -1200,6 +1487,8 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             travel_time_readings = future_tt.result(timeout=10)
         except Exception as e:
             logger.error(f"Travel time fetch failed: {e}", exc_info=True)
+    fetch_duration_ms = int((time.monotonic() - fetch_started) * 1000)
+    logger.info("⏱️  Data fetch phase completed in %sms", fetch_duration_ms)
 
     # ---- Phase 2: Apply temporal density smoothing (Expert Audit Fix 3) ----
     smoother = _get_density_smoother()
@@ -1221,7 +1510,6 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     calibrator = _get_calibrator()
     calibration_snapshot: CalibrationSnapshot | None = None
     if travel_time_readings:
-        from src.physics_engine import FREE_FLOW_SPEED_KMH
         calibration_snapshot = calibrator.update(
             readings=travel_time_readings,
             model_free_flow_speed=FREE_FLOW_SPEED_KMH,
@@ -1269,6 +1557,13 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             inflow_volume_vph=round(mean_volume, 1),
             average_speed_kmh=round(mean_speed, 1),
         )
+
+    _apply_fused_capacity_derivation(
+        capacity_states,
+        node_traffic_states,
+        aggregate_sensor,
+        physics.free_flow_speed,
+    )
 
     queue_predictions = physics.compute(
         capacity_states=capacity_states,
@@ -1336,6 +1631,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     # ---- Phase 6: Summary logging ----
     ok = sum(1 for r in vision_records if r.get("status") == "ok")
     vision_anomalies = sum(1 for s in capacity_states if s.is_anomaly)
+    tick_duration_ms = int((time.monotonic() - tick_started) * 1000)
     logger.info(
         f"📊 Tick #{_tick_count}: "
         f"{ok} cameras OK, {vision_anomalies} vision anomalies, "
@@ -1343,7 +1639,8 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         f"{len(sensor_readings)} sensors, "
         f"{len(queue_predictions)} predictions, "
         f"{len(vms_recommendations)} VMS recommendations, "
-        f"{len(travel_time_readings)} travel times"
+        f"{len(travel_time_readings)} travel times, "
+        f"{tick_duration_ms}ms total"
     )
 
     for rec in vms_recommendations:

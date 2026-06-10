@@ -41,7 +41,7 @@ def test_build_incidents_from_anomalies_with_coords() -> None:
     assert report.camera_id == "CAM_A"
     assert report.incident_type == "vehicle_stopped"
     assert report.lanes_affected == 1
-    assert report.capacity_drop_percentage == 66.7
+    assert report.capacity_drop_percentage == 63.3
     assert report.lat == 59.30
     assert report.lng == 18.00
     assert report.thumbnail_base64 is None

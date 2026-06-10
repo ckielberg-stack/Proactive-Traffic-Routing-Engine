@@ -20,6 +20,7 @@ from src.models import (
     VMSStatusSnapshot,
 )
 from src.operator_api import (
+    API_TOKEN_COOKIE_NAME,
     app,
     set_pipeline_snapshot,
     set_active_incidents,
@@ -88,7 +89,7 @@ def sample_vms_recommendation() -> VMSRecommendation:
     return VMSRecommendation(
         timestamp=datetime(2026, 2, 16, 14, 0, 0),
         vms_id="VMS-4003",
-        vms_name="Kungens Kurva E4",
+        vms_name="Kungens Kurva",
         recommended_message="KÖVARNING 70 km/h",
         urgency="soon",
         queue_growth_speed_kmh=8.0,
@@ -109,6 +110,11 @@ def active_proxy_status() -> VMSStatusSnapshot:
         is_active=True,
         displayed_message="Rekommenderad hastighet: 70km/h",
         speed_limit=70,
+        road_number="E4",
+        geometry_wgs84="POINT (17.914 59.272)",
+        lat=59.272,
+        lng=17.914,
+        chainage_km=5.1,
     )
 
 
@@ -221,7 +227,6 @@ class TestVMSRecommendations:
         set_active_vms_statuses([active_proxy_status])
         resp = client.get("/api/v1/operator/vms-recommendations")
         enriched = resp.json()["recommendations"][0]
-        # "E4" is in the proxy vms_name, and "E4" is in the rec vms_name
         assert enriched["proxy_ground_truth_active"] is True
         assert enriched["proxy_speed_limit"] == 70
 
@@ -303,11 +308,11 @@ class TestProxyGroundTruthMatching:
         assert speed == 70
         assert dev_id == "VMS-4003"
 
-    def test_match_by_road_name(self) -> None:
+    def test_match_by_road_chainage_metadata(self) -> None:
         rec = VMSRecommendation(
             timestamp=datetime.now(),
             vms_id="VMS-4003",
-            vms_name="Kungens Kurva E4",
+            vms_name="Kungens Kurva",
             recommended_message="KÖVARNING 70 km/h",
             urgency="soon",
             queue_growth_speed_kmh=8.0,
@@ -323,6 +328,8 @@ class TestProxyGroundTruthMatching:
             is_active=True,
             displayed_message="70km/h",
             speed_limit=70,
+            road_number="E4",
+            chainage_km=5.2,
         )]
         active, speed, dev_id = _match_proxy_ground_truth(rec, statuses)
         assert active is True
@@ -332,7 +339,7 @@ class TestProxyGroundTruthMatching:
         rec = VMSRecommendation(
             timestamp=datetime.now(),
             vms_id="VMS-4003",
-            vms_name="Kungens Kurva E4",
+            vms_name="Kungens Kurva",
             recommended_message="KÖVARNING 70 km/h",
             urgency="soon",
             queue_growth_speed_kmh=8.0,
@@ -357,7 +364,7 @@ class TestProxyGroundTruthMatching:
         rec = VMSRecommendation(
             timestamp=datetime.now(),
             vms_id="VMS-4003",
-            vms_name="Kungens Kurva E4",
+            vms_name="Kungens Kurva",
             recommended_message="KÖVARNING 70 km/h",
             urgency="soon",
             queue_growth_speed_kmh=8.0,
@@ -373,6 +380,34 @@ class TestProxyGroundTruthMatching:
             is_active=True,
             displayed_message="50km/h",
             speed_limit=50,
+            road_number="73",
+            chainage_km=5.1,
+        )]
+        active, speed, dev_id = _match_proxy_ground_truth(rec, statuses)
+        assert active is False
+
+    def test_no_match_when_same_road_outside_chainage_window(self) -> None:
+        rec = VMSRecommendation(
+            timestamp=datetime.now(),
+            vms_id="VMS-4003",
+            vms_name="Kungens Kurva",
+            recommended_message="KÖVARNING 70 km/h",
+            urgency="soon",
+            queue_growth_speed_kmh=8.0,
+            distance_queue_tail_to_vms_km=1.0,
+            estimated_activation_minutes=6.0,
+            triggering_camera_id="CAM_01",
+            summary="Test",
+        )
+        statuses = [VMSStatusSnapshot(
+            timestamp=datetime.now(),
+            vms_id="SE_STA_SPEEDMANAGEMENTID_1_222",
+            vms_name="E4 — another segment",
+            is_active=True,
+            displayed_message="70km/h",
+            speed_limit=70,
+            road_number="E4",
+            chainage_km=10.0,
         )]
         active, speed, dev_id = _match_proxy_ground_truth(rec, statuses)
         assert active is False
@@ -542,3 +577,91 @@ class TestHealthCheck:
         assert health_resp.json()["active_incidents"] == 1
         assert health_resp.json()["active_recommendations"] == 1
         assert health_resp.json()["proxy_statuses_polled"] == 1
+
+
+# ======================================================================
+# Optional API token auth
+# ======================================================================
+
+
+class TestOptionalApiTokenAuth:
+    def test_token_unset_preserves_local_behavior(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PTRE_API_TOKEN", raising=False)
+
+        resp = client.get("/api/v1/operator/active-incidents")
+
+        assert resp.status_code == 200
+
+    def test_token_set_blocks_unauthenticated_api(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PTRE_API_TOKEN", "secret-token")
+
+        resp = client.get("/api/v1/operator/active-incidents")
+
+        assert resp.status_code == 401
+        assert resp.headers["www-authenticate"] == "Bearer"
+
+    def test_token_set_accepts_bearer_token(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PTRE_API_TOKEN", "secret-token")
+
+        resp = client.get(
+            "/api/v1/operator/active-incidents",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+        assert resp.status_code == 200
+
+    def test_token_set_accepts_operator_header(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PTRE_API_TOKEN", "secret-token")
+
+        resp = client.get(
+            "/api/v1/operator/active-incidents",
+            headers={"X-PTRE-API-Token": "secret-token"},
+        )
+
+        assert resp.status_code == 200
+
+    def test_token_set_accepts_dashboard_query_token_and_sets_cookie(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PTRE_API_TOKEN", "secret-token")
+
+        resp = client.get("/api/v1/operator/active-incidents?token=secret-token")
+
+        assert resp.status_code == 200
+        assert resp.cookies.get(API_TOKEN_COOKIE_NAME) == "secret-token"
+
+    def test_token_set_accepts_dashboard_cookie(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PTRE_API_TOKEN", "secret-token")
+        client.cookies.set(API_TOKEN_COOKIE_NAME, "secret-token")
+
+        resp = client.get("/api/v1/operator/active-incidents")
+
+        assert resp.status_code == 200
+
+    def test_token_set_protects_dashboard_page(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PTRE_API_TOKEN", "secret-token")
+
+        resp = client.get("/")
+
+        assert resp.status_code == 401
+
+    def test_health_remains_public_for_deployment_checks(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PTRE_API_TOKEN", "secret-token")
+
+        resp = client.get("/health")
+
+        assert resp.status_code == 200

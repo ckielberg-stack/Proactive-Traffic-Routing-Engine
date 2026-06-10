@@ -27,14 +27,17 @@ API state so endpoints always return the most recent data.
 from __future__ import annotations
 
 import base64
+import hmac
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import RLock
 from typing import Any
 from xml.sax.saxutils import escape as xml_escape
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.models import (
@@ -46,6 +49,11 @@ from src.models import (
 from src.vms_orchestrator import VMSOrchestrator
 
 logger = logging.getLogger(__name__)
+
+PROXY_GROUND_TRUTH_CHAINAGE_WINDOW_KM = 2.0
+API_TOKEN_ENV_VAR = "PTRE_API_TOKEN"
+API_TOKEN_COOKIE_NAME = "ptre_api_token"
+PUBLIC_PATH_PREFIXES = ("/health", "/static", "/favicon.ico")
 
 # ---------------------------------------------------------------------------
 # Application setup
@@ -59,6 +67,63 @@ app = FastAPI(
     ),
     version="0.2.0",
 )
+
+
+def _configured_api_token() -> str | None:
+    token = os.getenv(API_TOKEN_ENV_VAR, "").strip()
+    return token or None
+
+
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
+
+
+def _request_has_valid_token(request: Request, configured_token: str) -> tuple[bool, bool]:
+    candidates = [
+        _extract_bearer_token(request.headers.get("authorization")),
+        request.headers.get("x-ptre-api-token"),
+        request.cookies.get(API_TOKEN_COOKIE_NAME),
+        request.query_params.get("token"),
+    ]
+    for candidate in candidates:
+        if candidate and hmac.compare_digest(candidate, configured_token):
+            return True, candidate == request.query_params.get("token")
+    return False, False
+
+
+def _is_public_path(path: str) -> bool:
+    return any(path == prefix or path.startswith(f"{prefix}/") for prefix in PUBLIC_PATH_PREFIXES)
+
+
+@app.middleware("http")
+async def optional_api_token_auth(request: Request, call_next):
+    """Require PTRE_API_TOKEN for API/dashboard routes when configured."""
+    configured_token = _configured_api_token()
+    if configured_token is None or _is_public_path(request.url.path):
+        return await call_next(request)
+
+    is_valid, came_from_query = _request_has_valid_token(request, configured_token)
+    if not is_valid:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "PTRE API token required"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    response = await call_next(request)
+    if came_from_query:
+        response.set_cookie(
+            API_TOKEN_COOKIE_NAME,
+            configured_token,
+            httponly=True,
+            samesite="lax",
+        )
+    return response
 
 # ---------------------------------------------------------------------------
 # Shared pipeline state
@@ -195,10 +260,12 @@ def _match_proxy_ground_truth(
     recommendation: VMSRecommendation,
     vms_statuses: list[VMSStatusSnapshot],
 ) -> tuple[bool, int | None, str | None]:
-    """Check if a SPEEDMANAGEMENTID deviation covers this recommendation's road.
+    """Check if a SPEEDMANAGEMENTID deviation covers this recommendation's gantry.
 
     Returns (is_active, speed_limit, deviation_id).
     """
+    gantry = _find_recommendation_gantry(recommendation)
+
     for status in vms_statuses:
         if not status.is_active:
             continue
@@ -207,14 +274,42 @@ def _match_proxy_ground_truth(
         if status.vms_id == recommendation.vms_id:
             return True, status.speed_limit, status.vms_id
 
-        # Match by road name (E4 in the proxy vms_name)
-        # The proxy vms_name format is "E4 — location..."
-        proxy_road = status.vms_name.split(" —")[0].strip()
-        # The recommendation's VMS name may contain the road
-        if proxy_road and proxy_road in recommendation.vms_name:
+        if gantry and _status_matches_gantry_metadata(status, gantry):
             return True, status.speed_limit, status.vms_id
 
     return False, None, None
+
+
+def _find_recommendation_gantry(recommendation: VMSRecommendation) -> Any | None:
+    """Return configured gantry metadata for a recommendation, if available."""
+    for gantry in getattr(_vms_orchestrator, "gantries", []):
+        if gantry.vms_id == recommendation.vms_id:
+            return gantry
+    return None
+
+
+def _normalize_road(value: str | None) -> str:
+    return (value or "").strip().upper().replace(" ", "")
+
+
+def _status_matches_gantry_metadata(status: VMSStatusSnapshot, gantry: Any) -> bool:
+    """Match active proxy deviations by road and conservative route chainage."""
+    if status.chainage_km is None:
+        return False
+
+    status_road = _normalize_road(status.road_number)
+    gantry_road = _normalize_road(getattr(gantry, "road", None))
+    if not status_road or status_road != gantry_road:
+        return False
+
+    gantry_chainage = getattr(gantry, "chainage_km", None)
+    if gantry_chainage is None:
+        return False
+
+    return (
+        abs(float(status.chainage_km) - float(gantry_chainage))
+        <= PROXY_GROUND_TRUTH_CHAINAGE_WINDOW_KM
+    )
 
 
 # ---------------------------------------------------------------------------

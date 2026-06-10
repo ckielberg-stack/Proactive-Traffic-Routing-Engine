@@ -65,26 +65,19 @@ VEHICLE_CLASS_IDS: set[int] = {
 # ---------------------------------------------------------------------------
 # Traffic engineering constants
 # ---------------------------------------------------------------------------
-FREE_FLOW_SPEED_KMH: float = 110.0       # Swedish motorway speed limit
-FREE_FLOW_VPH_PER_LANE: float = 2_000.0  # Typical motorway lane capacity
+from src.traffic_constants import (
+    FREE_FLOW_SPEED_KMH,
+    JAM_DENSITY_VEH_KM_LANE,
+    K_CRITICAL_VEH_KM_LANE,
+    Q_CAP_VPH_PER_LANE,
+)
+
 DEFAULT_ROI_LENGTH_KM: float = 0.1       # Legacy fallback (100 m) for uncalibrated ROIs
 BLACK_IMAGE_THRESHOLD: int = 15           # Mean pixel value below this → "black"
 SPEED_DROP_RATIO: float = 0.50            # >50 % speed drop → severe event
 
 # Anomaly: bounding-box width/height ratio above this suggests a sideways vehicle
 ABNORMAL_ASPECT_RATIO: float = 3.5
-
-# Jam density (veh/km/lane) — imported from physics_engine to stay in sync
-JAM_DENSITY_VEH_KM_LANE: float = 133.0
-
-# --- Expert Audit Fix 1: Flow vs Capacity ---
-# Critical density at which flow breaks down into congestion (veh/km/lane).
-# Below k_critical, the road is in free-flow; above it, congestion has formed.
-K_CRITICAL_VEH_KM_LANE: float = 45.0
-
-# Static theoretical maximum capacity per lane (veh/h).
-# This is the ROAD'S capacity, NOT the observed flow.
-Q_CAP_VPH_PER_LANE: float = 2_000.0
 
 # ---------------------------------------------------------------------------
 # TODO: Implement Headlight/Taillight classification

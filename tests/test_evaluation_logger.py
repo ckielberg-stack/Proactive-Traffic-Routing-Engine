@@ -210,8 +210,7 @@ class TestEvaluatePending:
         eval_logger.record_prophecies([bottleneck_prediction], now)
 
         impact_time = now + timedelta(minutes=30)
-        # 3 lanes × 2200 VPH = 6600 baseline. 50% = 3300.
-        # 2000 VPH < 3300 → success
+        # 3 lanes × shared per-lane baseline. 50% remains above 2000 VPH.
         target_state = CapacityState(
             timestamp=impact_time,
             camera_id="CAM_04",

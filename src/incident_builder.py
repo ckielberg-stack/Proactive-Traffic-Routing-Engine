@@ -8,8 +8,7 @@ objects consumed by ``/api/v1/operator/active-incidents``.
 from __future__ import annotations
 
 from src.models import CapacityState, IncidentReport
-
-FREE_FLOW_PER_LANE_VPH: float = 2200.0
+from src.traffic_constants import FREE_FLOW_PER_LANE_VPH
 
 
 def build_incident_reports(

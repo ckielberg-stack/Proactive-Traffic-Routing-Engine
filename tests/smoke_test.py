@@ -15,15 +15,18 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 # Ensure project root is on sys.path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.models import CameraMetadata, SensorReading  # noqa: E402
-from src.vision_engine import VisionEngine  # noqa: E402
+from src.models import CameraMetadata  # noqa: E402
 
 DATA_DIR = ROOT / "data"
 METADATA_PATH = DATA_DIR / "metadata.json"
+
+pytestmark = pytest.mark.live
 
 
 def load_camera_metadata() -> dict[str, CameraMetadata]:
@@ -34,6 +37,8 @@ def load_camera_metadata() -> dict[str, CameraMetadata]:
 
 
 def run(date_str: str) -> None:
+    from src.vision_engine import VisionEngine
+
     day_dir = DATA_DIR / date_str / "images"
     if not day_dir.exists():
         print(f"❌  No images found at {day_dir}")
@@ -96,6 +101,11 @@ def _match_metadata(
         lng=17.85,
         num_lanes=2,
     )
+
+
+def test_smoke_today() -> None:
+    """Run the smoke path under pytest when live tests are explicitly selected."""
+    run(datetime.now().strftime("%Y-%m-%d"))
 
 
 if __name__ == "__main__":

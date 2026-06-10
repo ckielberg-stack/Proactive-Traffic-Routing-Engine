@@ -162,6 +162,13 @@ curl -s http://localhost:8081/api/v1/operator/active-incidents | jq '.count, .in
 curl -s http://localhost:8081/api/v1/export/datex2 > datex2.xml
 ```
 
+Optional auth:
+
+- Leave `PTRE_API_TOKEN` unset for unchanged local research behavior.
+- Set `PTRE_API_TOKEN` in deployed/shared environments to require a bearer token for API and dashboard routes. `/health` remains public for container health checks.
+- API clients can send `Authorization: Bearer $PTRE_API_TOKEN` or `X-PTRE-API-Token: $PTRE_API_TOKEN`.
+- Browser dashboard sessions can open `/?token=$PTRE_API_TOKEN` once; the app stores an HTTP-only session cookie for subsequent dashboard/API requests.
+
 ## Internal Data API
 
 Helpers serving the dashboard pages. Defined in [main.py](main.py). Treat as internal — subject to change.
