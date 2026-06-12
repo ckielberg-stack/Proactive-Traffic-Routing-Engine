@@ -206,6 +206,46 @@ class TestPiecewisePrediction:
         assert pred.segment_speeds[1].from_camera == "CAM_02"
         assert pred.segment_speeds[1].to_camera == "CAM_01"
 
+    def test_southbound_state_iterates_toward_increasing_chainage(
+        self,
+        engine: PhysicsEngine,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """Southbound bottlenecks use the north/up-chainage side as upstream."""
+        state = CapacityState(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            camera_id="CAM_03",
+            vehicle_count=8,
+            blocked_lanes=0,
+            total_lanes=3,
+            estimated_capacity_vph=1200.0,
+            observed_density_veh_km_lane=55.0,
+            road_id="E4_Southbound",
+            traffic_direction="southbound",
+            is_anomaly=True,
+            anomaly_reason="density_exceeds_k_critical",
+            confidence=0.85,
+        )
+
+        predictions = engine.compute(
+            capacity_states=[state],
+            sensor=None,
+            camera_chainage_map=chainage_map,
+            node_inflows={
+                "CAM_03": 4000.0,
+                "CAM_04": 4000.0,
+                "CAM_05": 4000.0,
+            },
+        )
+
+        assert len(predictions) == 1
+        pred = predictions[0]
+        assert len(pred.segment_speeds) == 2
+        assert pred.segment_speeds[0].from_camera == "CAM_03"
+        assert pred.segment_speeds[0].to_camera == "CAM_04"
+        assert pred.segment_speeds[1].from_camera == "CAM_04"
+        assert pred.segment_speeds[1].to_camera == "CAM_05"
+
     def test_varying_inflows_produce_different_segment_speeds(
         self,
         engine: PhysicsEngine,

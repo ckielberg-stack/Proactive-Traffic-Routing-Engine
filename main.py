@@ -600,6 +600,21 @@ def _get_camera_info() -> dict[str, dict]:
             return {}
 
 
+async def _get_camera_info_async() -> dict[str, dict]:
+    """Fetch camera metadata without blocking the async request handler."""
+    return await asyncio.to_thread(_get_camera_info)
+
+
+async def _fetch_url_bytes_async(url: str, timeout: int) -> bytes:
+    """Fetch URL bytes without blocking the async request handler."""
+    def _fetch() -> bytes:
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+        return resp.content
+
+    return await asyncio.to_thread(_fetch)
+
+
 @operator_app.get("/api/v1/camera-config")
 async def api_camera_config() -> dict[str, Any]:
     """Serve ROI polygon config from camera_config.json."""
@@ -614,7 +629,7 @@ async def api_camera_config() -> dict[str, Any]:
 @operator_app.get("/api/v1/camera-image/{camera_id}")
 async def api_camera_image(camera_id: str):
     """Proxy live camera image from Trafikverket."""
-    cam_info = _get_camera_info()
+    cam_info = await _get_camera_info_async()
     info = cam_info.get(camera_id)
     if not info or not info.get("photo_url"):
         raise HTTPException(status_code=404, detail="Camera photo URL not found")
@@ -624,10 +639,9 @@ async def api_camera_image(camera_id: str):
         photo_url += "?type=fullsize"
 
     try:
-        resp = requests.get(photo_url, timeout=15)
-        resp.raise_for_status()
+        content = await _fetch_url_bytes_async(photo_url, timeout=15)
         return Response(
-            content=resp.content,
+            content=content,
             media_type="image/jpeg",
             headers={"Cache-Control": "no-cache, max-age=0"},
         )
@@ -658,7 +672,7 @@ async def api_camera_detections(camera_id: str) -> dict:
     from src.roi_mapper import ROIMapper
 
     # Fetch image bytes
-    cam_info = _get_camera_info()
+    cam_info = await _get_camera_info_async()
     info = cam_info.get(camera_id)
     if not info or not info.get("photo_url"):
         raise HTTPException(status_code=404, detail="Camera not found")
@@ -668,13 +682,12 @@ async def api_camera_detections(camera_id: str) -> dict:
         photo_url += "?type=fullsize"
 
     try:
-        resp = requests.get(photo_url, timeout=15)
-        resp.raise_for_status()
+        content = await _fetch_url_bytes_async(photo_url, timeout=15)
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Image fetch failed: {e}")
 
     # Decode to numpy array
-    img_array = np.frombuffer(resp.content, dtype=np.uint8)
+    img_array = np.frombuffer(content, dtype=np.uint8)
     frame = _cv2.imdecode(img_array, _cv2.IMREAD_COLOR)
     if frame is None:
         raise HTTPException(status_code=502, detail="Failed to decode image")
@@ -813,6 +826,15 @@ if __name__ == "__main__":
     if not API_KEY:
         print("❌ Missing API key. Set TRAFIKVERKET_API_KEY in .env")
         sys.exit(1)
+
+    if args.once:
+        setup_file_logger(DATA_DIR)
+        camera_ids = _resolve_camera_ids()
+        logger.info(f"🎯 Monitoring {len(camera_ids)} cameras")
+        logger.info(f"📂 Data dir: {DATA_DIR}")
+        logger.info("🔂 Running one tick (--once)")
+        tick_once(camera_ids)
+        sys.exit(0)
 
     uvicorn.run(
         operator_app,

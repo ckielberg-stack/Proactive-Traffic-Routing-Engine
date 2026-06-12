@@ -38,6 +38,11 @@ from src.models import (
     SegmentTrafficState,
     SensorReading,
 )
+from src.traffic_constants import (
+    FREE_FLOW_SPEED_KMH,
+    JAM_DENSITY_VEH_KM_LANE,
+    K_CRITICAL_VEH_KM_LANE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,24 +51,12 @@ logger = logging.getLogger(__name__)
 # Physical constants
 # ---------------------------------------------------------------------------
 
-#: Jam density in vehicles per km per lane (Swedish Transport Admin default).
-JAM_DENSITY_VEH_KM_LANE: float = 133.0
-
-#: Free-flow speed on the E4 motorway (km/h).
-FREE_FLOW_SPEED_KMH: float = 110.0
-
 #: Default time horizons to project queue length (minutes).
 DEFAULT_TIME_HORIZONS: list[int] = [1, 3, 5, 10]
 
 #: Minimum capacity drop (VPH) to consider a segment a "bottleneck".
 #: Below this threshold, the delta is too small for meaningful predictions.
 MIN_CAPACITY_DROP_VPH: float = 200.0
-
-# --- Expert Audit Fix 1: Flow vs Capacity ---
-#: Critical density threshold (veh/km/lane).  Bottleneck evaluation only
-#: triggers when the vision engine's observed density exceeds this value.
-K_CRITICAL_VEH_KM_LANE: float = 45.0
-
 
 # ---------------------------------------------------------------------------
 # Physics Engine
@@ -237,8 +230,9 @@ class PhysicsEngine:
         #   = decreasing chainage → iterate backward (idx - 1, idx - 2, ...)
         # For southbound traffic: upstream = north
         #   = increasing chainage → iterate forward (idx + 1, idx + 2, ...)
-        # Default to northbound if no direction info available.
-        direction = "northbound"  # TODO: derive from CapacityState/ROI road_id
+        # Default to northbound if no direction info is available to preserve
+        # existing corridor behavior for legacy CapacityState producers.
+        direction = self._traffic_direction_for_state(state)
         upstream_step = -1 if direction == "northbound" else 1
 
         # --- Piecewise backward iteration ---
@@ -427,6 +421,18 @@ class PhysicsEngine:
         if local_data_segments > 0:
             return "high"
         return "low"
+
+    @staticmethod
+    def _traffic_direction_for_state(state: CapacityState) -> str:
+        direction = (state.traffic_direction or "").lower()
+        if direction in {"northbound", "southbound"}:
+            return direction
+
+        road_id = (state.road_id or "").lower().replace("-", "_")
+        parts = [part for chunk in road_id.split("_") for part in chunk.split()]
+        if "southbound" in parts or "sb" in parts:
+            return "southbound"
+        return "northbound"
 
     # ------------------------------------------------------------------
     # Piecewise time-distance accumulation

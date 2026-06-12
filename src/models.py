@@ -66,6 +66,14 @@ class CapacityState(BaseModel):
         default=0.0,
         description="Visual density in veh/km/lane from YOLO detections",
     )
+    road_id: str | None = Field(
+        default=None,
+        description="Road/corridor identifier used to derive this camera-level state",
+    )
+    traffic_direction: str | None = Field(
+        default=None,
+        description="Traffic direction for physics iteration, e.g. northbound/southbound",
+    )
     is_anomaly: bool = False
     anomaly_reason: str | None = None
     confidence: float = Field(
@@ -253,6 +261,26 @@ class VMSStatusSnapshot(BaseModel):
     speed_limit: int | None = Field(
         default=None,
         description="Advisory or mandatory speed limit shown (km/h)",
+    )
+    road_number: str | None = Field(
+        default=None,
+        description="Road number from Situation.Deviation.RoadNumber, e.g. 'E4'",
+    )
+    geometry_wgs84: str | None = Field(
+        default=None,
+        description="Raw Situation.Deviation.Geometry.WGS84 geometry",
+    )
+    lat: float | None = Field(
+        default=None,
+        description="Latitude parsed from Geometry.WGS84 when available",
+    )
+    lng: float | None = Field(
+        default=None,
+        description="Longitude parsed from Geometry.WGS84 when available",
+    )
+    chainage_km: float | None = Field(
+        default=None,
+        description="Projected route-linear chainage in km when geometry is available",
     )
 
 

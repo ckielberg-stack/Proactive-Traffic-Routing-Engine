@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 
 from src.models import CapacityState, QueuePrediction
+from src.traffic_constants import FREE_FLOW_PER_LANE_VPH
 
 logger = logging.getLogger(__name__)
 
@@ -53,12 +54,8 @@ EXPIRY_MINUTES: float = 30.0
 
 #: Capacity drop threshold (fraction of free-flow) to consider "queue arrived".
 #: e.g. 0.50 means if capacity is < 50 % of the camera's lane-based free-flow
-#: (num_lanes × 2200 VPH), we consider the queue present.
+#: (num_lanes × shared per-lane capacity), we consider the queue present.
 CAPACITY_DROP_FRACTION: float = 0.50
-
-#: Free-flow per-lane capacity (VPH) used to derive camera baseline.
-FREE_FLOW_PER_LANE_VPH: float = 2200.0
-
 
 # ---------------------------------------------------------------------------
 # Prophecy model
