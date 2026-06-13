@@ -92,6 +92,7 @@ from src.traffic_constants import (
 )
 from src.vision_engine import VisionEngine
 from src.vms_orchestrator import VMSOrchestrator
+from src.weather_adapter import WeatherAdapter
 
 load_dotenv()
 
@@ -214,6 +215,21 @@ def api_request(xml_query: str, retries: int = MAX_RETRIES) -> dict | None:
     return None
 
 
+def _val(d: dict, key: str):
+    """Get nested .Value from a Trafikverket observation field."""
+    sub = d.get(key, {})
+    return sub.get("Value") if isinstance(sub, dict) else None
+
+
+def _nested(d: dict, *keys):
+    for key in keys:
+        if isinstance(d, dict):
+            d = d.get(key)
+        else:
+            return None
+    return d
+
+
 def fetch_image_bytes(url: str, retries: int = MAX_RETRIES) -> bytes | None:
     """Fetch image from URL into memory. No disk I/O."""
     for attempt in range(1, retries + 1):
@@ -247,6 +263,7 @@ _physics_engine: PhysicsEngine | None = None
 _vms_orchestrator: VMSOrchestrator | None = None
 _density_smoother: DensitySmoother | None = None
 _travel_time_calibrator: TravelTimeCalibrator | None = None
+_weather_adapter: WeatherAdapter | None = None
 
 
 def _get_vision_engine() -> VisionEngine:
@@ -299,6 +316,13 @@ def _get_calibrator() -> TravelTimeCalibrator:
     if _travel_time_calibrator is None:
         _travel_time_calibrator = TravelTimeCalibrator()
     return _travel_time_calibrator
+
+
+def _get_weather_adapter() -> WeatherAdapter:
+    global _weather_adapter
+    if _weather_adapter is None:
+        _weather_adapter = WeatherAdapter()
+    return _weather_adapter
 
 
 def _get_density_smoother() -> DensitySmoother:
@@ -712,6 +736,8 @@ def _derive_capacity_from_fused_state(
     *,
     local_speed_kmh: float | None,
     fallback_speed_kmh: float | None,
+    critical_density_veh_km_lane: float = K_CRITICAL_VEH_KM_LANE,
+    capacity_factor: float = 1.0,
 ) -> None:
     """Recompute camera-level capacity/anomaly after smoothing and speed fusion."""
     if (
@@ -729,10 +755,10 @@ def _derive_capacity_from_fused_state(
     else:
         speed = FREE_FLOW_SPEED_KMH
     lanes = max(state.total_lanes, 1)
-    max_capacity = Q_CAP_VPH_PER_LANE * lanes
+    max_capacity = Q_CAP_VPH_PER_LANE * lanes * min(capacity_factor, 1.0)
     density = state.observed_density_veh_km_lane
 
-    if density > K_CRITICAL_VEH_KM_LANE:
+    if density > critical_density_veh_km_lane:
         state.estimated_capacity_vph = round(
             min(density * lanes * speed, max_capacity),
             1,
@@ -760,6 +786,8 @@ def _apply_fused_capacity_derivation(
     node_traffic_states: dict[str, SegmentTrafficState],
     aggregate_sensor: SensorReading | None,
     fallback_speed_kmh: float,
+    critical_density_veh_km_lane: float = K_CRITICAL_VEH_KM_LANE,
+    capacity_factor: float = 1.0,
 ) -> None:
     """Apply post-smoothing capacity derivation using local traffic speeds."""
     aggregate_speed = aggregate_sensor.average_speed_kmh if aggregate_sensor else None
@@ -774,6 +802,8 @@ def _apply_fused_capacity_derivation(
                 if aggregate_speed is not None
                 else fallback_speed_kmh
             ),
+            critical_density_veh_km_lane=critical_density_veh_km_lane,
+            capacity_factor=capacity_factor,
         )
 
 
@@ -1089,6 +1119,138 @@ def fetch_sensor_data(now: datetime) -> list[SensorReading]:
         f"({len(SENSOR_SITE_IDS)} SiteIds configured)"
     )
     return readings
+
+
+def fetch_weather_data(now: datetime) -> list[dict]:
+    """Fetch WeatherMeasurepoint observations near the monitored corridor."""
+    xml_query = f"""
+    <REQUEST>
+        <LOGIN authenticationkey="{API_KEY}" />
+        <QUERY objecttype="WeatherMeasurepoint" schemaversion="2">
+            <FILTER />
+        </QUERY>
+    </REQUEST>
+    """
+
+    data = api_request(xml_query)
+    if not data:
+        return []
+
+    results = data.get("RESPONSE", {}).get("RESULT", [])
+    points = results[0].get("WeatherMeasurepoint", []) if results else []
+
+    weather_records: list[dict] = []
+    for point in points:
+        coords = parse_point_wgs84(point.get("Geometry", {}).get("WGS84", ""))
+        if not coords or not in_bbox(*coords):
+            continue
+
+        obs = point.get("Observation", {})
+        air = obs.get("Air", {})
+        surface = obs.get("Surface", {})
+        wind_list = obs.get("Wind", [])
+        wind = wind_list[0] if wind_list else {}
+        weather = obs.get("Weather", {})
+        agg5 = obs.get("Aggregated5minutes", {})
+
+        weather_records.append({
+            "type": "weather",
+            "timestamp": now.isoformat(),
+            "station_id": point.get("Id", ""),
+            "station_name": point.get("Name", ""),
+            "sample_time": obs.get("Sample", ""),
+            "air_temp_c": _val(air, "Temperature"),
+            "air_humidity_pct": _val(air, "RelativeHumidity"),
+            "air_dewpoint_c": _val(air, "Dewpoint"),
+            "visibility_m": _val(air, "VisibleDistance"),
+            "wind_speed_ms": _val(wind, "Speed"),
+            "wind_dir_deg": _val(wind, "Direction"),
+            "surface_temp_c": _val(surface, "Temperature"),
+            "precipitation": weather.get("Precipitation", None),
+            "precip_rain_sum": _nested(
+                agg5,
+                "Precipitation",
+                "RainSum",
+                "Value",
+            ),
+            "precip_snow_water_eq": _nested(
+                agg5,
+                "Precipitation",
+                "SnowSum",
+                "WaterEquivalent",
+                "Value",
+            ),
+        })
+
+    logger.info("🌡  Weather data: %s corridor station(s)", len(weather_records))
+    return weather_records
+
+
+def fetch_road_conditions(now: datetime) -> list[dict]:
+    """Fetch E4/E20 RoadCondition records for Stockholm county."""
+    xml_query = f"""
+    <REQUEST>
+        <LOGIN authenticationkey="{API_KEY}" />
+        <QUERY objecttype="RoadCondition" schemaversion="1.2">
+            <FILTER>
+                <EQ name="CountyNo" value="1" />
+            </FILTER>
+        </QUERY>
+    </REQUEST>
+    """
+
+    data = api_request(xml_query)
+    if not data:
+        return []
+
+    results = data.get("RESPONSE", {}).get("RESULT", [])
+    conditions = results[0].get("RoadCondition", []) if results else []
+
+    road_records: list[dict] = []
+    for condition in conditions:
+        road_number = condition.get("RoadNumber", "")
+        if not _is_e4_road(road_number):
+            continue
+
+        geometry_wgs84 = _extract_wgs84(condition)
+        position = parse_point_wgs84(geometry_wgs84 or "")
+        chainage_km = project_e4_northbound_chainage(position) if position else None
+
+        road_records.append({
+            "type": "road_condition",
+            "timestamp": now.isoformat(),
+            "id": condition.get("Id", ""),
+            "location": condition.get("LocationText", ""),
+            "condition_text": condition.get("ConditionText", ""),
+            "condition_info": condition.get("ConditionInfo", []),
+            "condition_code": condition.get("ConditionCode"),
+            "warning": condition.get("Warning", False),
+            "road_number": road_number,
+            "start_time": condition.get("StartTime", ""),
+            "geometry_wgs84": geometry_wgs84,
+            "lat": position[0] if position else None,
+            "lng": position[1] if position else None,
+            "chainage_km": chainage_km,
+        })
+
+    logger.info("🛣  Road conditions: %s E4/E20 record(s)", len(road_records))
+    return road_records
+
+
+def _extract_wgs84(record: dict) -> str | None:
+    geometry = record.get("Geometry")
+    if isinstance(geometry, dict):
+        wgs84 = geometry.get("WGS84")
+        return str(wgs84) if wgs84 else None
+    wgs84 = record.get("Geometry.WGS84")
+    return str(wgs84) if wgs84 else None
+
+
+def _is_e4_road(road_number: str) -> bool:
+    if not road_number:
+        return False
+    normalized = road_number.strip().upper()
+    return normalized in ("E 4", "E4", "E 20", "E20", "E4/E20", "E 4/E 20")
 
 
 def fetch_vms_status(now: datetime) -> list[VMSStatusSnapshot]:
@@ -1460,13 +1622,17 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     sensor_readings: list[SensorReading] = []
     vms_statuses: list[VMSStatusSnapshot] = []
     travel_time_readings: list[TravelTimeReading] = []
+    weather_records: list[dict] = []
+    road_condition_records: list[dict] = []
 
     fetch_started = time.monotonic()
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         future_cameras = executor.submit(fetch_cameras, camera_ids, now)
         future_sensors = executor.submit(fetch_sensor_data, now)
         future_vms = executor.submit(fetch_vms_status, now)
         future_tt = executor.submit(fetch_travel_times, now)
+        future_weather = executor.submit(fetch_weather_data, now)
+        future_road_conditions = executor.submit(fetch_road_conditions, now)
 
         try:
             vision_records, capacity_states = future_cameras.result(timeout=55)
@@ -1487,8 +1653,32 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             travel_time_readings = future_tt.result(timeout=10)
         except Exception as e:
             logger.error(f"Travel time fetch failed: {e}", exc_info=True)
+
+        try:
+            weather_records = future_weather.result(timeout=10)
+        except Exception as e:
+            logger.error(f"Weather fetch failed: {e}", exc_info=True)
+
+        try:
+            road_condition_records = future_road_conditions.result(timeout=10)
+        except Exception as e:
+            logger.error(f"Road condition fetch failed: {e}", exc_info=True)
     fetch_duration_ms = int((time.monotonic() - fetch_started) * 1000)
     logger.info("⏱️  Data fetch phase completed in %sms", fetch_duration_ms)
+
+    weather_adjustment = _get_weather_adapter().compute(
+        weather_records=weather_records,
+        road_condition_records=road_condition_records,
+        now=now,
+    )
+    logger.info(
+        "🌦  Surface adjustment: %s free_flow=%.2f capacity=%.2f confidence=%s (%s)",
+        weather_adjustment.surface_state,
+        weather_adjustment.free_flow_factor,
+        weather_adjustment.capacity_factor,
+        weather_adjustment.confidence,
+        weather_adjustment.reason,
+    )
 
     # ---- Phase 2: Apply temporal density smoothing (Expert Audit Fix 3) ----
     smoother = _get_density_smoother()
@@ -1518,9 +1708,17 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     # ---- Phase 3: Physics engine (shockwave propagation) ----
     physics = _get_physics_engine()
 
-    # Apply calibrated free-flow speed
+    model_free_flow_speed = FREE_FLOW_SPEED_KMH
     if calibration_snapshot and calibration_snapshot.confidence != "low":
-        physics.free_flow_speed = calibration_snapshot.adapted_free_flow_speed
+        model_free_flow_speed = calibration_snapshot.adapted_free_flow_speed
+    physics.free_flow_speed = round(
+        model_free_flow_speed * weather_adjustment.free_flow_factor,
+        2,
+    )
+    physics.critical_density_veh_km_lane = round(
+        K_CRITICAL_VEH_KM_LANE * weather_adjustment.capacity_factor,
+        2,
+    )
 
     # Build per-camera traffic state from sensor stations and travel-time spans
     node_traffic_states = build_node_traffic_states(
@@ -1563,6 +1761,8 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         node_traffic_states,
         aggregate_sensor,
         physics.free_flow_speed,
+        physics.critical_density_veh_km_lane,
+        weather_adjustment.capacity_factor,
     )
 
     queue_predictions = physics.compute(
@@ -1600,6 +1800,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             prediction=prediction,
             now=now,
             vms_statuses=vms_statuses,
+            surface_state=weather_adjustment.surface_state,
         )
         vms_recommendations.extend(recs)
 
@@ -1611,6 +1812,13 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             vms_statuses=vms_statuses,
         )
         vms_recommendations.extend(sensor_recs)
+
+    weather_recs = orchestrator.generate_weather_recommendations(
+        road_conditions=road_condition_records,
+        now=now,
+        vms_statuses=vms_statuses,
+    )
+    vms_recommendations.extend(weather_recs)
 
     # ---- Phase 5: Persist ----
     result = TickResult(
@@ -1624,6 +1832,9 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         vms_recommendations=vms_recommendations,
         travel_time_readings=travel_time_readings,
         calibration=calibration_snapshot,
+        weather_records=weather_records,
+        road_condition_records=road_condition_records,
+        weather_adjustment=weather_adjustment,
     )
 
     _persist_tick(result, vision_records, now)
@@ -1640,6 +1851,8 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         f"{len(queue_predictions)} predictions, "
         f"{len(vms_recommendations)} VMS recommendations, "
         f"{len(travel_time_readings)} travel times, "
+        f"{len(weather_records)} weather stations, "
+        f"{len(road_condition_records)} road conditions, "
         f"{tick_duration_ms}ms total"
     )
 
@@ -1666,6 +1879,10 @@ def _persist_tick(
 
     # Vision records
     all_records.extend(vision_records)
+
+    # Weather and road-condition records keep the legacy JSONL shape used by dashboard.py.
+    all_records.extend(result.weather_records)
+    all_records.extend(result.road_condition_records)
 
     # Sensor readings
     for s in result.sensor_readings:
@@ -1759,6 +1976,19 @@ def _persist_tick(
             "confidence": cal.confidence,
         })
 
+    if result.weather_adjustment:
+        adj = result.weather_adjustment
+        all_records.append({
+            "type": "weather_adjustment",
+            "timestamp": now.isoformat(),
+            "surface_state": adj.surface_state,
+            "free_flow_factor": adj.free_flow_factor,
+            "capacity_factor": adj.capacity_factor,
+            "confidence": adj.confidence,
+            "reason": adj.reason,
+            "warning_count": len(adj.warning_records),
+        })
+
     # Write JSONL
     if all_records:
         with open(jsonl_path, "a", encoding="utf-8") as f:
@@ -1806,6 +2036,18 @@ def _update_status(
             "vms_recommendations": len(result.vms_recommendations),
             "vms_statuses_polled": len(result.vms_statuses),
             "travel_time_routes": len(result.travel_time_readings),
+            "weather_stations": len(result.weather_records),
+            "road_conditions": len(result.road_condition_records),
+            "surface_state": (
+                result.weather_adjustment.surface_state
+                if result.weather_adjustment
+                else "unknown"
+            ),
+            "surface_adjustment_confidence": (
+                result.weather_adjustment.confidence
+                if result.weather_adjustment
+                else "unknown"
+            ),
         },
     }
 

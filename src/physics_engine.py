@@ -75,10 +75,12 @@ class PhysicsEngine:
         self,
         jam_density: float = JAM_DENSITY_VEH_KM_LANE,
         free_flow_speed: float = FREE_FLOW_SPEED_KMH,
+        critical_density_veh_km_lane: float = K_CRITICAL_VEH_KM_LANE,
         time_horizons: list[int] | None = None,
     ) -> None:
         self.jam_density = jam_density
         self.free_flow_speed = free_flow_speed
+        self.critical_density_veh_km_lane = critical_density_veh_km_lane
         self.time_horizons = time_horizons or DEFAULT_TIME_HORIZONS
 
     # ------------------------------------------------------------------
@@ -142,7 +144,7 @@ class PhysicsEngine:
 
         for state in capacity_states:
             # Expert Audit Fix 1: trigger on density, not is_anomaly
-            if state.observed_density_veh_km_lane < K_CRITICAL_VEH_KM_LANE:
+            if state.observed_density_veh_km_lane < self.critical_density_veh_km_lane:
                 continue  # Density below critical — no congestion breakdown
 
             prediction = self._evaluate_bottleneck_piecewise(

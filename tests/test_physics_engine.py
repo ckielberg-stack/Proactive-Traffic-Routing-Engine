@@ -534,6 +534,32 @@ class TestPiecewisePrediction:
         # Density below k_critical → physics engine should skip this
         assert len(predictions) == 0
 
+    def test_weather_adjusted_critical_density_triggers_earlier(
+        self,
+        upstream_sensor: SensorReading,
+        chainage_map: dict[str, float],
+    ) -> None:
+        """Degraded surface lowers the density threshold for conservative warnings."""
+        engine = PhysicsEngine(critical_density_veh_km_lane=30.0)
+        state = CapacityState(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            camera_id="CAM_03",
+            vehicle_count=5,
+            blocked_lanes=0,
+            total_lanes=3,
+            estimated_capacity_vph=1200.0,
+            observed_density_veh_km_lane=35.0,
+            is_anomaly=False,
+        )
+
+        predictions = engine.compute(
+            capacity_states=[state],
+            sensor=upstream_sensor,
+            camera_chainage_map=chainage_map,
+        )
+
+        assert len(predictions) == 1
+
     def test_single_camera_no_chainage_uses_legacy_fallback(
         self,
         engine: PhysicsEngine,

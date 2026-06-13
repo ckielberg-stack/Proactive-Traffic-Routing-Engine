@@ -9,6 +9,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.weather_adapter import WeatherAdjustment
+
 
 # ---------------------------------------------------------------------------
 # Input models
@@ -497,3 +499,6 @@ class TickResult(BaseModel):
     vms_recommendations: list[VMSRecommendation] = []
     travel_time_readings: list[TravelTimeReading] = []
     calibration: CalibrationSnapshot | None = None
+    weather_records: list[dict] = []
+    road_condition_records: list[dict] = []
+    weather_adjustment: WeatherAdjustment | None = None
