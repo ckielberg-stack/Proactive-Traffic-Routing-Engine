@@ -47,6 +47,9 @@ def build_incident_reports(
                 confidence=state.confidence,
                 lat=lat,
                 lng=lng,
+                situation_confirmed=state.situation_confirmed,
+                situation_ids=list(state.situation_ids),
+                situation_types=list(state.situation_types),
             )
         )
 
