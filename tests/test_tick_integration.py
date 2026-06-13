@@ -272,6 +272,7 @@ def reset_main_loop_globals(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main_loop, "_vms_orchestrator", None)
     monkeypatch.setattr(main_loop, "_density_smoother", None)
     monkeypatch.setattr(main_loop, "_travel_time_calibrator", None)
+    monkeypatch.setattr(main_loop, "_weather_adapter", None)
 
 
 def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
@@ -359,6 +360,71 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
                 }
             }
 
+        if 'objecttype="WeatherMeasurepoint"' in xml_query:
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "WeatherMeasurepoint": [
+                                {
+                                    "Id": "W-1",
+                                    "Name": "Offline weather",
+                                    "Geometry": {"WGS84": "POINT (17.8619 59.2543)"},
+                                    "Observation": {
+                                        "Sample": datetime(2026, 6, 10, 12, 0, 0).isoformat(),
+                                        "Air": {
+                                            "Temperature": {"Value": 1.0},
+                                            "RelativeHumidity": {"Value": 90},
+                                            "Dewpoint": {"Value": 0.0},
+                                            "VisibleDistance": {"Value": 4000},
+                                        },
+                                        "Surface": {"Temperature": {"Value": -1.0}},
+                                        "Wind": [
+                                            {
+                                                "Speed": {"Value": 4.0},
+                                                "Direction": {"Value": 180},
+                                            }
+                                        ],
+                                        "Weather": {"Precipitation": "Snö"},
+                                        "Aggregated5minutes": {
+                                            "Precipitation": {
+                                                "RainSum": {"Value": 0.0},
+                                                "SnowSum": {
+                                                    "WaterEquivalent": {"Value": 0.2}
+                                                },
+                                            }
+                                        },
+                                    },
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+
+        if 'objecttype="RoadCondition"' in xml_query:
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "RoadCondition": [
+                                {
+                                    "Id": "RC-1",
+                                    "LocationText": "E4 Kungens kurva",
+                                    "ConditionText": "Halka",
+                                    "ConditionInfo": ["Isfläckar"],
+                                    "ConditionCode": "ice",
+                                    "Warning": True,
+                                    "RoadNumber": "E4",
+                                    "StartTime": "2026-06-10T11:55:00",
+                                    "Geometry": {"WGS84": "POINT (17.8619 59.2543)"},
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+
         raise AssertionError(f"Unexpected Trafikverket query: {xml_query}")
 
     def fake_fetch_image_bytes(url: str) -> bytes:
@@ -404,10 +470,14 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
     assert result.capacity_states[0].observed_density_veh_km_lane == pytest.approx(
         70.0
     )
-    assert result.capacity_states[0].estimated_capacity_vph == pytest.approx(2800.0)
+    assert result.capacity_states[0].estimated_capacity_vph == pytest.approx(2600.0)
     assert len(result.sensor_readings) == 2
     assert {reading.site_id for reading in result.sensor_readings} == {101, 102}
     assert [reading.route_id for reading in result.travel_time_readings] == ["724"]
+    assert [record["station_id"] for record in result.weather_records] == ["W-1"]
+    assert [record["id"] for record in result.road_condition_records] == ["RC-1"]
+    assert result.weather_adjustment is not None
+    assert result.weather_adjustment.surface_state == "ice"
     assert result.vms_statuses
     assert any(
         status.vms_id == "VMS-4001" and not status.is_active
@@ -423,11 +493,17 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
         rec.triggering_camera_id == "CAM_B"
         for rec in result.vms_recommendations
     )
+    assert any(
+        rec.triggering_camera_id == "road_condition_RC-1"
+        for rec in result.vms_recommendations
+    )
 
     assert any('objecttype="Camera"' in query for query in api_calls)
     assert any('objecttype="TrafficFlow"' in query for query in api_calls)
     assert any('objecttype="Situation"' in query for query in api_calls)
     assert any('objecttype="TravelTimeRoute"' in query for query in api_calls)
+    assert any('objecttype="WeatherMeasurepoint"' in query for query in api_calls)
+    assert any('objecttype="RoadCondition"' in query for query in api_calls)
     assert fetched_urls == ["https://example.invalid/cam-b.jpg?type=fullsize"]
 
     day_dir = tmp_path / result.timestamp.strftime("%Y-%m-%d")
@@ -446,6 +522,9 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
         "vms_recommendation",
         "travel_time",
         "calibration",
+        "weather",
+        "road_condition",
+        "weather_adjustment",
     }.issubset(record_types)
     assert (tmp_path / "vision_state.json").exists()
     assert (tmp_path / "status.json").exists()
@@ -510,6 +589,10 @@ def test_tick_once_runs_offline_through_multi_roi_aggregation(
             return {"RESPONSE": {"RESULT": [{"Situation": []}]}}
         if 'objecttype="TravelTimeRoute"' in xml_query:
             return {"RESPONSE": {"RESULT": [{"TravelTimeRoute": []}]}}
+        if 'objecttype="WeatherMeasurepoint"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"WeatherMeasurepoint": []}]}}
+        if 'objecttype="RoadCondition"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"RoadCondition": []}]}}
         raise AssertionError(f"Unexpected Trafikverket query: {xml_query}")
 
     monkeypatch.setattr(main_loop, "DATA_DIR", str(tmp_path))
@@ -553,6 +636,10 @@ def test_tick_once_runs_offline_through_multi_roi_aggregation(
     assert state.vehicle_count == 18
     assert state.observed_density_veh_km_lane == pytest.approx(70.0)
     assert state.estimated_capacity_vph == pytest.approx(2800.0)
+    assert result.weather_records == []
+    assert result.road_condition_records == []
+    assert result.weather_adjustment is not None
+    assert result.weather_adjustment.surface_state == "dry"
     assert len(result.queue_predictions) == 1
     assert result.queue_predictions[0].camera_id == "CAM_B"
     assert any(

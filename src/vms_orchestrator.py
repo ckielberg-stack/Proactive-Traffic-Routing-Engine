@@ -214,6 +214,7 @@ class VMSOrchestrator:
         time_horizons: list[int] | None = None,
         now: datetime | None = None,
         vms_statuses: list[VMSStatusSnapshot] | None = None,
+        surface_state: str | None = None,
     ) -> list[VMSRecommendation]:
         """Produce VMS activation recommendations for each time horizon.
 
@@ -264,7 +265,7 @@ class VMSOrchestrator:
                 eta_minutes = float("inf")
 
             urgency = _classify_urgency(eta_minutes)
-            message = _build_message(urgency)
+            message = _build_message(urgency, surface_state=surface_state)
 
             # Resolve current VMS sign state (None = not polled)
             current_status = status_lookup.get(vms.vms_id)
@@ -382,6 +383,86 @@ class VMSOrchestrator:
 
         return recommendations
 
+    # ------------------------------------------------------------------
+    # Weather/RoadCondition-based VMS recommendations
+    # ------------------------------------------------------------------
+
+    def generate_weather_recommendations(
+        self,
+        road_conditions: list[dict],
+        now: datetime | None = None,
+        vms_statuses: list[VMSStatusSnapshot] | None = None,
+    ) -> list[VMSRecommendation]:
+        """Generate standalone HALKA advisories for active RoadCondition warnings."""
+        if now is None:
+            now = datetime.now()
+
+        status_lookup: dict[str, VMSStatusSnapshot] = {}
+        if vms_statuses:
+            for status in vms_statuses:
+                status_lookup[status.vms_id] = status
+
+        seen_vms: set[str] = set()
+        recommendations: list[VMSRecommendation] = []
+
+        for condition in road_conditions:
+            if condition.get("warning") is not True:
+                continue
+
+            vms = self._find_weather_warning_vms(condition)
+            if vms is None or vms.vms_id in seen_vms:
+                continue
+
+            seen_vms.add(vms.vms_id)
+            current_status = status_lookup.get(vms.vms_id)
+            current_status_str = (
+                current_status.displayed_message if current_status.is_active else "OFF"
+            ) if current_status is not None else None
+            summary = _build_weather_narrative(condition, vms, current_status_str)
+
+            recommendations.append(
+                VMSRecommendation(
+                    timestamp=now,
+                    vms_id=vms.vms_id,
+                    vms_name=vms.name,
+                    recommended_message="HALKA - VARNING",
+                    urgency="immediate",
+                    queue_growth_speed_kmh=0.0,
+                    distance_queue_tail_to_vms_km=0.0,
+                    estimated_activation_minutes=0.0,
+                    triggering_camera_id=(
+                        f"road_condition_{condition.get('id')}"
+                        if condition.get("id")
+                        else "road_condition"
+                    ),
+                    current_vms_status=current_status_str,
+                    summary=summary,
+                )
+            )
+
+        return recommendations
+
+    def _find_weather_warning_vms(self, condition: dict) -> VMSGantry | None:
+        chainage = condition.get("chainage_km")
+        if chainage is not None:
+            try:
+                return self.find_nearest_vms_by_chainage(float(chainage))
+            except (TypeError, ValueError):
+                pass
+
+        lat = condition.get("lat")
+        lng = condition.get("lng")
+        if lat is not None and lng is not None:
+            try:
+                vms = self.find_nearest_vms_by_position(float(lat), float(lng))
+            except (TypeError, ValueError):
+                vms = None
+            if vms is not None:
+                return vms
+
+        e4_gantries = [gantry for gantry in self._gantries if gantry.road == "E4"]
+        return e4_gantries[0] if e4_gantries else None
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -397,13 +478,16 @@ def _classify_urgency(eta_minutes: float) -> str:
     return "advisory"
 
 
-def _build_message(urgency: str) -> str:
+def _build_message(urgency: str, surface_state: str | None = None) -> str:
     """Generate the Swedish VMS display message."""
     messages = {
         "immediate": "KÖVARNING 50 km/h",
         "soon": "KÖVARNING 70 km/h",
     }
-    return messages.get(urgency, "VARNING — Köbildning framför")
+    message = messages.get(urgency, "VARNING - Köbildning framför")
+    if surface_state in {"snow", "ice"}:
+        return f"HALKA - {message}"
+    return message
 
 
 def _build_narrative(
@@ -482,4 +566,22 @@ def _build_sensor_narrative(
         parts.append(f"Nuvarande VMS-status: {current_status_str}.")
 
     parts.append("Rekommendation: Aktivera KÖVARNING 50 km/h OMEDELBART.")
+    return " ".join(parts)
+
+
+def _build_weather_narrative(
+    condition: dict,
+    vms: VMSGantry,
+    current_status_str: str | None,
+) -> str:
+    """Generate an operator narrative for a slippery-road warning."""
+    location = condition.get("location") or condition.get("road_number") or "E4"
+    text = condition.get("condition_text") or "väglagsvarning"
+    parts = [
+        f"Väglagsvarning: {text} vid {location}.",
+        f"Närmaste VMS: {vms.name} ({vms.vms_id}).",
+        "Rekommendation: Aktivera HALKA-varning OMEDELBART.",
+    ]
+    if current_status_str is not None:
+        parts.insert(2, f"Nuvarande VMS-status: {current_status_str}.")
     return " ".join(parts)

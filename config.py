@@ -254,6 +254,18 @@ DEFAULT_ROAD_SPEED_LIMIT: int = 70
 SENSOR_SPEED_DROP_RATIO: float = 0.50     # 50% → e.g. 35 km/h on a 70 road
 # Flag as "severe" (triggers VMS recommendation) below this fraction
 SENSOR_SEVERE_DROP_RATIO: float = 0.35    # 35% → e.g. 24.5 km/h on a 70 road
+
+# --- Weather/Road Surface Physics Adjustment ---
+# Conservative, tunable factors applied per tick from Trafikverket
+# WeatherMeasurepoint/RoadCondition observations.
+# Values are (free_flow_factor, capacity_factor).
+WEATHER_SURFACE_FACTORS: dict[str, tuple[float, float]] = {
+    "dry": (1.00, 1.00),
+    "wet": (0.92, 0.90),
+    "snow": (0.85, 0.75),
+    "ice": (0.75, 0.65),
+}
+
 # --- TravelTimeRoute IDs (E4/E20 corridor, Stockholm) ---
 # Discovered from TravelTimeRoute API (schemaversion 1.5), CountyNo=1.
 # Route IDs are strings matching the Trafikverket 'Id' field.

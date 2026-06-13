@@ -225,6 +225,59 @@ class TestRecommendationGeneration:
         recs = orch.generate_recommendations(pred)
         assert recs == []
 
+    def test_halka_prefix_for_degraded_surface(
+        self, orchestrator: VMSOrchestrator, mock_prediction: QueuePrediction
+    ) -> None:
+        recs = orchestrator.generate_recommendations(
+            mock_prediction,
+            surface_state="ice",
+        )
+
+        assert recs
+        assert all(rec.recommended_message.startswith("HALKA - ") for rec in recs)
+
+
+class TestWeatherRecommendations:
+    def test_generates_standalone_halka_warning_by_chainage(
+        self,
+        orchestrator: VMSOrchestrator,
+    ) -> None:
+        recs = orchestrator.generate_weather_recommendations(
+            [
+                {
+                    "id": "RC-1",
+                    "warning": True,
+                    "condition_text": "Halka",
+                    "location": "E4 Kungens kurva",
+                    "chainage_km": 5.2,
+                }
+            ],
+            now=datetime(2026, 6, 13, 12, 0, 0),
+        )
+
+        assert len(recs) == 1
+        assert recs[0].vms_id == "VMS-T2"
+        assert recs[0].recommended_message == "HALKA - VARNING"
+        assert recs[0].urgency == "immediate"
+        assert recs[0].triggering_camera_id == "road_condition_RC-1"
+
+    def test_ignores_non_warning_road_conditions(
+        self,
+        orchestrator: VMSOrchestrator,
+    ) -> None:
+        recs = orchestrator.generate_weather_recommendations(
+            [
+                {
+                    "id": "RC-1",
+                    "warning": False,
+                    "condition_text": "Våt vägbana",
+                    "chainage_km": 5.2,
+                }
+            ]
+        )
+
+        assert recs == []
+
 
 # ======================================================================
 # Helper function tests
@@ -257,3 +310,6 @@ class TestBuildMessage:
 
     def test_advisory_message(self) -> None:
         assert "VARNING" in _build_message("advisory")
+
+    def test_halka_prefix(self) -> None:
+        assert _build_message("immediate", surface_state="ice") == "HALKA - KÖVARNING 50 km/h"
