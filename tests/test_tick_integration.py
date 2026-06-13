@@ -337,7 +337,32 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
             }
 
         if 'objecttype="Situation"' in xml_query:
-            return {"RESPONSE": {"RESULT": [{"Situation": []}]}}
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "Situation": [
+                                {
+                                    "Deviation": [
+                                        {
+                                            "Id": "ACC-1",
+                                            "RoadNumber": "E4",
+                                            "MessageType": "Olycka",
+                                            "MessageCode": "Olycka",
+                                            "SeverityCode": "medium",
+                                            "NumberOfLanesRestricted": 1,
+                                            "LocationDescriptor": "Fittja",
+                                            "Geometry": {
+                                                "WGS84": "POINT (17.8619 59.2543)",
+                                            },
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
 
         if 'objecttype="TravelTimeRoute"' in xml_query:
             return {
@@ -470,7 +495,9 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
     assert result.capacity_states[0].observed_density_veh_km_lane == pytest.approx(
         70.0
     )
-    assert result.capacity_states[0].estimated_capacity_vph == pytest.approx(2600.0)
+    assert result.capacity_states[0].estimated_capacity_vph == pytest.approx(1800.0)
+    assert result.capacity_states[0].situation_confirmed is True
+    assert result.capacity_states[0].situation_ids == ["ACC-1"]
     assert len(result.sensor_readings) == 2
     assert {reading.site_id for reading in result.sensor_readings} == {101, 102}
     assert [reading.route_id for reading in result.travel_time_readings] == ["724"]
@@ -478,6 +505,7 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
     assert [record["id"] for record in result.road_condition_records] == ["RC-1"]
     assert result.weather_adjustment is not None
     assert result.weather_adjustment.surface_state == "ice"
+    assert [d.deviation_id for d in result.situation_deviations] == ["ACC-1"]
     assert result.vms_statuses
     assert any(
         status.vms_id == "VMS-4001" and not status.is_active
@@ -500,7 +528,7 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
 
     assert any('objecttype="Camera"' in query for query in api_calls)
     assert any('objecttype="TrafficFlow"' in query for query in api_calls)
-    assert any('objecttype="Situation"' in query for query in api_calls)
+    assert sum('objecttype="Situation"' in query for query in api_calls) == 2
     assert any('objecttype="TravelTimeRoute"' in query for query in api_calls)
     assert any('objecttype="WeatherMeasurepoint"' in query for query in api_calls)
     assert any('objecttype="RoadCondition"' in query for query in api_calls)
@@ -525,9 +553,122 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
         "weather",
         "road_condition",
         "weather_adjustment",
+        "situation",
     }.issubset(record_types)
     assert (tmp_path / "vision_state.json").exists()
     assert (tmp_path / "status.json").exists()
+
+
+def test_tick_once_situation_only_deviation_creates_physics_bottleneck(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    reset_main_loop_globals: None,
+) -> None:
+    camera_coords = {
+        "CAM_A": (59.2417, 17.8366),
+        "CAM_B": (59.2543, 17.8619),
+    }
+    sensor_coords = {101: camera_coords["CAM_B"]}
+    api_calls: list[str] = []
+
+    def fake_api_request(xml_query: str) -> dict:
+        api_calls.append(xml_query)
+        if 'objecttype="TrafficFlow"' in xml_query:
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "TrafficFlow": [
+                                {
+                                    "SiteId": 101,
+                                    "VehicleFlowRate": 5000,
+                                    "AverageVehicleSpeed": 70,
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        if 'objecttype="Situation"' in xml_query:
+            if "Hastighetsbegränsning gäller" in xml_query:
+                return {"RESPONSE": {"RESULT": [{"Situation": []}]}}
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "Situation": [
+                                {
+                                    "Deviation": [
+                                        {
+                                            "Id": "ACC-SYN",
+                                            "RoadNumber": "E4",
+                                            "MessageType": "Accident",
+                                            "MessageCode": "Accident",
+                                            "SeverityCode": "high",
+                                            "NumberOfLanesRestricted": 1,
+                                            "LocationDescriptor": "Fittja",
+                                            "Geometry": {
+                                                "WGS84": "POINT (17.8619 59.2543)",
+                                            },
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        if 'objecttype="TravelTimeRoute"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"TravelTimeRoute": []}]}}
+        if 'objecttype="WeatherMeasurepoint"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"WeatherMeasurepoint": []}]}}
+        if 'objecttype="RoadCondition"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"RoadCondition": []}]}}
+        raise AssertionError(f"Unexpected Trafikverket query: {xml_query}")
+
+    monkeypatch.setattr(main_loop, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(main_loop, "api_request", fake_api_request)
+    monkeypatch.setattr(main_loop, "CAMERA_COORDS", camera_coords)
+    monkeypatch.setattr(main_loop, "SENSOR_COORDS", sensor_coords)
+    monkeypatch.setattr(config, "SENSOR_SITE_IDS", [101])
+    monkeypatch.setattr(
+        main_loop,
+        "_build_camera_chainage_map",
+        lambda: {"CAM_A": 1.0, "CAM_B": 2.0},
+    )
+    monkeypatch.setattr(main_loop, "_find_nearest_camera", lambda _lat, _lng: "CAM_B")
+    monkeypatch.setattr(
+        main_loop,
+        "_vms_orchestrator",
+        VMSOrchestrator(
+            config_path=Path(__file__).resolve().parents[1] / "vms_config.json"
+        ),
+    )
+
+    result = main_loop.tick_once([])
+
+    assert [d.deviation_id for d in result.situation_deviations] == ["ACC-SYN"]
+    assert len(result.capacity_states) == 1
+    state = result.capacity_states[0]
+    assert state.camera_id == "CAM_B"
+    assert state.anomaly_reason == "situation_confirmed_accident"
+    assert state.situation_confirmed is True
+    assert state.estimated_capacity_vph == pytest.approx(1400.0)
+    assert len(result.queue_predictions) == 1
+    assert result.queue_predictions[0].camera_id == "CAM_B"
+    assert not any('objecttype="Camera"' in query for query in api_calls)
+    assert sum('objecttype="Situation"' in query for query in api_calls) == 2
+
+    jsonl_path = (
+        tmp_path
+        / result.timestamp.strftime("%Y-%m-%d")
+        / "sensor_data.jsonl"
+    )
+    records = [
+        json.loads(line)
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert any(record["type"] == "situation" for record in records)
 
 
 def test_tick_once_runs_offline_through_multi_roi_aggregation(

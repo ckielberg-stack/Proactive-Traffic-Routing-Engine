@@ -68,6 +68,7 @@ from src.models import (
     CameraMetadata,
     CapacityState,
     MultiSegmentCapacity,
+    SituationDeviation,
     SensorAnomaly,
     SensorReading,
     SegmentTrafficState,
@@ -807,6 +808,117 @@ def _apply_fused_capacity_derivation(
         )
 
 
+def apply_situation_capacity_impacts(
+    capacity_states: list[CapacityState],
+    situation_deviations: list[SituationDeviation],
+    *,
+    now: datetime,
+    camera_chainage_map: dict[str, float],
+    critical_density_veh_km_lane: float,
+    default_total_lanes: int = 2,
+) -> int:
+    """Merge authoritative Situation capacity impacts into camera states."""
+    if not situation_deviations or not camera_chainage_map:
+        return 0
+
+    state_by_camera = {state.camera_id: state for state in capacity_states}
+    strongest_by_camera: dict[str, SituationDeviation] = {}
+
+    for deviation in situation_deviations:
+        camera_id = deviation.nearest_camera_id
+        if camera_id is None and deviation.chainage_km is not None:
+            nearest = find_nearest_by_chainage(
+                deviation.chainage_km,
+                camera_chainage_map,
+            )
+            camera_id = str(nearest) if nearest is not None else None
+            deviation.nearest_camera_id = camera_id
+        if camera_id is None:
+            continue
+
+        current = strongest_by_camera.get(camera_id)
+        if current is None or deviation.capacity_factor < current.capacity_factor:
+            strongest_by_camera[camera_id] = deviation
+
+    for camera_id, deviation in strongest_by_camera.items():
+        state = state_by_camera.get(camera_id)
+        if state is None:
+            chainage = camera_chainage_map.get(camera_id)
+            coords = CAMERA_COORDS.get(camera_id)
+            lanes = default_total_lanes
+            capacity = Q_CAP_VPH_PER_LANE * lanes * deviation.capacity_factor
+            state = CapacityState(
+                timestamp=now,
+                camera_id=camera_id,
+                vehicle_count=0,
+                blocked_lanes=_blocked_lanes_from_deviation(deviation, lanes),
+                total_lanes=lanes,
+                estimated_capacity_vph=round(capacity, 1),
+                observed_density_veh_km_lane=round(critical_density_veh_km_lane + 1.0, 2),
+                road_id="E4_Northbound",
+                traffic_direction="northbound",
+                is_anomaly=True,
+                anomaly_reason=f"situation_confirmed_{deviation.deviation_type}",
+                confidence=0.95,
+                situation_confirmed=True,
+                situation_ids=[deviation.deviation_id],
+                situation_types=[deviation.deviation_type],
+            )
+            capacity_states.append(state)
+            state_by_camera[camera_id] = state
+            if chainage is not None and coords is None:
+                logger.debug(
+                    "Synthetic situation state for %s at chainage %.2f km",
+                    camera_id,
+                    chainage,
+                )
+            continue
+
+        lanes = max(state.total_lanes, default_total_lanes, 1)
+        state.total_lanes = lanes
+        state.blocked_lanes = max(
+            state.blocked_lanes,
+            _blocked_lanes_from_deviation(deviation, lanes),
+        )
+        situation_capacity = Q_CAP_VPH_PER_LANE * lanes * deviation.capacity_factor
+        state.estimated_capacity_vph = round(
+            min(state.estimated_capacity_vph, situation_capacity),
+            1,
+        )
+        state.observed_density_veh_km_lane = round(
+            max(
+                state.observed_density_veh_km_lane,
+                critical_density_veh_km_lane + 1.0,
+            ),
+            2,
+        )
+        state.is_anomaly = True
+        reason = f"situation_confirmed_{deviation.deviation_type}"
+        if not state.anomaly_reason:
+            state.anomaly_reason = reason
+        elif reason not in state.anomaly_reason:
+            state.anomaly_reason = f"{state.anomaly_reason}+{reason}"
+        state.confidence = max(state.confidence, 0.95)
+        state.situation_confirmed = True
+        if deviation.deviation_id not in state.situation_ids:
+            state.situation_ids.append(deviation.deviation_id)
+        if deviation.deviation_type not in state.situation_types:
+            state.situation_types.append(deviation.deviation_type)
+
+    return len(strongest_by_camera)
+
+
+def _blocked_lanes_from_deviation(
+    deviation: SituationDeviation,
+    total_lanes: int,
+) -> int:
+    if deviation.number_of_lanes_restricted is not None:
+        return min(max(deviation.number_of_lanes_restricted, 0), total_lanes)
+    if deviation.deviation_type == "accident":
+        return min(1, total_lanes)
+    return 0
+
+
 def _camera_worker_count(camera_count: int) -> int:
     """Bound per-camera fetch/inference concurrency."""
     if camera_count <= 0:
@@ -1253,6 +1365,141 @@ def _is_e4_road(road_number: str) -> bool:
     return normalized in ("E 4", "E4", "E 20", "E20", "E4/E20", "E 4/E 20")
 
 
+def fetch_situation_deviations(now: datetime) -> list[SituationDeviation]:
+    """Fetch accident/roadwork Situation deviations as capacity-impact inputs."""
+    xml_query = f"""
+    <REQUEST>
+        <LOGIN authenticationkey="{API_KEY}" />
+        <QUERY objecttype="Situation" schemaversion="1" limit="200">
+            <FILTER>
+                <EQ name="Deviation.CountyNo" value="1" />
+            </FILTER>
+            <INCLUDE>Deviation.Id</INCLUDE>
+            <INCLUDE>Deviation.RoadNumber</INCLUDE>
+            <INCLUDE>Deviation.MessageType</INCLUDE>
+            <INCLUDE>Deviation.MessageCode</INCLUDE>
+            <INCLUDE>Deviation.SeverityCode</INCLUDE>
+            <INCLUDE>Deviation.NumberOfLanesRestricted</INCLUDE>
+            <INCLUDE>Deviation.LocationDescriptor</INCLUDE>
+            <INCLUDE>Deviation.Geometry.WGS84</INCLUDE>
+            <INCLUDE>Deviation.StartTime</INCLUDE>
+            <INCLUDE>Deviation.CreationTime</INCLUDE>
+        </QUERY>
+    </REQUEST>
+    """
+    data = api_request(xml_query)
+    if not data:
+        return []
+
+    results = data.get("RESPONSE", {}).get("RESULT", [])
+    situations = results[0].get("Situation", []) if results else []
+
+    deviations: list[SituationDeviation] = []
+    for situation in situations:
+        for dev in situation.get("Deviation", []):
+            road = dev.get("RoadNumber", "")
+            if not _is_e4_road(road):
+                continue
+
+            deviation_type = _classify_situation_deviation(dev)
+            if deviation_type is None:
+                continue
+
+            geometry_wgs84 = get_deviation_wgs84(dev)
+            position = parse_point_wgs84(geometry_wgs84 or "")
+            chainage_km = (
+                project_e4_northbound_chainage(position)
+                if position and str(road).upper().replace(" ", "") in {"E4", "E4/E20", "E20"}
+                else None
+            )
+            nearest_camera_id = (
+                _find_nearest_camera(position[0], position[1])
+                if position and chainage_km is not None
+                else None
+            )
+            lanes_restricted = _parse_lanes_restricted(
+                dev.get("NumberOfLanesRestricted")
+            )
+
+            deviations.append(SituationDeviation(
+                timestamp=now,
+                deviation_id=str(dev.get("Id", "")),
+                deviation_type=deviation_type,
+                message_type=_string_or_none(dev.get("MessageType")),
+                message_code=_string_or_none(dev.get("MessageCode")),
+                severity_code=_string_or_none(dev.get("SeverityCode")),
+                number_of_lanes_restricted=lanes_restricted,
+                road_number=_string_or_none(road),
+                location=_string_or_none(dev.get("LocationDescriptor")),
+                geometry_wgs84=geometry_wgs84,
+                lat=position[0] if position else None,
+                lng=position[1] if position else None,
+                chainage_km=chainage_km,
+                nearest_camera_id=nearest_camera_id,
+                capacity_factor=_situation_capacity_factor(
+                    deviation_type,
+                    lanes_restricted,
+                    dev.get("SeverityCode"),
+                ),
+                start_time=_string_or_none(dev.get("StartTime")),
+                creation_time=_string_or_none(dev.get("CreationTime")),
+            ))
+
+    logger.info(
+        "🚧 Situation deviations: %s accident/roadwork record(s)",
+        len(deviations),
+    )
+    return deviations
+
+
+def _classify_situation_deviation(dev: dict) -> str | None:
+    text = " ".join(
+        str(value or "")
+        for value in (
+            dev.get("MessageType"),
+            dev.get("MessageCode"),
+            dev.get("Id"),
+        )
+    ).lower()
+    if any(token in text for token in ("olycka", "accident")):
+        return "accident"
+    if any(token in text for token in ("vägarbete", "vagarbete", "roadwork", "road work")):
+        return "roadwork"
+    return None
+
+
+def _parse_lanes_restricted(value) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return max(int(value), 0)
+    except (TypeError, ValueError):
+        match = re.search(r"\d+", str(value))
+        return int(match.group(0)) if match else None
+
+
+def _string_or_none(value) -> str | None:
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
+def _situation_capacity_factor(
+    deviation_type: str,
+    lanes_restricted: int | None,
+    severity_code: str | None = None,
+    total_lanes: int = 2,
+) -> float:
+    base = 0.45 if deviation_type == "accident" else 0.65
+    severity = str(severity_code or "").lower()
+    if any(token in severity for token in ("high", "stor", "severe", "major")):
+        base = min(base, 0.35)
+    if lanes_restricted is not None and lanes_restricted > 0:
+        lane_factor = max(total_lanes - lanes_restricted, 0) / max(total_lanes, 1)
+        base = min(base, lane_factor)
+    return round(max(base, 0.25), 2)
+
+
 def fetch_vms_status(now: datetime) -> list[VMSStatusSnapshot]:
     """Poll VMS-proxy ground truth from the Trafikverket Situation API.
 
@@ -1624,15 +1871,17 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     travel_time_readings: list[TravelTimeReading] = []
     weather_records: list[dict] = []
     road_condition_records: list[dict] = []
+    situation_deviations: list[SituationDeviation] = []
 
     fetch_started = time.monotonic()
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         future_cameras = executor.submit(fetch_cameras, camera_ids, now)
         future_sensors = executor.submit(fetch_sensor_data, now)
         future_vms = executor.submit(fetch_vms_status, now)
         future_tt = executor.submit(fetch_travel_times, now)
         future_weather = executor.submit(fetch_weather_data, now)
         future_road_conditions = executor.submit(fetch_road_conditions, now)
+        future_situations = executor.submit(fetch_situation_deviations, now)
 
         try:
             vision_records, capacity_states = future_cameras.result(timeout=55)
@@ -1663,6 +1912,11 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             road_condition_records = future_road_conditions.result(timeout=10)
         except Exception as e:
             logger.error(f"Road condition fetch failed: {e}", exc_info=True)
+
+        try:
+            situation_deviations = future_situations.result(timeout=10)
+        except Exception as e:
+            logger.error(f"Situation deviation fetch failed: {e}", exc_info=True)
     fetch_duration_ms = int((time.monotonic() - fetch_started) * 1000)
     logger.info("⏱️  Data fetch phase completed in %sms", fetch_duration_ms)
 
@@ -1764,6 +2018,18 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         physics.critical_density_veh_km_lane,
         weather_adjustment.capacity_factor,
     )
+    situation_impact_count = apply_situation_capacity_impacts(
+        capacity_states,
+        situation_deviations,
+        now=now,
+        camera_chainage_map=_camera_chainage_map,
+        critical_density_veh_km_lane=physics.critical_density_veh_km_lane,
+    )
+    if situation_impact_count:
+        logger.info(
+            "🚧 Applied %s Situation capacity impact(s)",
+            situation_impact_count,
+        )
 
     queue_predictions = physics.compute(
         capacity_states=capacity_states,
@@ -1835,6 +2101,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         weather_records=weather_records,
         road_condition_records=road_condition_records,
         weather_adjustment=weather_adjustment,
+        situation_deviations=situation_deviations,
     )
 
     _persist_tick(result, vision_records, now)
@@ -1853,6 +2120,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         f"{len(travel_time_readings)} travel times, "
         f"{len(weather_records)} weather stations, "
         f"{len(road_condition_records)} road conditions, "
+        f"{len(situation_deviations)} situation deviations, "
         f"{tick_duration_ms}ms total"
     )
 
@@ -1883,6 +2151,11 @@ def _persist_tick(
     # Weather and road-condition records keep the legacy JSONL shape used by dashboard.py.
     all_records.extend(result.weather_records)
     all_records.extend(result.road_condition_records)
+
+    for deviation in result.situation_deviations:
+        record = deviation.model_dump(mode="json")
+        record["type"] = "situation"
+        all_records.append(record)
 
     # Sensor readings
     for s in result.sensor_readings:
@@ -2038,6 +2311,10 @@ def _update_status(
             "travel_time_routes": len(result.travel_time_readings),
             "weather_stations": len(result.weather_records),
             "road_conditions": len(result.road_condition_records),
+            "situation_deviations": len(result.situation_deviations),
+            "situation_capacity_impacts": sum(
+                1 for s in result.capacity_states if s.situation_confirmed
+            ),
             "surface_state": (
                 result.weather_adjustment.surface_state
                 if result.weather_adjustment

@@ -17,6 +17,9 @@ def test_build_incidents_from_anomalies_with_coords() -> None:
             is_anomaly=True,
             anomaly_reason="vehicle_stopped",
             confidence=0.91,
+            situation_confirmed=True,
+            situation_ids=["ACC-1"],
+            situation_types=["accident"],
         ),
         CapacityState(
             timestamp=datetime(2026, 2, 16, 14, 0, 0),
@@ -45,6 +48,9 @@ def test_build_incidents_from_anomalies_with_coords() -> None:
     assert report.lat == 59.30
     assert report.lng == 18.00
     assert report.thumbnail_base64 is None
+    assert report.situation_confirmed is True
+    assert report.situation_ids == ["ACC-1"]
+    assert report.situation_types == ["accident"]
 
 
 def test_build_incidents_defaults_and_clamps_capacity_drop() -> None:

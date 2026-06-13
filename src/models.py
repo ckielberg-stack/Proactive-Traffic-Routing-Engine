@@ -84,6 +84,9 @@ class CapacityState(BaseModel):
         default=0.0,
         description="Model confidence (mean of detection confidences)",
     )
+    situation_confirmed: bool = False
+    situation_ids: list[str] = []
+    situation_types: list[str] = []
 
 
 class RoadSegmentState(BaseModel):
@@ -287,6 +290,34 @@ class VMSStatusSnapshot(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Situation deviations (authoritative incident/roadwork inputs)
+# ---------------------------------------------------------------------------
+
+
+class SituationDeviation(BaseModel):
+    """Trafikverket Situation deviation that can affect corridor capacity."""
+
+    timestamp: datetime
+    deviation_id: str
+    deviation_type: str = Field(description="'accident' or 'roadwork'")
+    message_type: str | None = None
+    message_code: str | None = None
+    severity_code: str | None = None
+    number_of_lanes_restricted: int | None = Field(default=None, ge=0)
+    road_number: str | None = None
+    location: str | None = None
+    geometry_wgs84: str | None = None
+    lat: float | None = None
+    lng: float | None = None
+    chainage_km: float | None = None
+    nearest_camera_id: str | None = None
+    capacity_factor: float = Field(ge=0.0, le=1.0)
+    source: str = "situation_api"
+    start_time: str | None = None
+    creation_time: str | None = None
+
+
+# ---------------------------------------------------------------------------
 # TravelTimeRoute (measured corridor travel times)
 # ---------------------------------------------------------------------------
 
@@ -401,6 +432,9 @@ class IncidentReport(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     lat: float | None = None
     lng: float | None = None
+    situation_confirmed: bool = False
+    situation_ids: list[str] = []
+    situation_types: list[str] = []
 
 
 # ---------------------------------------------------------------------------
@@ -502,3 +536,4 @@ class TickResult(BaseModel):
     weather_records: list[dict] = []
     road_condition_records: list[dict] = []
     weather_adjustment: WeatherAdjustment | None = None
+    situation_deviations: list[SituationDeviation] = []
