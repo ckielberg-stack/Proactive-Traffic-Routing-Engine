@@ -689,6 +689,7 @@ def _aggregate_multi_roi_capacity(
         (s.observed_density_veh_km_lane for s in physics_segments),
         default=0.0,
     )
+    roi_length_confidence = _weakest_roi_length_confidence(physics_segments)
 
     state = CapacityState(
         timestamp=multi_state.timestamp,
@@ -707,6 +708,7 @@ def _aggregate_multi_roi_capacity(
             if physics_segments else 0.0,
             3,
         ),
+        roi_length_confidence=roi_length_confidence,
     )
     road_segments_data = {
         seg.road_id: {
@@ -714,11 +716,37 @@ def _aggregate_multi_roi_capacity(
             "count": seg.vehicle_count,
             "capacity_vph": seg.capacity_vph,
             "density_veh_km_lane": seg.observed_density_veh_km_lane,
+            "roi_length_confidence": seg.roi_length_confidence,
             "traffic_direction": segment_directions[id(seg)],
         }
         for seg in multi_state.segments
     }
     return state, road_segments_data
+
+
+def _weakest_roi_length_confidence(segments: list) -> str | None:
+    """Return the weakest ROI length confidence among selected physics segments."""
+    if not segments:
+        return None
+
+    rank = {
+        "high": 3,
+        "surveyed": 3,
+        "medium": 2,
+        "estimated": 2,
+        "low": 1,
+        "unknown": 1,
+    }
+    weakest_value: str | None = None
+    weakest_rank = 4
+    for segment in segments:
+        value = getattr(segment, "roi_length_confidence", None)
+        normalized = (value or "unknown").lower()
+        current_rank = rank.get(normalized, 1)
+        if current_rank < weakest_rank:
+            weakest_rank = current_rank
+            weakest_value = value or "unknown"
+    return weakest_value
 
 
 def _traffic_direction_from_road_id(road_id: str) -> str | None:
@@ -2188,6 +2216,11 @@ def _persist_tick(
             "growth_speed_kmh": qp.growth_speed_kmh,
             "origin_chainage_km": qp.origin_chainage_km,
             "lengths_at_minutes": qp.lengths_at_minutes,
+            "prediction_confidence": qp.prediction_confidence,
+            "uncertainty_level": qp.uncertainty_level,
+            "uncertainty_reason": qp.uncertainty_reason,
+            "length_lower_at_minutes": qp.length_lower_at_minutes,
+            "length_upper_at_minutes": qp.length_upper_at_minutes,
         })
 
     # VMS recommendations
@@ -2199,6 +2232,10 @@ def _persist_tick(
             "urgency": rec.urgency,
             "recommended_message": rec.recommended_message,
             "eta_minutes": rec.estimated_activation_minutes,
+            "eta_lower_minutes": rec.eta_lower_minutes,
+            "eta_upper_minutes": rec.eta_upper_minutes,
+            "confidence": rec.confidence,
+            "uncertainty_level": rec.uncertainty_level,
             "current_vms_status": rec.current_vms_status,
             "summary": rec.summary,
         })

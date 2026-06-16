@@ -195,6 +195,30 @@ function urgencyLabel(urgency) {
     }
 }
 
+function uncertaintyLabel(level) {
+    switch ((level || '').toLowerCase()) {
+        case 'high': return 'HIGH CONF';
+        case 'medium': return 'MED CONF';
+        default: return 'LOW CONF';
+    }
+}
+
+function uncertaintyClass(level) {
+    switch ((level || '').toLowerCase()) {
+        case 'high': return 'bg-status-verified/20 text-status-verified';
+        case 'medium': return 'bg-urgency-soon/20 text-urgency-soon';
+        default: return 'bg-urgency-advisory/20 text-urgency-advisory';
+    }
+}
+
+function etaDisplay(rec) {
+    if (rec.eta_lower_minutes !== null && rec.eta_lower_minutes !== undefined &&
+        rec.eta_upper_minutes !== null && rec.eta_upper_minutes !== undefined) {
+        return `${rec.eta_lower_minutes.toFixed(1)}-${rec.eta_upper_minutes.toFixed(1)} min`;
+    }
+    return `${rec.estimated_activation_minutes.toFixed(1)} min`;
+}
+
 async function refreshVMS() {
     const data = await fetchJSON('/api/v1/operator/vms-recommendations');
     if (!data) return;
@@ -211,10 +235,12 @@ async function refreshVMS() {
 
     $vms.innerHTML = data.recommendations.map(item => {
         const rec = item.recommendation;
-        const urgency = rec.urgency || 'ADVISORY';
+        const urgency = (rec.urgency || 'advisory').toUpperCase();
         const borderClass = urgencyBorder(urgency);
         const dotClass = urgencyDot(urgency);
         const labelClass = urgencyLabel(urgency);
+        const uncertaintyBadgeClass = uncertaintyClass(rec.uncertainty_level);
+        const confidencePercent = Math.round((rec.confidence || 0) * 100);
 
         const gtBadge = item.proxy_ground_truth_active
             ? `<span class="text-[10px] font-mono bg-status-verified/20 text-status-verified px-1.5 py-0.5 rounded">OPERATOR ACTED</span>`
@@ -243,7 +269,17 @@ async function refreshVMS() {
                     <!-- ETA -->
                     <div class="flex items-center justify-between">
                         <span class="text-[10px] font-mono text-tmc-muted uppercase">ETA to VMS</span>
-                        <span class="text-lg font-mono font-bold ${labelClass}">${rec.estimated_activation_minutes.toFixed(1)} min</span>
+                        <span class="text-lg font-mono font-bold ${labelClass}">${etaDisplay(rec)}</span>
+                    </div>
+                    <div class="flex items-center justify-between -mt-1">
+                        <span class="text-[10px] font-mono text-tmc-muted uppercase">Point ETA</span>
+                        <span class="text-[10px] font-mono text-tmc-muted">${rec.estimated_activation_minutes.toFixed(1)} min</span>
+                    </div>
+
+                    <!-- Confidence -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-mono text-tmc-muted uppercase">Confidence</span>
+                        <span class="text-[10px] font-mono ${uncertaintyBadgeClass} px-1.5 py-0.5 rounded">${uncertaintyLabel(rec.uncertainty_level)} ${confidencePercent}%</span>
                     </div>
 
                     <!-- Queue speed -->

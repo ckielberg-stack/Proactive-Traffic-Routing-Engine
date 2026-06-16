@@ -68,6 +68,10 @@ class CapacityState(BaseModel):
         default=0.0,
         description="Visual density in veh/km/lane from YOLO detections",
     )
+    roi_length_confidence: str | None = Field(
+        default=None,
+        description="Confidence class for ROI physical length calibration",
+    )
     road_id: str | None = Field(
         default=None,
         description="Road/corridor identifier used to derive this camera-level state",
@@ -100,6 +104,10 @@ class RoadSegmentState(BaseModel):
         ge=0.0,
         default=0.0,
         description="Visual density in veh/km/lane for this road segment",
+    )
+    roi_length_confidence: str | None = Field(
+        default=None,
+        description="Confidence class for ROI physical length calibration",
     )
     num_lanes: int = Field(ge=1, default=2)
     is_anomaly: bool = False
@@ -238,6 +246,28 @@ class QueuePrediction(BaseModel):
     data_confidence: str = Field(
         default="low",
         description="'high', 'medium', or 'low' based on segment data locality",
+    )
+    prediction_confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        default=0.0,
+        description="Overall confidence in this queue prediction",
+    )
+    uncertainty_level: str = Field(
+        default="low",
+        description="'high', 'medium', or 'low' confidence band level",
+    )
+    uncertainty_reason: str | None = Field(
+        default=None,
+        description="Primary source that widened this prediction's uncertainty band",
+    )
+    length_lower_at_minutes: dict[int, float] = Field(
+        default_factory=dict,
+        description="Lower queue length bound by future minute horizon",
+    )
+    length_upper_at_minutes: dict[int, float] = Field(
+        default_factory=dict,
+        description="Upper queue length bound by future minute horizon",
     )
 
 
@@ -394,6 +424,24 @@ class VMSRecommendation(BaseModel):
     )
     estimated_activation_minutes: float = Field(
         description="Minutes until queue tail reaches this VMS position"
+    )
+    eta_lower_minutes: float | None = Field(
+        default=None,
+        description="Lower bound for ETA interval in minutes",
+    )
+    eta_upper_minutes: float | None = Field(
+        default=None,
+        description="Upper bound for ETA interval in minutes",
+    )
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        default=0.0,
+        description="Prediction confidence propagated to this recommendation",
+    )
+    uncertainty_level: str = Field(
+        default="low",
+        description="'high', 'medium', or 'low' uncertainty classification",
     )
     triggering_camera_id: str
     current_vms_status: str | None = Field(

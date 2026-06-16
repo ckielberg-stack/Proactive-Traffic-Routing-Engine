@@ -352,6 +352,19 @@ class PhysicsEngine:
             fallback_data_segments,
             missing_data_segments,
         )
+        (
+            prediction_confidence,
+            uncertainty_level,
+            uncertainty_reason,
+            length_lower_at_minutes,
+            length_upper_at_minutes,
+        ) = self._prediction_uncertainty(
+            state,
+            data_confidence,
+            lengths_at_minutes,
+            fallback_data_segments=fallback_data_segments,
+            missing_data_segments=missing_data_segments,
+        )
 
         coords = coords_map.get(state.camera_id, (0.0, 0.0))
         chainage_km = 0.0
@@ -367,6 +380,7 @@ class PhysicsEngine:
             f"fallback={fallback_data_segments}, "
             f"missing={missing_data_segments}, "
             f"confidence={data_confidence}, "
+            f"prediction_confidence={prediction_confidence:.2f}, "
             f"avg_wave={avg_speed:.1f} km/h, "
             f"Q+5min={lengths_at_minutes.get(5, 0):.2f} km"
         )
@@ -384,6 +398,11 @@ class PhysicsEngine:
             fallback_data_segments=fallback_data_segments,
             missing_data_segments=missing_data_segments,
             data_confidence=data_confidence,
+            prediction_confidence=prediction_confidence,
+            uncertainty_level=uncertainty_level,
+            uncertainty_reason=uncertainty_reason,
+            length_lower_at_minutes=length_lower_at_minutes,
+            length_upper_at_minutes=length_upper_at_minutes,
         )
 
     @staticmethod
@@ -423,6 +442,58 @@ class PhysicsEngine:
         if local_data_segments > 0:
             return "high"
         return "low"
+
+    @staticmethod
+    def _prediction_uncertainty(
+        state: CapacityState,
+        data_confidence: str,
+        lengths_at_minutes: dict[int, float],
+        *,
+        fallback_data_segments: int,
+        missing_data_segments: int,
+    ) -> tuple[float, str, str | None, dict[int, float], dict[int, float]]:
+        data_base = {
+            "high": 0.9,
+            "medium": 0.65,
+            "low": 0.35,
+        }.get(data_confidence, 0.35)
+        perception_factor = _clamp(state.confidence, 0.25, 1.0)
+        roi_factor = _roi_confidence_factor(state.roi_length_confidence)
+
+        confidence = round(
+            _clamp(data_base * perception_factor * roi_factor, 0.0, 1.0),
+            3,
+        )
+        if confidence >= 0.75:
+            level = "high"
+            band_multiplier = 0.15
+        elif confidence >= 0.5:
+            level = "medium"
+            band_multiplier = 0.30
+        else:
+            level = "low"
+            band_multiplier = 0.50
+
+        lower = {
+            horizon: round(max(length * (1.0 - band_multiplier), 0.0), 3)
+            for horizon, length in lengths_at_minutes.items()
+        }
+        upper = {
+            horizon: round(length * (1.0 + band_multiplier), 3)
+            for horizon, length in lengths_at_minutes.items()
+        }
+
+        return (
+            confidence,
+            level,
+            _uncertainty_reason(
+                state,
+                fallback_data_segments=fallback_data_segments,
+                missing_data_segments=missing_data_segments,
+            ),
+            lower,
+            upper,
+        )
 
     @staticmethod
     def _traffic_direction_for_state(state: CapacityState) -> str:
@@ -550,3 +621,36 @@ class PhysicsEngine:
 
         wave_speed = numerator / denominator
         return max(wave_speed, 0.0)  # Don't return negative (queue dissolving)
+
+
+def _clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(value, upper))
+
+
+def _roi_confidence_factor(roi_length_confidence: str | None) -> float:
+    normalized = (roi_length_confidence or "unknown").lower()
+    if normalized in {"surveyed", "high"}:
+        return 0.95
+    if normalized in {"estimated", "medium"}:
+        return 0.75
+    return 0.6
+
+
+def _uncertainty_reason(
+    state: CapacityState,
+    *,
+    fallback_data_segments: int,
+    missing_data_segments: int,
+) -> str | None:
+    if missing_data_segments > 0:
+        return "missing segment data"
+    if fallback_data_segments > 0:
+        return "fallback segment data"
+    if state.confidence < 0.5:
+        return "low camera confidence"
+    roi_confidence = (state.roi_length_confidence or "unknown").lower()
+    if roi_confidence in {"estimated", "medium"}:
+        return "estimated ROI length"
+    if roi_confidence in {"unknown", "low"}:
+        return "unknown ROI length"
+    return None

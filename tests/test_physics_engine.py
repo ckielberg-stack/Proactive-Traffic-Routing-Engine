@@ -175,6 +175,22 @@ class TestLWRWaveSpeed:
 
 
 class TestPiecewisePrediction:
+    def test_queue_prediction_defaults_keep_legacy_constructors_valid(self) -> None:
+        pred = QueuePrediction(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            camera_id="CAM",
+            origin_lat=59.0,
+            origin_lng=18.0,
+            origin_chainage_km=5.0,
+            growth_speed_kmh=8.0,
+            lengths_at_minutes={1: 0.133},
+        )
+
+        assert pred.prediction_confidence == 0.0
+        assert pred.uncertainty_level == "low"
+        assert pred.length_lower_at_minutes == {}
+        assert pred.length_upper_at_minutes == {}
+
     def test_produces_prediction_with_segments(
         self,
         engine: PhysicsEngine,
@@ -325,6 +341,107 @@ class TestPiecewisePrediction:
         assert pred.local_data_segments == 2
         assert pred.fallback_data_segments == 0
         assert pred.data_confidence == "high"
+
+    def test_high_confidence_local_data_produces_narrow_uncertainty_band(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        chainage_map: dict[str, float],
+    ) -> None:
+        bottleneck_state.confidence = 0.95
+        bottleneck_state.roi_length_confidence = "high"
+
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=None,
+            camera_chainage_map=chainage_map,
+            node_traffic_states={
+                "CAM_01": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=95.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+                "CAM_02": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=95.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+                "CAM_03": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=95.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+            },
+        )
+
+        pred = predictions[0]
+        length = pred.lengths_at_minutes[5]
+        assert pred.uncertainty_level == "high"
+        assert pred.prediction_confidence == pytest.approx(0.812)
+        assert pred.length_lower_at_minutes[5] == pytest.approx(round(length * 0.85, 3))
+        assert pred.length_upper_at_minutes[5] == pytest.approx(round(length * 1.15, 3))
+
+    def test_fallback_data_produces_medium_uncertainty_band(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        upstream_sensor: SensorReading,
+        chainage_map: dict[str, float],
+    ) -> None:
+        bottleneck_state.confidence = 0.95
+        bottleneck_state.roi_length_confidence = "high"
+
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=upstream_sensor,
+            camera_chainage_map=chainage_map,
+        )
+
+        pred = predictions[0]
+        length = pred.lengths_at_minutes[5]
+        assert pred.data_confidence == "medium"
+        assert pred.uncertainty_level == "medium"
+        assert pred.uncertainty_reason == "fallback segment data"
+        assert pred.length_lower_at_minutes[5] == pytest.approx(round(length * 0.70, 3))
+        assert pred.length_upper_at_minutes[5] == pytest.approx(round(length * 1.30, 3))
+
+    def test_missing_data_and_low_camera_confidence_produces_widest_band(
+        self,
+        engine: PhysicsEngine,
+        bottleneck_state: CapacityState,
+        chainage_map: dict[str, float],
+    ) -> None:
+        bottleneck_state.confidence = 0.4
+        bottleneck_state.roi_length_confidence = None
+
+        predictions = engine.compute(
+            capacity_states=[bottleneck_state],
+            sensor=None,
+            camera_chainage_map=chainage_map,
+            node_traffic_states={
+                "CAM_03": SegmentTrafficState(
+                    local_inflow_vph=4000.0,
+                    local_speed_kmh=95.0,
+                    inflow_source="traffic_flow",
+                    speed_source="traffic_flow",
+                    confidence="high",
+                ),
+            },
+        )
+
+        pred = predictions[0]
+        length = pred.lengths_at_minutes[5]
+        assert pred.missing_data_segments == 1
+        assert pred.uncertainty_level == "low"
+        assert pred.uncertainty_reason == "missing segment data"
+        assert pred.length_lower_at_minutes[5] == pytest.approx(round(length * 0.50, 3))
+        assert pred.length_upper_at_minutes[5] == pytest.approx(round(length * 1.50, 3))
 
     def test_wave_speed_zero_halts_iteration(
         self,

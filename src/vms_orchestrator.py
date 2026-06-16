@@ -48,6 +48,10 @@ MIN_UPSTREAM_DISTANCE_KM: float = 1.0
 #: Default time horizons to evaluate (minutes).
 DEFAULT_TIME_HORIZONS: list[int] = [1, 3, 5]
 
+# Until live replay residuals are aggregated, keep interval half-widths honest
+# by using the existing replay sample's mean absolute ETA error as a floor.
+REPLAY_ERROR_FLOOR_MINUTES: float = 2.5
+
 #: Default VMS config path relative to project root.
 DEFAULT_VMS_CONFIG: Path = Path(__file__).resolve().parent.parent / "vms_config.json"
 
@@ -264,7 +268,14 @@ class VMSOrchestrator:
             else:
                 eta_minutes = float("inf")
 
-            urgency = _classify_urgency(eta_minutes)
+            eta_lower, eta_upper = _eta_interval_minutes(
+                prediction=prediction,
+                vms=vms,
+                horizon_minutes=t_min,
+                point_eta_minutes=eta_minutes,
+            )
+            urgency_eta = eta_upper if eta_upper is not None else eta_minutes
+            urgency = _classify_urgency(urgency_eta)
             message = _build_message(urgency, surface_state=surface_state)
 
             # Resolve current VMS sign state (None = not polled)
@@ -278,6 +289,8 @@ class VMSOrchestrator:
                 prediction=prediction,
                 vms=vms,
                 eta_minutes=eta_minutes,
+                eta_lower_minutes=eta_lower,
+                eta_upper_minutes=eta_upper,
                 current_status_str=current_status_str,
             )
 
@@ -291,6 +304,14 @@ class VMSOrchestrator:
                     queue_growth_speed_kmh=prediction.growth_speed_kmh,
                     distance_queue_tail_to_vms_km=round(distance_to_vms, 2),
                     estimated_activation_minutes=round(eta_minutes, 1),
+                    eta_lower_minutes=(
+                        round(eta_lower, 1) if eta_lower is not None else None
+                    ),
+                    eta_upper_minutes=(
+                        round(eta_upper, 1) if eta_upper is not None else None
+                    ),
+                    confidence=prediction.prediction_confidence,
+                    uncertainty_level=prediction.uncertainty_level,
                     triggering_camera_id=prediction.camera_id,
                     current_vms_status=current_status_str,
                     summary=summary,
@@ -478,6 +499,46 @@ def _classify_urgency(eta_minutes: float) -> str:
     return "advisory"
 
 
+def _eta_interval_minutes(
+    *,
+    prediction: QueuePrediction,
+    vms: VMSGantry,
+    horizon_minutes: int,
+    point_eta_minutes: float,
+) -> tuple[float | None, float | None]:
+    if point_eta_minutes == float("inf") or prediction.growth_speed_kmh <= 0:
+        return None, None
+
+    lower_length = prediction.length_lower_at_minutes.get(horizon_minutes)
+    upper_length = prediction.length_upper_at_minutes.get(horizon_minutes)
+
+    if lower_length is not None and upper_length is not None:
+        lower_tail_km = prediction.origin_chainage_km - upper_length
+        upper_tail_km = prediction.origin_chainage_km - lower_length
+        lower_distance_km = max(lower_tail_km - vms.chainage_km, 0.0)
+        upper_distance_km = max(upper_tail_km - vms.chainage_km, 0.0)
+        eta_lower = (lower_distance_km / prediction.growth_speed_kmh) * 60.0
+        eta_upper = (upper_distance_km / prediction.growth_speed_kmh) * 60.0
+    else:
+        half_width = point_eta_minutes * _eta_uncertainty_ratio(
+            prediction.uncertainty_level
+        )
+        eta_lower = max(point_eta_minutes - half_width, 0.0)
+        eta_upper = point_eta_minutes + half_width
+
+    eta_lower = min(eta_lower, max(point_eta_minutes - REPLAY_ERROR_FLOOR_MINUTES, 0.0))
+    eta_upper = max(eta_upper, point_eta_minutes + REPLAY_ERROR_FLOOR_MINUTES)
+    return eta_lower, eta_upper
+
+
+def _eta_uncertainty_ratio(uncertainty_level: str) -> float:
+    if uncertainty_level == "high":
+        return 0.15
+    if uncertainty_level == "medium":
+        return 0.30
+    return 0.50
+
+
 def _build_message(urgency: str, surface_state: str | None = None) -> str:
     """Generate the Swedish VMS display message."""
     messages = {
@@ -494,6 +555,8 @@ def _build_narrative(
     prediction: QueuePrediction,
     vms: VMSGantry,
     eta_minutes: float,
+    eta_lower_minutes: float | None,
+    eta_upper_minutes: float | None,
     current_status_str: str | None,
 ) -> str:
     """Generate a physics-driven operator narrative.
@@ -517,6 +580,14 @@ def _build_narrative(
         parts.append(
             f"Kön når {vms.name} ({vms.vms_id}) om {eta_minutes:.1f} min."
         )
+        if eta_lower_minutes is not None and eta_upper_minutes is not None:
+            confidence_label = _swedish_confidence_label(
+                prediction.uncertainty_level
+            )
+            parts.append(
+                f"ETA-intervall {eta_lower_minutes:.1f}-{eta_upper_minutes:.1f} min, "
+                f"{confidence_label} säkerhet."
+            )
     else:
         parts.append(
             f"Kön når {vms.name} ({vms.vms_id}) — ETA okänd (kö stillastående)."
@@ -538,6 +609,15 @@ def _build_narrative(
         parts.append("Rekommendation: Bevakning — aktivera vid behov.")
 
     return " ".join(parts)
+
+
+def _swedish_confidence_label(uncertainty_level: str) -> str:
+    labels = {
+        "high": "hög",
+        "medium": "medel",
+        "low": "låg",
+    }
+    return labels.get(uncertainty_level, "låg")
 
 
 def _build_sensor_narrative(

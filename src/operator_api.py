@@ -445,6 +445,10 @@ def _xml_attr(value: Any) -> str:
     return xml_escape(str(value), _XML_ATTR_ESCAPE_MAP)
 
 
+def _xml_optional_float(value: float | None) -> str:
+    return "" if value is None else f"{value:.1f}"
+
+
 def _build_datex2_xml(
     incidents: list[IncidentReport],
     recommendations: list[VMSRecommendation],
@@ -525,6 +529,10 @@ def _build_datex2_xml(
         <urgency>{_xml_text(rec.urgency)}</urgency>
         <queueGrowthSpeedKmh>{rec.queue_growth_speed_kmh:.1f}</queueGrowthSpeedKmh>
         <estimatedActivationMinutes>{rec.estimated_activation_minutes:.1f}</estimatedActivationMinutes>
+        <etaLowerMinutes>{_xml_optional_float(rec.eta_lower_minutes)}</etaLowerMinutes>
+        <etaUpperMinutes>{_xml_optional_float(rec.eta_upper_minutes)}</etaUpperMinutes>
+        <confidence>{rec.confidence:.2f}</confidence>
+        <uncertaintyLevel>{_xml_text(rec.uncertainty_level)}</uncertaintyLevel>
         <operatorActionStatus>{_xml_text(operator_status)}</operatorActionStatus>
         <triggeringCamera>{_xml_text(rec.triggering_camera_id)}</triggeringCamera>
         <narrative>{_xml_text(rec.summary)}</narrative>

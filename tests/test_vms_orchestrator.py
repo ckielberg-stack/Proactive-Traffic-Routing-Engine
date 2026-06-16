@@ -236,6 +236,67 @@ class TestRecommendationGeneration:
         assert recs
         assert all(rec.recommended_message.startswith("HALKA - ") for rec in recs)
 
+    def test_recommendation_exposes_eta_interval_and_confidence(
+        self, orchestrator: VMSOrchestrator, mock_prediction: QueuePrediction
+    ) -> None:
+        mock_prediction.prediction_confidence = 0.82
+        mock_prediction.uncertainty_level = "high"
+        mock_prediction.length_lower_at_minutes = {5: 0.567}
+        mock_prediction.length_upper_at_minutes = {5: 0.767}
+
+        recs = orchestrator.generate_recommendations(mock_prediction)
+
+        assert recs
+        rec = recs[0]
+        assert rec.eta_lower_minutes is not None
+        assert rec.eta_upper_minutes is not None
+        assert rec.eta_lower_minutes <= rec.estimated_activation_minutes
+        assert rec.eta_upper_minutes >= rec.estimated_activation_minutes
+        assert rec.confidence == pytest.approx(0.82)
+        assert rec.uncertainty_level == "high"
+
+    def test_low_confidence_upper_eta_downgrades_urgency(
+        self, orchestrator: VMSOrchestrator
+    ) -> None:
+        prediction = QueuePrediction(
+            timestamp=datetime(2026, 2, 16, 14, 0, 0),
+            camera_id="CAM_TEST",
+            origin_lat=59.32,
+            origin_lng=18.01,
+            origin_chainage_km=10.0,
+            growth_speed_kmh=60.0,
+            lengths_at_minutes={1: 2.0},
+            length_lower_at_minutes={1: 1.0},
+            length_upper_at_minutes={1: 3.0},
+            prediction_confidence=0.2,
+            uncertainty_level="low",
+        )
+
+        recs = orchestrator.generate_recommendations(
+            prediction,
+            time_horizons=[1],
+        )
+
+        assert recs
+        assert recs[0].estimated_activation_minutes == pytest.approx(3.0)
+        assert recs[0].eta_upper_minutes == pytest.approx(5.5)
+        assert recs[0].urgency == "advisory"
+
+    def test_narrative_includes_eta_interval_without_hiding_recommendation(
+        self, orchestrator: VMSOrchestrator, mock_prediction: QueuePrediction
+    ) -> None:
+        mock_prediction.prediction_confidence = 0.6
+        mock_prediction.uncertainty_level = "medium"
+        mock_prediction.length_lower_at_minutes = {5: 0.5}
+        mock_prediction.length_upper_at_minutes = {5: 0.8}
+
+        recs = orchestrator.generate_recommendations(mock_prediction)
+
+        assert recs
+        assert "ETA-intervall" in recs[0].summary
+        assert "medel säkerhet" in recs[0].summary
+        assert "Rekommendation:" in recs[0].summary
+
 
 class TestWeatherRecommendations:
     def test_generates_standalone_halka_warning_by_chainage(

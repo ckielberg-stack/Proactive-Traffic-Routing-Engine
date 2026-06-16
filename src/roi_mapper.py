@@ -57,6 +57,10 @@ class ROIRegion(BaseModel):
         description="Physical road length visible in this ROI (meters). "
         "Used to convert vehicle count → density for shockwave math.",
     )
+    roi_length_confidence: str | None = Field(
+        default=None,
+        description="Confidence class for roi_length_meters calibration",
+    )
     polygon: list[list[int]] = Field(
         description="List of [x, y] pixel coordinates defining the ROI boundary"
     )

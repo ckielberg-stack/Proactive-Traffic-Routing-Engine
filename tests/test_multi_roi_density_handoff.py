@@ -20,6 +20,7 @@ def test_multi_roi_aggregate_uses_northbound_density_for_physics() -> None:
                 vehicle_count=3,
                 capacity_vph=4000.0,
                 observed_density_veh_km_lane=10.0,
+                roi_length_confidence="estimated",
                 num_lanes=2,
                 confidence=0.8,
             ),
@@ -29,6 +30,7 @@ def test_multi_roi_aggregate_uses_northbound_density_for_physics() -> None:
                 vehicle_count=12,
                 capacity_vph=1000.0,
                 observed_density_veh_km_lane=60.0,
+                roi_length_confidence="high",
                 num_lanes=2,
                 is_anomaly=True,
                 anomaly_reason="density_exceeds_k_critical",
@@ -53,6 +55,8 @@ def test_multi_roi_aggregate_uses_northbound_density_for_physics() -> None:
     assert state.road_id == "E4_NB"
     assert state.is_anomaly is False
     assert state.anomaly_reason is None
+    assert state.roi_length_confidence == "estimated"
+    assert road_segments["E4_NB"]["roi_length_confidence"] == "estimated"
     assert road_segments["E4_SB"]["density_veh_km_lane"] == 60.0
     assert road_segments["E4_SB"]["traffic_direction"] == "southbound"
 

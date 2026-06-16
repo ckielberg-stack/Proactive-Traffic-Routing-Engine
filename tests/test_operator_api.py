@@ -205,6 +205,10 @@ class TestVMSRecommendations:
         assert rec["vms_id"] == "VMS-4003"
         assert rec["recommended_message"] == "KÖVARNING 70 km/h"
         assert rec["urgency"] == "soon"
+        assert rec["eta_lower_minutes"] is None
+        assert rec["eta_upper_minutes"] is None
+        assert rec["confidence"] == 0.0
+        assert rec["uncertainty_level"] == "low"
 
     def test_ground_truth_false_when_no_active_proxy(
         self,
@@ -451,6 +455,10 @@ class TestDatex2Export:
         assert "VMS-4003" in content
         assert "KÖVARNING 70 km/h" in content
         assert "PTRE-VMS-" in content
+        assert "etaLowerMinutes" in content
+        assert "etaUpperMinutes" in content
+        assert "<confidence>0.00</confidence>" in content
+        assert "<uncertaintyLevel>low</uncertaintyLevel>" in content
 
     def test_xml_speed_management_includes_operator_status(
         self,

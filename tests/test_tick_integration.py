@@ -555,6 +555,17 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
         "weather_adjustment",
         "situation",
     }.issubset(record_types)
+    queue_record = next(record for record in records if record["type"] == "queue_prediction")
+    assert "prediction_confidence" in queue_record
+    assert "uncertainty_level" in queue_record
+    assert "uncertainty_reason" in queue_record
+    assert "length_lower_at_minutes" in queue_record
+    assert "length_upper_at_minutes" in queue_record
+    vms_record = next(record for record in records if record["type"] == "vms_recommendation")
+    assert "eta_lower_minutes" in vms_record
+    assert "eta_upper_minutes" in vms_record
+    assert "confidence" in vms_record
+    assert "uncertainty_level" in vms_record
     assert (tmp_path / "vision_state.json").exists()
     assert (tmp_path / "status.json").exists()
 
