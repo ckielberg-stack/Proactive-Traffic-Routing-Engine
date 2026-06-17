@@ -44,6 +44,14 @@ class _NoopRetention:
 
 class _FakeVisionEngine:
     def analyze_array(self, _frame: np.ndarray, meta) -> CapacityState:
+        self.last_vehicle_detections = [
+            {
+                "xyxy": (10.0, 10.0, 50.0, 50.0),
+                "confidence": 0.88,
+                "class_id": 2,
+                "class_name": "car",
+            }
+        ]
         return CapacityState(
             timestamp=datetime(2026, 6, 10, 12, 0, 0),
             camera_id=meta.camera_id,
@@ -91,6 +99,67 @@ class _FakeMultiRoiVisionEngine:
                     confidence=0.9,
                 ),
             ],
+            detections_by_road_id={
+                "E4_Northbound": [
+                    {
+                        "xyxy": (10.0, 10.0, 50.0, 50.0),
+                        "confidence": 0.88,
+                        "class_id": 2,
+                        "class_name": "car",
+                    }
+                ],
+                "E4_Southbound": [
+                    {
+                        "xyxy": (100.0, 100.0, 150.0, 150.0),
+                        "confidence": 0.9,
+                        "class_id": 2,
+                        "class_name": "car",
+                    }
+                ],
+            },
+        )
+
+
+class _FakeSouthboundOnlyMultiRoiVisionEngine:
+    def analyze_multi_roi(
+        self,
+        _frame: np.ndarray,
+        meta,
+        _roi_mapper,
+    ) -> MultiSegmentCapacity:
+        return MultiSegmentCapacity(
+            timestamp=datetime(2026, 6, 10, 12, 0, 0),
+            camera_id=meta.camera_id,
+            segments=[
+                RoadSegmentState(
+                    road_id="E4_Northbound",
+                    direction="away",
+                    vehicle_count=1,
+                    capacity_vph=4000.0,
+                    observed_density_veh_km_lane=5.0,
+                    num_lanes=2,
+                    confidence=0.8,
+                ),
+                RoadSegmentState(
+                    road_id="E4_Southbound",
+                    direction="towards",
+                    vehicle_count=1,
+                    capacity_vph=4000.0,
+                    observed_density_veh_km_lane=5.0,
+                    num_lanes=2,
+                    confidence=0.9,
+                ),
+            ],
+            detections_by_road_id={
+                "E4_Southbound": [
+                    {
+                        "xyxy": (100.0, 100.0, 150.0, 150.0),
+                        "confidence": 0.9,
+                        "class_id": 2,
+                        "class_name": "car",
+                    }
+                ],
+            },
         )
 
 
@@ -271,6 +340,7 @@ def reset_main_loop_globals(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main_loop, "_physics_engine", None)
     monkeypatch.setattr(main_loop, "_vms_orchestrator", None)
     monkeypatch.setattr(main_loop, "_density_smoother", None)
+    monkeypatch.setattr(main_loop, "_track_persistence", None)
     monkeypatch.setattr(main_loop, "_travel_time_calibrator", None)
     monkeypatch.setattr(main_loop, "_weather_adapter", None)
 
@@ -570,6 +640,118 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
     assert (tmp_path / "status.json").exists()
 
 
+def test_tick_once_promotes_persistent_vehicle_to_stopped_anomaly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    reset_main_loop_globals: None,
+) -> None:
+    camera_coords = {"CAM_A": (59.2417, 17.8366)}
+    sensor_coords = {101: camera_coords["CAM_A"]}
+
+    def fake_api_request(xml_query: str) -> dict:
+        if 'objecttype="Camera"' in xml_query:
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "Camera": [
+                                {
+                                    "Id": "CAM_A",
+                                    "Name": "Camera A",
+                                    "PhotoUrl": "https://example.invalid/cam-a.jpg",
+                                    "HasFullSizePhoto": False,
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        if 'objecttype="TrafficFlow"' in xml_query:
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "TrafficFlow": [
+                                {
+                                    "SiteId": 101,
+                                    "VehicleFlowRate": 1200,
+                                    "AverageVehicleSpeed": 90,
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        if 'objecttype="Situation"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"Situation": []}]}}
+        if 'objecttype="TravelTimeRoute"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"TravelTimeRoute": []}]}}
+        if 'objecttype="WeatherMeasurepoint"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"WeatherMeasurepoint": []}]}}
+        if 'objecttype="RoadCondition"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"RoadCondition": []}]}}
+        raise AssertionError(f"Unexpected Trafikverket query: {xml_query}")
+
+    monkeypatch.setattr(main_loop, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(main_loop, "api_request", fake_api_request)
+    monkeypatch.setattr(main_loop, "fetch_image_bytes", lambda _url: b"offline-jpeg")
+    monkeypatch.setattr(
+        main_loop,
+        "decode_frame",
+        lambda _raw: np.zeros((16, 16, 3), dtype=np.uint8),
+    )
+    monkeypatch.setattr(
+        main_loop,
+        "_get_camera_worker_vision_engine",
+        lambda: _FakeVisionEngine(),
+    )
+    monkeypatch.setattr(main_loop, "_get_retention_policy", lambda: _NoopRetention())
+    monkeypatch.setattr(main_loop, "_get_roi_mapper", lambda: _NoRoiMapper())
+    monkeypatch.setattr(main_loop, "CAMERA_COORDS", camera_coords)
+    monkeypatch.setattr(main_loop, "SENSOR_COORDS", sensor_coords)
+    monkeypatch.setattr(config, "SENSOR_SITE_IDS", [101])
+    monkeypatch.setattr(main_loop, "_build_camera_chainage_map", lambda: {"CAM_A": 1.0})
+    monkeypatch.setattr(
+        main_loop,
+        "_vms_orchestrator",
+        VMSOrchestrator(
+            config_path=Path(__file__).resolve().parents[1] / "vms_config.json"
+        ),
+    )
+
+    main_loop.tick_once(["CAM_A"])
+    main_loop.tick_once(["CAM_A"])
+    result = main_loop.tick_once(["CAM_A"])
+
+    state = result.capacity_states[0]
+    assert state.is_anomaly is True
+    assert state.anomaly_reason == "vehicle_stopped"
+    assert state.blocked_lanes == 1
+    assert state.observed_density_veh_km_lane > main_loop.K_CRITICAL_VEH_KM_LANE
+    assert state.confidence == pytest.approx(0.92)
+
+    jsonl_path = tmp_path / result.timestamp.strftime("%Y-%m-%d") / "sensor_data.jsonl"
+    records = [
+        json.loads(line)
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+    ]
+    stopped_records = [
+        record
+        for record in records
+        if record.get("type") == "vision_result"
+        and record.get("anomaly_reason") == "vehicle_stopped"
+    ]
+    assert stopped_records
+    assert stopped_records[-1]["stopped_vehicle"]["persistence_ticks"] == 3
+
+    anomaly_log = tmp_path / "anomaly_log.jsonl"
+    assert anomaly_log.exists()
+    assert "vehicle_stopped" in anomaly_log.read_text(encoding="utf-8")
+
+    vision_state = json.loads((tmp_path / "vision_state.json").read_text(encoding="utf-8"))
+    assert vision_state["cameras"][0]["anomaly_reason"] == "vehicle_stopped"
+
+
 def test_tick_once_situation_only_deviation_creates_physics_bottleneck(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -812,3 +994,95 @@ def test_tick_once_runs_offline_through_multi_roi_aggregation(
     assert vision_record["road_segments"]["E4_Northbound"]["density_veh_km_lane"] == 70.0
     assert vision_record["road_segments"]["E4_Southbound"]["density_veh_km_lane"] == 90.0
     assert vision_record["road_segments"]["E4_Southbound"]["traffic_direction"] == "southbound"
+
+
+def test_tick_once_ignores_southbound_only_persistent_vehicle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    reset_main_loop_globals: None,
+) -> None:
+    camera_coords = {"CAM_B": (59.2543, 17.8619)}
+    sensor_coords = {102: camera_coords["CAM_B"]}
+
+    def fake_api_request(xml_query: str) -> dict:
+        if 'objecttype="Camera"' in xml_query:
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "Camera": [
+                                {
+                                    "Id": "CAM_B",
+                                    "Name": "Offline camera B",
+                                    "PhotoUrl": "https://example.invalid/cam-b.jpg",
+                                    "HasFullSizePhoto": False,
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        if 'objecttype="TrafficFlow"' in xml_query:
+            return {
+                "RESPONSE": {
+                    "RESULT": [
+                        {
+                            "TrafficFlow": [
+                                {
+                                    "SiteId": 102,
+                                    "VehicleFlowRate": 1200,
+                                    "AverageVehicleSpeed": 90,
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        if 'objecttype="Situation"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"Situation": []}]}}
+        if 'objecttype="TravelTimeRoute"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"TravelTimeRoute": []}]}}
+        if 'objecttype="WeatherMeasurepoint"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"WeatherMeasurepoint": []}]}}
+        if 'objecttype="RoadCondition"' in xml_query:
+            return {"RESPONSE": {"RESULT": [{"RoadCondition": []}]}}
+        raise AssertionError(f"Unexpected Trafikverket query: {xml_query}")
+
+    monkeypatch.setattr(main_loop, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(main_loop, "api_request", fake_api_request)
+    monkeypatch.setattr(main_loop, "fetch_image_bytes", lambda _url: b"offline-jpeg")
+    monkeypatch.setattr(
+        main_loop,
+        "decode_frame",
+        lambda _raw: np.zeros((16, 16, 3), dtype=np.uint8),
+    )
+    monkeypatch.setattr(
+        main_loop,
+        "_get_camera_worker_vision_engine",
+        lambda: _FakeSouthboundOnlyMultiRoiVisionEngine(),
+    )
+    monkeypatch.setattr(main_loop, "_get_retention_policy", lambda: _NoopRetention())
+    monkeypatch.setattr(main_loop, "_get_roi_mapper", lambda: _HasRoiMapper())
+    monkeypatch.setattr(main_loop, "CAMERA_COORDS", camera_coords)
+    monkeypatch.setattr(main_loop, "SENSOR_COORDS", sensor_coords)
+    monkeypatch.setattr(config, "SENSOR_SITE_IDS", [102])
+    monkeypatch.setattr(main_loop, "_build_camera_chainage_map", lambda: {"CAM_B": 1.0})
+    monkeypatch.setattr(
+        main_loop,
+        "_vms_orchestrator",
+        VMSOrchestrator(
+            config_path=Path(__file__).resolve().parents[1] / "vms_config.json"
+        ),
+    )
+
+    main_loop.tick_once(["CAM_B"])
+    main_loop.tick_once(["CAM_B"])
+    result = main_loop.tick_once(["CAM_B"])
+
+    assert result.capacity_states[0].anomaly_reason != "vehicle_stopped"
+    jsonl_path = tmp_path / result.timestamp.strftime("%Y-%m-%d") / "sensor_data.jsonl"
+    records = [
+        json.loads(line)
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert not any(record.get("stopped_vehicle") for record in records)

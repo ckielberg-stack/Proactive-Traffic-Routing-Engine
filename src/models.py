@@ -137,6 +137,10 @@ class MultiSegmentCapacity(BaseModel):
         default=0,
         description="Detections outside all ROI polygons (discarded)",
     )
+    detections_by_road_id: dict[str, list[dict]] = Field(
+        default_factory=dict,
+        description="Vehicle detection metadata grouped by ROI road_id for diagnostics",
+    )
 
 
 class SegmentTrafficState(BaseModel):

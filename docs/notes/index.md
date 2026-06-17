@@ -10,6 +10,7 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 - Prediction uncertainty must be computed at the physics boundary and carried through VMS/API/dashboard surfaces. Open when changing `QueuePrediction` confidence fields, ETA interval logic, VMS urgency classification, JSONL queue records, or learned residual correction: [2026-06-16 - Prediction Uncertainty Bands](2026-06-16-prediction-uncertainty-bands.md).
 - Situation accident/roadwork records are capacity-loss inputs, not VMS proxy ground truth. Open when changing `Situation` ingestion, `fetch_vms_status`, synthetic/corroborated `CapacityState`, or accident/roadwork physics handoff: [2026-06-13 - Situation Capacity Inputs](2026-06-13-situation-capacity-inputs.md).
 - Weather surface adjustments must lower both bottleneck trigger thresholds and capacity caps, while preserving legacy weather/road-condition JSONL records. Open when changing `WeatherMeasurepoint`, `RoadCondition`, `WeatherAdapter`, `PhysicsEngine.critical_density_veh_km_lane`, or HALKA VMS warnings: [2026-06-13 - Weather Surface Physics Adjustment](2026-06-13-weather-surface-physics-adjustment.md).
+- Stopped-vehicle persistence must be applied after density smoothing and before fused capacity/physics, with local-speed gating and northbound ROI filtering. Open when changing `TrackPersistence`, `fetch_cameras`, `VisionEngine` detection metadata, stopped-vehicle anomalies, or multi-ROI direction filtering: [2026-06-17 - Stopped Vehicle Cross-Tick Persistence](2026-06-17-stopped-vehicle-cross-tick-persistence.md).
 - Parallel camera workers need isolated inference state and locked persistence state. Open when changing `fetch_cameras`, `VisionEngine` lifetime, `RetentionPolicy`, camera worker pools, or tick duration behavior: [2026-06-10 - Camera Worker Concurrency State](2026-06-10-camera-worker-concurrency-state.md).
 - Replay metrics must pair precision/recall with ETA, distance, expiry, and VMS lead-time checks. Open when changing `QueuePrediction`, TravelTimeRoute matching, replay fixtures, or model comparison workflows: [2026-06-06 - Replay Evaluation Metrics](2026-06-06-replay-evaluation-metrics.md).
 - New audit/proposal docs must be synchronized into canonical `.ai/` before `continue` can pick them up. Open when triaging roadmap work, adding docs under `docs/audit/` or `docs/proposals/`, changing task order, or seeing `.ai/state.json.next` point at stale work: [2026-06-10 - AI Queue Triage Synchronization](2026-06-10-ai-queue-triage-synchronization.md).
@@ -30,12 +31,14 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 
 ## Performance
 
+- 2026-06-17 - [Stopped Vehicle Cross-Tick Persistence](2026-06-17-stopped-vehicle-cross-tick-persistence.md) - Keywords: `TrackPersistence`, `vehicle_stopped`, IoU, cross-tick state, local speed gate, `_vehicle_detections`, northbound ROI filtering, density smoothing order. Open when changing stopped-vehicle detection or adding new temporal perception state.
 - 2026-06-10 - [Camera Worker Concurrency State](2026-06-10-camera-worker-concurrency-state.md) - Keywords: `fetch_cameras`, bounded worker pool, thread-local `VisionEngine`, YOLO predictor lock, `RetentionPolicy`, training schedule persistence, deterministic future ordering. Open when parallelizing camera work or changing tick duration behavior.
 
 ## Chronological Notes
 
 | Date | Title | Retrieval cues |
 |---|---|---|
+| 2026-06-17 | [Stopped Vehicle Cross-Tick Persistence](2026-06-17-stopped-vehicle-cross-tick-persistence.md) | Cross-tick stopped vehicles, IoU box persistence, local speed gating, density smoothing order, northbound-only ROI promotion |
 | 2026-06-16 | [Prediction Uncertainty Bands](2026-06-16-prediction-uncertainty-bands.md) | Queue/VMS uncertainty fields, ETA interval bounds, upper-bound urgency downgrade, confidence propagation across API/JSONL/dashboard |
 | 2026-06-13 | [Situation Capacity Inputs](2026-06-13-situation-capacity-inputs.md) | Situation accident/roadwork ingestion, synthetic capacity states, incident corroboration, route-linear deviation matching |
 | 2026-06-13 | [Weather Surface Physics Adjustment](2026-06-13-weather-surface-physics-adjustment.md) | WeatherMeasurepoint/RoadCondition tick ingestion, weather-adjusted critical density and capacity cap, HALKA standalone VMS warnings |

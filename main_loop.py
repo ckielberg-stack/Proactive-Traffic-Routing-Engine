@@ -86,6 +86,7 @@ from src.route_chainage import (
     find_nearest_by_chainage,
     RouteProjector,
 )
+from src.track_persistence import TrackPersistence
 from src.traffic_constants import (
     FREE_FLOW_SPEED_KMH,
     K_CRITICAL_VEH_KM_LANE,
@@ -263,6 +264,7 @@ _roi_mapper: ROIMapper | None = None
 _physics_engine: PhysicsEngine | None = None
 _vms_orchestrator: VMSOrchestrator | None = None
 _density_smoother: DensitySmoother | None = None
+_track_persistence: TrackPersistence | None = None
 _travel_time_calibrator: TravelTimeCalibrator | None = None
 _weather_adapter: WeatherAdapter | None = None
 
@@ -332,6 +334,14 @@ def _get_density_smoother() -> DensitySmoother:
     if _density_smoother is None:
         _density_smoother = DensitySmoother(alpha=0.4)
     return _density_smoother
+
+
+def _get_track_persistence() -> TrackPersistence:
+    """Persistent vehicle-box tracker — maintains minimal state across ticks."""
+    global _track_persistence
+    if _track_persistence is None:
+        _track_persistence = TrackPersistence(free_flow_speed_kmh=FREE_FLOW_SPEED_KMH)
+    return _track_persistence
 
 
 # ---------------------------------------------------------------------------
@@ -724,6 +734,96 @@ def _aggregate_multi_roi_capacity(
     return state, road_segments_data
 
 
+def _northbound_detections_for_persistence(
+    multi_state: MultiSegmentCapacity,
+) -> list[dict]:
+    """Return detections from the northbound physics corridor only."""
+    detections: list[dict] = []
+    has_directional_roads = False
+    for road_id, road_detections in multi_state.detections_by_road_id.items():
+        direction = _traffic_direction_from_road_id(road_id)
+        if direction in {"northbound", "southbound"}:
+            has_directional_roads = True
+        if direction == "northbound":
+            detections.extend(road_detections)
+    if detections or has_directional_roads:
+        return detections
+
+    for road_detections in multi_state.detections_by_road_id.values():
+        detections.extend(road_detections)
+    return detections
+
+
+def _apply_stopped_vehicle_detection(
+    *,
+    vision_records: list[dict],
+    capacity_states: list[CapacityState],
+    node_traffic_states: dict[str, SegmentTrafficState],
+    now: datetime,
+    critical_density_veh_km_lane: float,
+) -> int:
+    """Promote persistent vehicle boxes to stopped-vehicle anomaly states."""
+    tracker = _get_track_persistence()
+    state_by_camera = {state.camera_id: state for state in capacity_states}
+    applied = 0
+
+    for record in vision_records:
+        camera_id = record.get("camera_id")
+        if not isinstance(camera_id, str):
+            continue
+
+        if record.get("status") != "ok":
+            tracker.mark_camera_missed(camera_id)
+            record.pop("_vehicle_detections", None)
+            continue
+
+        detections = record.pop("_vehicle_detections", [])
+        if not isinstance(detections, list):
+            detections = []
+
+        node_state = node_traffic_states.get(camera_id)
+        local_speed = node_state.local_speed_kmh if node_state else None
+        event = tracker.update(
+            camera_id,
+            detections,
+            timestamp=now,
+            local_speed_kmh=local_speed,
+        )
+        if event is None:
+            continue
+
+        state = state_by_camera.get(camera_id)
+        if state is None:
+            continue
+
+        state.is_anomaly = True
+        state.anomaly_reason = "vehicle_stopped"
+        state.blocked_lanes = max(state.blocked_lanes, 1)
+        state.observed_density_veh_km_lane = round(
+            max(state.observed_density_veh_km_lane, critical_density_veh_km_lane + 1.0),
+            2,
+        )
+        state.confidence = round(max(state.confidence, event.confidence), 3)
+        record["is_anomaly"] = state.is_anomaly
+        record["anomaly_reason"] = state.anomaly_reason
+        record["confidence"] = state.confidence
+        record["stopped_vehicle"] = event.as_record()
+        record_anomaly(
+            DATA_DIR,
+            timestamp=now,
+            camera_id=camera_id,
+            camera_name=str(record.get("camera_name") or camera_id),
+            anomaly_reason=state.anomaly_reason,
+            confidence=state.confidence,
+            vehicle_count=state.vehicle_count,
+            capacity_vph=state.estimated_capacity_vph,
+            image_path=record.get("annotated_path"),
+        )
+        applied += 1
+
+    return applied
+
+
 def _weakest_roi_length_confidence(segments: list) -> str | None:
     """Return the weakest ROI length confidence among selected physics segments."""
     if not segments:
@@ -1031,8 +1131,10 @@ def _process_camera(
             state, road_segments_data = _aggregate_multi_roi_capacity(
                 multi_state, meta,
             )
+            vehicle_detections = _northbound_detections_for_persistence(multi_state)
         else:
             state = engine.analyze_array(frame, meta)
+            vehicle_detections = list(getattr(engine, "last_vehicle_detections", []))
 
         with _retention_lock:
             retained_path = retention.maybe_retain(raw_bytes, cam_id, now, state)
@@ -1072,6 +1174,7 @@ def _process_camera(
             "retained_path": retained_path,
             "annotated_path": annotated_path,
             "road_segments": road_segments_data,
+            "_vehicle_detections": vehicle_detections,
             "duration_ms": duration_ms,
         }
 
@@ -2025,6 +2128,19 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             f"🗺️  Traffic states: {len(node_inflows)} inflow nodes, "
             f"{traffic_flow_speed_nodes} TrafficFlow speed nodes, "
             f"{travel_time_speed_nodes} TravelTime fallback speed nodes"
+        )
+
+    stopped_vehicle_count = _apply_stopped_vehicle_detection(
+        vision_records=vision_records,
+        capacity_states=capacity_states,
+        node_traffic_states=node_traffic_states,
+        now=now,
+        critical_density_veh_km_lane=physics.critical_density_veh_km_lane,
+    )
+    if stopped_vehicle_count:
+        logger.info(
+            "🛑 Detected %s stopped vehicle candidate(s)",
+            stopped_vehicle_count,
         )
 
     # Aggregate sensor as fallback for cameras without a nearby station
