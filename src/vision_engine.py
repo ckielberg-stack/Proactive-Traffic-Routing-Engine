@@ -113,6 +113,7 @@ class VisionEngine:
         self._model_path = model_path
         self._confidence = confidence
         self._model: YOLO | None = None
+        self.last_vehicle_detections: list[dict] = []
 
     # -- lazy model loading --------------------------------------------------
 
@@ -173,6 +174,7 @@ class VisionEngine:
             the Region of Interest.  If *None*, the entire frame is used.
         """
         now = datetime.now()
+        self.last_vehicle_detections = []
 
         # -- Step 1: Check for black / unavailable image ---------------------
         if self._is_black_image(frame):
@@ -199,6 +201,7 @@ class VisionEngine:
                     detections.append(d)
         else:
             detections = all_frame_detections
+        self.last_vehicle_detections = list(detections)
 
         # -- Step 3: Check for anomalous bounding boxes ----------------------
         anomaly, anomaly_reason = self._check_anomalies(
@@ -290,6 +293,7 @@ class VisionEngine:
         MultiSegmentCapacity with one ``RoadSegmentState`` per defined ROI.
         """
         now = datetime.now()
+        self.last_vehicle_detections = []
 
         # -- Black image check -----------------------------------------------
         if self._is_black_image(frame):
@@ -311,6 +315,7 @@ class VisionEngine:
                     for roi in rois
                 ],
                 unmatched_detections=0,
+                detections_by_road_id={},
             )
 
         # -- Run YOLO on full frame (no ROI mask) ----------------------------
@@ -320,6 +325,7 @@ class VisionEngine:
         segment_dets = roi_mapper.classify_detections_batch(
             camera_meta.camera_id, all_detections
         )
+        self.last_vehicle_detections = list(all_detections)
 
         # Count unmatched (outside all ROIs → discarded)
         matched_count = sum(len(dets) for dets in segment_dets.values())
@@ -389,6 +395,9 @@ class VisionEngine:
             camera_id=camera_meta.camera_id,
             segments=segments,
             unmatched_detections=unmatched,
+            detections_by_road_id={
+                road_id: list(dets) for road_id, dets in segment_dets.items()
+            },
         )
 
     # -- internal helpers ----------------------------------------------------
