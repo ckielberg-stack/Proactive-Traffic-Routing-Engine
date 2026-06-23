@@ -24,6 +24,7 @@ import logging
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from config import E4_NORTHBOUND_CORRIDOR_LENGTH_KM, E4_NORTHBOUND_ROUTE_POINTS
 from src.models import (
@@ -34,6 +35,9 @@ from src.models import (
     VMSStatusSnapshot,
 )
 from src.route_chainage import RouteProjector
+
+if TYPE_CHECKING:
+    from src.weather_adapter import WeatherAdjustment
 
 logger = logging.getLogger(__name__)
 
@@ -413,8 +417,18 @@ class VMSOrchestrator:
         road_conditions: list[dict],
         now: datetime | None = None,
         vms_statuses: list[VMSStatusSnapshot] | None = None,
+        weather_adjustment: "WeatherAdjustment | None" = None,
     ) -> list[VMSRecommendation]:
-        """Generate standalone HALKA advisories for active RoadCondition warnings."""
+        """Generate HALKA advisories for slippery-road conditions.
+
+        Two sources feed this:
+
+        - Active ``RoadCondition`` warnings → immediate HALKA advisory at the
+          nearest gantry (the observed, present-danger case).
+        - An SMHI forecast escalation (``weather_adjustment.proactive_halka``) →
+          a *pre-staged* HALKRISK advisory before the surface actually degrades,
+          so operators can warn ahead of the friction drop (TRAFIK-032).
+        """
         if now is None:
             now = datetime.now()
 
@@ -461,7 +475,53 @@ class VMSOrchestrator:
                 )
             )
 
+        # Proactive, forecast-driven pre-staging (TRAFIK-032). Only when the SMHI
+        # forecast escalated beyond what the live feeds show and no road-condition
+        # warning already produced an advisory for the chosen gantry.
+        if weather_adjustment is not None and getattr(
+            weather_adjustment, "proactive_halka", False
+        ):
+            vms = self._proactive_forecast_vms()
+            if vms is not None and vms.vms_id not in seen_vms:
+                seen_vms.add(vms.vms_id)
+                current_status = status_lookup.get(vms.vms_id)
+                current_status_str = (
+                    (current_status.displayed_message if current_status.is_active else "OFF")
+                    if current_status is not None
+                    else None
+                )
+                lead = weather_adjustment.forecast_lead_minutes
+                urgency = "soon" if lead is not None and lead <= 30.0 else "advisory"
+                recommendations.append(
+                    VMSRecommendation(
+                        timestamp=now,
+                        vms_id=vms.vms_id,
+                        vms_name=vms.name,
+                        recommended_message="HALKRISK",
+                        urgency=urgency,
+                        queue_growth_speed_kmh=0.0,
+                        distance_queue_tail_to_vms_km=0.0,
+                        estimated_activation_minutes=(lead if lead is not None else 0.0),
+                        triggering_camera_id="smhi_forecast",
+                        current_vms_status=current_status_str,
+                        summary=_build_forecast_narrative(
+                            weather_adjustment, vms, current_status_str
+                        ),
+                    )
+                )
+
         return recommendations
+
+    def _proactive_forecast_vms(self) -> VMSGantry | None:
+        """Representative gantry for a corridor-wide forecast advisory.
+
+        An SMHI forecast has no specific location, so warn at the southernmost
+        E4 gantry — the first sign northbound drivers entering the corridor see.
+        """
+        e4_gantries = [gantry for gantry in self._gantries if gantry.road == "E4"]
+        if not e4_gantries:
+            return None
+        return min(e4_gantries, key=lambda gantry: gantry.chainage_km)
 
     def _find_weather_warning_vms(self, condition: dict) -> VMSGantry | None:
         chainage = condition.get("chainage_km")
@@ -664,4 +724,25 @@ def _build_weather_narrative(
     ]
     if current_status_str is not None:
         parts.insert(2, f"Nuvarande VMS-status: {current_status_str}.")
+    return " ".join(parts)
+
+
+def _build_forecast_narrative(
+    adjustment: "WeatherAdjustment",
+    vms: VMSGantry,
+    current_status_str: str | None,
+) -> str:
+    """Generate an operator narrative for a pre-staged forecast HALKA advisory."""
+    state_sv = {"snow": "snö", "ice": "halka/is"}.get(
+        adjustment.forecast_state, adjustment.forecast_state
+    )
+    lead = adjustment.forecast_lead_minutes
+    if lead is not None:
+        head = f"Väderprognos (SMHI): {state_sv} väntas om ~{lead:.0f} min."
+    else:
+        head = f"Väderprognos (SMHI): {state_sv} väntas inom kort."
+    parts = [head, f"Närmaste VMS: {vms.name} ({vms.vms_id})."]
+    if current_status_str is not None:
+        parts.append(f"Nuvarande VMS-status: {current_status_str}.")
+    parts.append("Rekommendation: Förbered HALKA-varning innan väglaget försämras.")
     return " ".join(parts)

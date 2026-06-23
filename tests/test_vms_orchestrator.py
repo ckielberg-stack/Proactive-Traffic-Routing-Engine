@@ -8,12 +8,30 @@ from pathlib import Path
 import pytest
 
 from src.models import QueuePrediction, VMSGantry, VMSRecommendation
+from src.weather_adapter import WeatherAdjustment
 from src.vms_orchestrator import (
     MIN_UPSTREAM_DISTANCE_KM,
     VMSOrchestrator,
     _build_message,
     _classify_urgency,
 )
+
+
+def _proactive_adjustment(
+    state: str = "snow", lead: float | None = 25.0
+) -> WeatherAdjustment:
+    return WeatherAdjustment(
+        surface_state=state,
+        free_flow_factor=0.85,
+        capacity_factor=0.75,
+        confidence="medium",
+        reason=f"{state} forecast",
+        warning_records=[],
+        forecast_state=state,
+        forecast_lead_minutes=lead,
+        forecast_reason=f"{state} forecast",
+        proactive_halka=True,
+    )
 
 
 # ======================================================================
@@ -338,6 +356,75 @@ class TestWeatherRecommendations:
         )
 
         assert recs == []
+
+    def test_pre_stages_halka_from_forecast_at_southernmost_gantry(
+        self,
+        orchestrator: VMSOrchestrator,
+    ) -> None:
+        recs = orchestrator.generate_weather_recommendations(
+            [],
+            now=datetime(2026, 6, 23, 12, 0, 0),
+            weather_adjustment=_proactive_adjustment("snow", lead=25.0),
+        )
+
+        assert len(recs) == 1
+        rec = recs[0]
+        assert rec.recommended_message == "HALKRISK"
+        assert rec.vms_id == "VMS-T1"  # southernmost E4 gantry (chainage 2.0)
+        assert rec.urgency == "soon"  # onset 25 min <= 30
+        assert rec.triggering_camera_id == "smhi_forecast"
+        assert "Väderprognos" in rec.summary
+        assert "snö" in rec.summary
+
+    def test_distant_forecast_onset_is_advisory(
+        self,
+        orchestrator: VMSOrchestrator,
+    ) -> None:
+        recs = orchestrator.generate_weather_recommendations(
+            [],
+            weather_adjustment=_proactive_adjustment("ice", lead=50.0),
+        )
+
+        assert len(recs) == 1
+        assert recs[0].urgency == "advisory"  # onset 50 min > 30
+        assert recs[0].recommended_message == "HALKRISK"
+
+    def test_no_pre_stage_when_not_flagged(
+        self,
+        orchestrator: VMSOrchestrator,
+    ) -> None:
+        adj = WeatherAdjustment(
+            surface_state="dry",
+            free_flow_factor=1.0,
+            capacity_factor=1.0,
+            confidence="low",
+            reason="dry",
+            proactive_halka=False,
+        )
+        recs = orchestrator.generate_weather_recommendations(
+            [], weather_adjustment=adj
+        )
+
+        assert recs == []
+
+    def test_road_warning_and_forecast_pre_stage_coexist(
+        self,
+        orchestrator: VMSOrchestrator,
+    ) -> None:
+        recs = orchestrator.generate_weather_recommendations(
+            [
+                {
+                    "id": "RC-1",
+                    "warning": True,
+                    "condition_text": "Halka",
+                    "chainage_km": 5.2,
+                }
+            ],
+            weather_adjustment=_proactive_adjustment("snow", lead=20.0),
+        )
+
+        by_vms = {rec.vms_id: rec.recommended_message for rec in recs}
+        assert by_vms == {"VMS-T2": "HALKA - VARNING", "VMS-T1": "HALKRISK"}
 
 
 # ======================================================================

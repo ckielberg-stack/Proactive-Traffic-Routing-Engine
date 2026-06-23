@@ -18,6 +18,7 @@ from src.models import (
     RoadSegmentState,
     TickResult,
 )
+from src.smhi_forecast import WeatherForecast
 from src.vms_orchestrator import VMSOrchestrator
 
 
@@ -343,6 +344,10 @@ def reset_main_loop_globals(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main_loop, "_track_persistence", None)
     monkeypatch.setattr(main_loop, "_travel_time_calibrator", None)
     monkeypatch.setattr(main_loop, "_weather_adapter", None)
+    monkeypatch.setattr(main_loop, "_smhi_forecast_source", None)
+    # SMHI forecast uses its own HTTP client (not api_request); stub it to keep
+    # the tick offline and observed-only unless a test opts in explicitly.
+    monkeypatch.setattr(main_loop, "fetch_smhi_forecast", lambda now: None)
 
 
 def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
@@ -1086,3 +1091,74 @@ def test_tick_once_ignores_southbound_only_persistent_vehicle(
         for line in jsonl_path.read_text(encoding="utf-8").splitlines()
     ]
     assert not any(record.get("stopped_vehicle") for record in records)
+
+
+def test_tick_once_pre_stages_halka_from_smhi_forecast(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    reset_main_loop_globals: None,
+) -> None:
+    """A snow forecast with dry observations escalates the surface and pre-stages HALKA."""
+
+    def empty_api_request(xml_query: str) -> dict:
+        # Every feed returns no records → no observed degradation; the forecast
+        # is the only signal, so it must drive the surface state on its own.
+        return {"RESPONSE": {"RESULT": [{}]}}
+
+    snow_forecast = WeatherForecast(
+        surface_state="snow",
+        onset_minutes=20.0,
+        confidence="medium",
+        reason="snow forecast within 60 min (onset ~20 min)",
+        lookahead_minutes=60,
+        sample_count=3,
+    )
+
+    monkeypatch.setattr(main_loop, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(main_loop, "api_request", empty_api_request)
+    monkeypatch.setattr(main_loop, "fetch_smhi_forecast", lambda now: snow_forecast)
+    monkeypatch.setattr(main_loop, "_build_camera_chainage_map", lambda: {})
+    monkeypatch.setattr(
+        main_loop,
+        "_vms_orchestrator",
+        VMSOrchestrator(
+            config_path=Path(__file__).resolve().parents[1] / "vms_config.json"
+        ),
+    )
+
+    result = main_loop.tick_once([])
+
+    # Forecast escalated the otherwise-dry surface and pre-degraded physics.
+    assert result.weather_forecast is not None
+    assert result.weather_forecast.surface_state == "snow"
+    assert result.weather_adjustment is not None
+    assert result.weather_adjustment.surface_state == "snow"
+    assert result.weather_adjustment.proactive_halka is True
+    assert result.weather_adjustment.free_flow_factor == pytest.approx(0.85)
+
+    # A pre-staged HALKRISK advisory was emitted from the forecast.
+    forecast_recs = [
+        rec
+        for rec in result.vms_recommendations
+        if rec.triggering_camera_id == "smhi_forecast"
+    ]
+    assert len(forecast_recs) == 1
+    assert forecast_recs[0].recommended_message == "HALKRISK"
+    assert forecast_recs[0].urgency == "soon"
+
+    # Forecast + escalation are persisted to JSONL for the dashboard/API.
+    jsonl_path = tmp_path / result.timestamp.strftime("%Y-%m-%d") / "sensor_data.jsonl"
+    records = [
+        json.loads(line)
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+    ]
+    forecast_record = next(r for r in records if r["type"] == "weather_forecast")
+    assert forecast_record["surface_state"] == "snow"
+    assert forecast_record["source"] == "smhi_metfcst"
+    adjustment_record = next(r for r in records if r["type"] == "weather_adjustment")
+    assert adjustment_record["forecast_state"] == "snow"
+    assert adjustment_record["proactive_halka"] is True
+
+    status = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    assert status["last_tick"]["forecast_surface_state"] == "snow"
+    assert status["last_tick"]["proactive_halka"] is True
