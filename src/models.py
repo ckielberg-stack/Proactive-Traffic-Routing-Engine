@@ -9,6 +9,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.smhi_forecast import WeatherForecast
 from src.weather_adapter import WeatherAdjustment
 
 
@@ -588,4 +589,5 @@ class TickResult(BaseModel):
     weather_records: list[dict] = []
     road_condition_records: list[dict] = []
     weather_adjustment: WeatherAdjustment | None = None
+    weather_forecast: WeatherForecast | None = None
     situation_deviations: list[SituationDeviation] = []

@@ -266,6 +266,20 @@ WEATHER_SURFACE_FACTORS: dict[str, tuple[float, float]] = {
     "ice": (0.75, 0.65),
 }
 
+# --- SMHI Open-Data Forecast (proactive weather, TRAFIK-032) ---
+# Free SMHI metfcst point forecast (no API key). The forecast anticipates
+# degraded surfaces so PTRE can pre-degrade physics thresholds and pre-stage
+# HALKA advisories before friction drops. A single mid-corridor reference point
+# is sufficient for this 15.8 km urban motorway segment. Forecasts change
+# slowly, so they refresh every SMHI_FORECAST_POLL_INTERVAL_MINUTES — not every
+# 60-second tick.
+SMHI_FORECAST_ENABLED: bool = True
+# (lat, lon) WGS84 — mid-corridor (Liljeholmen area, near sensor 2651).
+SMHI_FORECAST_REFERENCE_POINT: tuple[float, float] = (59.3007, 18.0170)
+SMHI_FORECAST_POLL_INTERVAL_MINUTES: int = 30
+# Forward window over which the worst forecast surface state is classified.
+SMHI_FORECAST_LOOKAHEAD_MINUTES: int = 60
+
 # --- TravelTimeRoute IDs (E4/E20 corridor, Stockholm) ---
 # Discovered from TravelTimeRoute API (schemaversion 1.5), CountyNo=1.
 # Route IDs are strings matching the Trafikverket 'Id' field.

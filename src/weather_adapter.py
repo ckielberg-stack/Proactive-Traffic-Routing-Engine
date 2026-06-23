@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
 from config import WEATHER_SURFACE_FACTORS
+
+if TYPE_CHECKING:  # avoid a runtime import cycle (smhi_forecast imports SURFACE_RANK)
+    from src.smhi_forecast import WeatherForecast
 
 
 SURFACE_RANK: dict[str, int] = {
@@ -29,6 +32,19 @@ class WeatherAdjustment(BaseModel):
     confidence: str = Field(description="'high', 'medium', or 'low'")
     reason: str
     warning_records: list[dict[str, Any]] = Field(default_factory=list)
+    forecast_state: str = Field(
+        default="dry",
+        description="Worst SMHI forecast surface state within the look-ahead window",
+    )
+    forecast_lead_minutes: float | None = Field(
+        default=None,
+        description="Lead time (minutes) to the forecast onset; None when dry",
+    )
+    forecast_reason: str = ""
+    proactive_halka: bool = Field(
+        default=False,
+        description="Forecast warrants a pre-staged HALKA advisory before friction drops",
+    )
 
 
 class WeatherAdapter:
@@ -47,39 +63,94 @@ class WeatherAdapter:
         weather_records: list[dict[str, Any]],
         road_condition_records: list[dict[str, Any]],
         now: datetime | None = None,
+        forecast: "WeatherForecast | None" = None,
     ) -> WeatherAdjustment:
-        """Return the worst observed corridor surface adjustment.
+        """Return the worst corridor surface adjustment.
 
         RoadCondition records are treated as authoritative active feed records.
         WeatherMeasurepoint observations are ignored when all samples are stale.
-        Missing or stale data falls back to dry/low confidence and never raises
-        model capacity above the configured dry baseline.
+        An optional SMHI ``forecast`` *escalates* the surface state when it
+        predicts a worse upcoming surface than is currently observed — it can
+        never relax the adjustment. Missing or stale data falls back to dry/low
+        confidence and never raises model capacity above the dry baseline.
         """
         now = now or datetime.now()
 
         road_state, road_reason, warning_records = self._classify_road_conditions(
             road_condition_records
         )
-        if warning_records:
-            return self._build(
-                road_state,
-                "high",
-                road_reason,
-                warning_records,
-            )
-
         weather_state, weather_reason, weather_confidence = self._classify_weather(
             weather_records,
             now,
         )
+        forecast_state, forecast_reason, forecast_lead = self._classify_forecast(forecast)
 
-        state = self._worst_state(road_state, weather_state)
+        observed_state = self._worst_state(road_state, weather_state)
+        state = self._worst_state(observed_state, forecast_state)
+
+        # Forecast-driven HALKA pre-staging: snow/ice is forecast that the live
+        # road/weather feeds do not yet show, and no authoritative warning record
+        # already covers it. This is the "anticipate, don't observe" path.
+        proactive_halka = (
+            forecast_state in {"snow", "ice"}
+            and SURFACE_RANK[forecast_state] > SURFACE_RANK[observed_state]
+            and not warning_records
+        )
+
+        forecast_meta = {
+            "forecast_state": forecast_state,
+            "forecast_lead_minutes": forecast_lead,
+            "forecast_reason": forecast_reason,
+            "proactive_halka": proactive_halka,
+        }
+
+        if warning_records:
+            return self._build(state, "high", road_reason, warning_records, **forecast_meta)
+
         if state == "dry" and not road_condition_records and weather_confidence == "low":
-            return self._build("dry", "low", weather_reason, [])
+            return self._build("dry", "low", weather_reason, [], **forecast_meta)
 
         confidence = "medium" if state != "dry" else weather_confidence
-        reason = road_reason if SURFACE_RANK[road_state] >= SURFACE_RANK[weather_state] else weather_reason
-        return self._build(state, confidence, reason, [])
+        reason = self._dominant_reason(
+            road_state,
+            road_reason,
+            weather_state,
+            weather_reason,
+            forecast_state,
+            forecast_reason,
+        )
+        return self._build(state, confidence, reason, [], **forecast_meta)
+
+    def _classify_forecast(
+        self,
+        forecast: "WeatherForecast | None",
+    ) -> tuple[str, str, float | None]:
+        if forecast is None:
+            return "dry", "", None
+        state = forecast.surface_state if forecast.surface_state in SURFACE_RANK else "dry"
+        return state, forecast.reason or "", forecast.onset_minutes
+
+    @staticmethod
+    def _dominant_reason(
+        road_state: str,
+        road_reason: str,
+        weather_state: str,
+        weather_reason: str,
+        forecast_state: str,
+        forecast_reason: str,
+    ) -> str:
+        """Return the reason from the source that produced the worst surface.
+
+        Ties favour observed sources (road > weather) over the forecast, so a
+        forecast only owns the reason string when it is the dominant signal.
+        """
+        candidates = [
+            (SURFACE_RANK[road_state], 3, road_reason),
+            (SURFACE_RANK[weather_state], 2, weather_reason),
+            (SURFACE_RANK[forecast_state], 1, forecast_reason or "SMHI forecast"),
+        ]
+        candidates.sort(key=lambda candidate: (candidate[0], candidate[1]), reverse=True)
+        return candidates[0][2]
 
     def _classify_road_conditions(
         self,
@@ -196,6 +267,11 @@ class WeatherAdapter:
         confidence: str,
         reason: str,
         warning_records: list[dict[str, Any]],
+        *,
+        forecast_state: str = "dry",
+        forecast_lead_minutes: float | None = None,
+        forecast_reason: str = "",
+        proactive_halka: bool = False,
     ) -> WeatherAdjustment:
         free_flow_factor, capacity_factor = self.surface_factors.get(
             state,
@@ -208,6 +284,10 @@ class WeatherAdapter:
             confidence=confidence,
             reason=reason,
             warning_records=warning_records,
+            forecast_state=forecast_state,
+            forecast_lead_minutes=forecast_lead_minutes,
+            forecast_reason=forecast_reason,
+            proactive_halka=proactive_halka,
         )
 
 

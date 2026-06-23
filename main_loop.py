@@ -61,6 +61,10 @@ from config import (
     SENSOR_ROAD_SPEED_LIMITS,
     SENSOR_SEVERE_DROP_RATIO,
     SENSOR_SPEED_DROP_RATIO,
+    SMHI_FORECAST_ENABLED,
+    SMHI_FORECAST_LOOKAHEAD_MINUTES,
+    SMHI_FORECAST_POLL_INTERVAL_MINUTES,
+    SMHI_FORECAST_REFERENCE_POINT,
 )
 from retention import RetentionPolicy
 from src.models import (
@@ -92,6 +96,7 @@ from src.traffic_constants import (
     K_CRITICAL_VEH_KM_LANE,
     Q_CAP_VPH_PER_LANE,
 )
+from src.smhi_forecast import SMHIForecastSource, WeatherForecast
 from src.vision_engine import VisionEngine
 from src.vms_orchestrator import VMSOrchestrator
 from src.weather_adapter import WeatherAdapter
@@ -267,6 +272,7 @@ _density_smoother: DensitySmoother | None = None
 _track_persistence: TrackPersistence | None = None
 _travel_time_calibrator: TravelTimeCalibrator | None = None
 _weather_adapter: WeatherAdapter | None = None
+_smhi_forecast_source: SMHIForecastSource | None = None
 
 
 def _get_vision_engine() -> VisionEngine:
@@ -326,6 +332,20 @@ def _get_weather_adapter() -> WeatherAdapter:
     if _weather_adapter is None:
         _weather_adapter = WeatherAdapter()
     return _weather_adapter
+
+
+def _get_smhi_forecast_source() -> SMHIForecastSource:
+    """Poll-throttled SMHI forecast source — caches across ticks (~30 min)."""
+    global _smhi_forecast_source
+    if _smhi_forecast_source is None:
+        lat, lon = SMHI_FORECAST_REFERENCE_POINT
+        _smhi_forecast_source = SMHIForecastSource(
+            lat=lat,
+            lon=lon,
+            poll_interval_minutes=SMHI_FORECAST_POLL_INTERVAL_MINUTES,
+            lookahead_minutes=SMHI_FORECAST_LOOKAHEAD_MINUTES,
+        )
+    return _smhi_forecast_source
 
 
 def _get_density_smoother() -> DensitySmoother:
@@ -1496,6 +1516,35 @@ def _is_e4_road(road_number: str) -> bool:
     return normalized in ("E 4", "E4", "E 20", "E20", "E4/E20", "E 4/E 20")
 
 
+def fetch_smhi_forecast(now: datetime) -> WeatherForecast | None:
+    """Return the cached SMHI corridor forecast, refreshing every ~30 min.
+
+    Fail-safe: any error yields ``None`` (or the last good forecast cached by
+    the source), so the WeatherAdapter simply falls back to observed-only
+    behaviour and never loses conservatism.
+    """
+    if not SMHI_FORECAST_ENABLED:
+        return None
+    try:
+        forecast = _get_smhi_forecast_source().get_forecast(now)
+    except Exception as e:  # pragma: no cover - defensive, get_forecast is fail-safe
+        logger.error(f"SMHI forecast fetch failed: {e}", exc_info=True)
+        return None
+    if forecast is not None:
+        logger.info(
+            "🔭 SMHI forecast: %s within %smin (onset %s, %s)",
+            forecast.surface_state,
+            forecast.lookahead_minutes,
+            (
+                f"~{forecast.onset_minutes:.0f}min"
+                if forecast.onset_minutes is not None
+                else "n/a"
+            ),
+            forecast.reason,
+        )
+    return forecast
+
+
 def fetch_situation_deviations(now: datetime) -> list[SituationDeviation]:
     """Fetch accident/roadwork Situation deviations as capacity-impact inputs."""
     xml_query = f"""
@@ -2002,10 +2051,11 @@ def tick_once(camera_ids: list[str]) -> TickResult:
     travel_time_readings: list[TravelTimeReading] = []
     weather_records: list[dict] = []
     road_condition_records: list[dict] = []
+    weather_forecast: WeatherForecast | None = None
     situation_deviations: list[SituationDeviation] = []
 
     fetch_started = time.monotonic()
-    with ThreadPoolExecutor(max_workers=7) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         future_cameras = executor.submit(fetch_cameras, camera_ids, now)
         future_sensors = executor.submit(fetch_sensor_data, now)
         future_vms = executor.submit(fetch_vms_status, now)
@@ -2013,6 +2063,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         future_weather = executor.submit(fetch_weather_data, now)
         future_road_conditions = executor.submit(fetch_road_conditions, now)
         future_situations = executor.submit(fetch_situation_deviations, now)
+        future_forecast = executor.submit(fetch_smhi_forecast, now)
 
         try:
             vision_records, capacity_states = future_cameras.result(timeout=55)
@@ -2048,6 +2099,11 @@ def tick_once(camera_ids: list[str]) -> TickResult:
             situation_deviations = future_situations.result(timeout=10)
         except Exception as e:
             logger.error(f"Situation deviation fetch failed: {e}", exc_info=True)
+
+        try:
+            weather_forecast = future_forecast.result(timeout=12)
+        except Exception as e:
+            logger.error(f"SMHI forecast fetch failed: {e}", exc_info=True)
     fetch_duration_ms = int((time.monotonic() - fetch_started) * 1000)
     logger.info("⏱️  Data fetch phase completed in %sms", fetch_duration_ms)
 
@@ -2055,6 +2111,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         weather_records=weather_records,
         road_condition_records=road_condition_records,
         now=now,
+        forecast=weather_forecast,
     )
     logger.info(
         "🌦  Surface adjustment: %s free_flow=%.2f capacity=%.2f confidence=%s (%s)",
@@ -2064,6 +2121,17 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         weather_adjustment.confidence,
         weather_adjustment.reason,
     )
+    if weather_adjustment.proactive_halka:
+        logger.info(
+            "🔮 Proactive HALKA pre-stage: %s forecast escalates surface ahead of "
+            "observation (onset %s)",
+            weather_adjustment.forecast_state,
+            (
+                f"~{weather_adjustment.forecast_lead_minutes:.0f}min"
+                if weather_adjustment.forecast_lead_minutes is not None
+                else "n/a"
+            ),
+        )
 
     # ---- Phase 2: Apply temporal density smoothing (Expert Audit Fix 3) ----
     smoother = _get_density_smoother()
@@ -2227,6 +2295,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         road_conditions=road_condition_records,
         now=now,
         vms_statuses=vms_statuses,
+        weather_adjustment=weather_adjustment,
     )
     vms_recommendations.extend(weather_recs)
 
@@ -2245,6 +2314,7 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         weather_records=weather_records,
         road_condition_records=road_condition_records,
         weather_adjustment=weather_adjustment,
+        weather_forecast=weather_forecast,
         situation_deviations=situation_deviations,
     )
 
@@ -2413,6 +2483,27 @@ def _persist_tick(
             "confidence": adj.confidence,
             "reason": adj.reason,
             "warning_count": len(adj.warning_records),
+            "forecast_state": adj.forecast_state,
+            "forecast_lead_minutes": adj.forecast_lead_minutes,
+            "proactive_halka": adj.proactive_halka,
+        })
+
+    if result.weather_forecast:
+        fc = result.weather_forecast
+        all_records.append({
+            "type": "weather_forecast",
+            "timestamp": now.isoformat(),
+            "source": "smhi_metfcst",
+            "surface_state": fc.surface_state,
+            "onset_minutes": fc.onset_minutes,
+            "confidence": fc.confidence,
+            "reason": fc.reason,
+            "reference_time": (
+                fc.reference_time.isoformat() if fc.reference_time else None
+            ),
+            "valid_until": fc.valid_until.isoformat() if fc.valid_until else None,
+            "lookahead_minutes": fc.lookahead_minutes,
+            "sample_count": fc.sample_count,
         })
 
     # Write JSONL
@@ -2477,6 +2568,21 @@ def _update_status(
                 result.weather_adjustment.confidence
                 if result.weather_adjustment
                 else "unknown"
+            ),
+            "forecast_surface_state": (
+                result.weather_forecast.surface_state
+                if result.weather_forecast
+                else "unknown"
+            ),
+            "forecast_onset_minutes": (
+                result.weather_forecast.onset_minutes
+                if result.weather_forecast
+                else None
+            ),
+            "proactive_halka": (
+                result.weather_adjustment.proactive_halka
+                if result.weather_adjustment
+                else False
             ),
         },
     }
