@@ -274,6 +274,47 @@ class QueuePrediction(BaseModel):
         default_factory=dict,
         description="Upper queue length bound by future minute horizon",
     )
+    residual_correction_enabled: bool = Field(
+        default=False,
+        description="True when a learned ETA residual correction was applied",
+    )
+    residual_correction_minutes: float = Field(
+        default=0.0,
+        description="Bounded learned ETA offset in minutes; positive means later",
+    )
+    residual_sample_count: int = Field(
+        ge=0,
+        default=0,
+        description="Matched historical residual samples behind this correction",
+    )
+    residual_bucket: str | None = Field(
+        default=None,
+        description="Residual learner bucket used for this prediction",
+    )
+    residual_confidence: str = Field(
+        default="none",
+        description="'none', 'low', 'medium', or 'high' residual confidence",
+    )
+    residual_disabled_reason: str | None = Field(
+        default="insufficient history",
+        description="Why ETA residual correction was not enabled",
+    )
+    base_eta_minutes_by_target: dict[str, float] = Field(
+        default_factory=dict,
+        description="Uncorrected LWR ETA minutes by VMS or route target",
+    )
+    corrected_eta_minutes_by_target: dict[str, float] = Field(
+        default_factory=dict,
+        description="Residual-corrected ETA minutes by VMS or route target",
+    )
+    corrected_eta_lower_minutes_by_target: dict[str, float] = Field(
+        default_factory=dict,
+        description="Lower corrected ETA interval by VMS or route target",
+    )
+    corrected_eta_upper_minutes_by_target: dict[str, float] = Field(
+        default_factory=dict,
+        description="Upper corrected ETA interval by VMS or route target",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -430,6 +471,14 @@ class VMSRecommendation(BaseModel):
     estimated_activation_minutes: float = Field(
         description="Minutes until queue tail reaches this VMS position"
     )
+    base_eta_minutes: float | None = Field(
+        default=None,
+        description="Uncorrected LWR ETA in minutes before residual adjustment",
+    )
+    corrected_eta_minutes: float | None = Field(
+        default=None,
+        description="Residual-corrected ETA in minutes when correction is enabled",
+    )
     eta_lower_minutes: float | None = Field(
         default=None,
         description="Lower bound for ETA interval in minutes",
@@ -447,6 +496,31 @@ class VMSRecommendation(BaseModel):
     uncertainty_level: str = Field(
         default="low",
         description="'high', 'medium', or 'low' uncertainty classification",
+    )
+    residual_correction_enabled: bool = Field(
+        default=False,
+        description="True when ETA fields include learned residual correction",
+    )
+    residual_correction_minutes: float = Field(
+        default=0.0,
+        description="Learned ETA residual offset applied to this recommendation",
+    )
+    residual_sample_count: int = Field(
+        ge=0,
+        default=0,
+        description="Matched historical samples behind the residual correction",
+    )
+    residual_bucket: str | None = Field(
+        default=None,
+        description="Residual learner bucket used for this recommendation",
+    )
+    residual_confidence: str = Field(
+        default="none",
+        description="'none', 'low', 'medium', or 'high' residual confidence",
+    )
+    residual_disabled_reason: str | None = Field(
+        default=None,
+        description="Why residual correction was unavailable",
     )
     triggering_camera_id: str
     current_vms_status: str | None = Field(
@@ -524,6 +598,26 @@ class CalibrationSnapshot(BaseModel):
     )
     confidence: str = Field(
         description="'high', 'medium', or 'low' based on segment count"
+    )
+    residual_pending_count: int = Field(
+        ge=0,
+        default=0,
+        description="Pending prediction observations waiting for residual matching",
+    )
+    residual_bucket_count: int = Field(
+        ge=0,
+        default=0,
+        description="Number of residual learner buckets with matched history",
+    )
+    residual_min_samples: int = Field(
+        ge=0,
+        default=5,
+        description="Samples required before residual correction is enabled",
+    )
+    residual_max_correction_minutes: float = Field(
+        ge=0.0,
+        default=5.0,
+        description="Absolute bound for learned ETA correction",
     )
 
 

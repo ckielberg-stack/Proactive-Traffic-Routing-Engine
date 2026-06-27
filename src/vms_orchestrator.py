@@ -278,7 +278,30 @@ class VMSOrchestrator:
                 horizon_minutes=t_min,
                 point_eta_minutes=eta_minutes,
             )
-            urgency_eta = eta_upper if eta_upper is not None else eta_minutes
+            corrected_eta, corrected_lower, corrected_upper = _corrected_eta_interval(
+                prediction=prediction,
+                eta_minutes=eta_minutes,
+                eta_lower_minutes=eta_lower,
+                eta_upper_minutes=eta_upper,
+            )
+            target_key = f"vms:{vms.vms_id}"
+            if eta_minutes < float("inf"):
+                prediction.base_eta_minutes_by_target[target_key] = round(eta_minutes, 3)
+                prediction.corrected_eta_minutes_by_target[target_key] = round(
+                    corrected_eta, 3
+                )
+                if corrected_lower is not None:
+                    prediction.corrected_eta_lower_minutes_by_target[target_key] = round(
+                        corrected_lower, 3
+                    )
+                if corrected_upper is not None:
+                    prediction.corrected_eta_upper_minutes_by_target[target_key] = round(
+                        corrected_upper, 3
+                    )
+
+            urgency_eta = (
+                corrected_upper if corrected_upper is not None else corrected_eta
+            )
             urgency = _classify_urgency(urgency_eta)
             message = _build_message(urgency, surface_state=surface_state)
 
@@ -293,8 +316,9 @@ class VMSOrchestrator:
                 prediction=prediction,
                 vms=vms,
                 eta_minutes=eta_minutes,
-                eta_lower_minutes=eta_lower,
-                eta_upper_minutes=eta_upper,
+                corrected_eta_minutes=corrected_eta,
+                eta_lower_minutes=corrected_lower,
+                eta_upper_minutes=corrected_upper,
                 current_status_str=current_status_str,
             )
 
@@ -307,15 +331,29 @@ class VMSOrchestrator:
                     urgency=urgency,
                     queue_growth_speed_kmh=prediction.growth_speed_kmh,
                     distance_queue_tail_to_vms_km=round(distance_to_vms, 2),
-                    estimated_activation_minutes=round(eta_minutes, 1),
+                    estimated_activation_minutes=round(corrected_eta, 1),
+                    base_eta_minutes=(
+                        round(eta_minutes, 1) if eta_minutes < float("inf") else None
+                    ),
+                    corrected_eta_minutes=(
+                        round(corrected_eta, 1)
+                        if prediction.residual_correction_enabled
+                        else None
+                    ),
                     eta_lower_minutes=(
-                        round(eta_lower, 1) if eta_lower is not None else None
+                        round(corrected_lower, 1) if corrected_lower is not None else None
                     ),
                     eta_upper_minutes=(
-                        round(eta_upper, 1) if eta_upper is not None else None
+                        round(corrected_upper, 1) if corrected_upper is not None else None
                     ),
                     confidence=prediction.prediction_confidence,
                     uncertainty_level=prediction.uncertainty_level,
+                    residual_correction_enabled=prediction.residual_correction_enabled,
+                    residual_correction_minutes=prediction.residual_correction_minutes,
+                    residual_sample_count=prediction.residual_sample_count,
+                    residual_bucket=prediction.residual_bucket,
+                    residual_confidence=prediction.residual_confidence,
+                    residual_disabled_reason=prediction.residual_disabled_reason,
                     triggering_camera_id=prediction.camera_id,
                     current_vms_status=current_status_str,
                     summary=summary,
@@ -591,6 +629,31 @@ def _eta_interval_minutes(
     return eta_lower, eta_upper
 
 
+def _corrected_eta_interval(
+    *,
+    prediction: QueuePrediction,
+    eta_minutes: float,
+    eta_lower_minutes: float | None,
+    eta_upper_minutes: float | None,
+) -> tuple[float, float | None, float | None]:
+    if eta_minutes == float("inf") or not prediction.residual_correction_enabled:
+        return eta_minutes, eta_lower_minutes, eta_upper_minutes
+
+    correction = prediction.residual_correction_minutes
+    corrected_eta = max(eta_minutes + correction, 0.0)
+    corrected_lower = (
+        max(eta_lower_minutes + correction, 0.0)
+        if eta_lower_minutes is not None
+        else None
+    )
+    corrected_upper = (
+        max(eta_upper_minutes + correction, 0.0)
+        if eta_upper_minutes is not None
+        else None
+    )
+    return corrected_eta, corrected_lower, corrected_upper
+
+
 def _eta_uncertainty_ratio(uncertainty_level: str) -> float:
     if uncertainty_level == "high":
         return 0.15
@@ -615,6 +678,7 @@ def _build_narrative(
     prediction: QueuePrediction,
     vms: VMSGantry,
     eta_minutes: float,
+    corrected_eta_minutes: float,
     eta_lower_minutes: float | None,
     eta_upper_minutes: float | None,
     current_status_str: str | None,
@@ -629,6 +693,7 @@ def _build_narrative(
         Recommendation: Activate 70 km/h warning in 4 min.
     """
     parts: list[str] = []
+    display_eta = eta_minutes
 
     # 1. Queue growth info
     parts.append(
@@ -637,9 +702,19 @@ def _build_narrative(
 
     # 2. ETA to this VMS
     if eta_minutes < float("inf"):
-        parts.append(
-            f"Kön når {vms.name} ({vms.vms_id}) om {eta_minutes:.1f} min."
+        display_eta = (
+            corrected_eta_minutes
+            if prediction.residual_correction_enabled
+            else eta_minutes
         )
+        parts.append(
+            f"Kön når {vms.name} ({vms.vms_id}) om {display_eta:.1f} min."
+        )
+        if prediction.residual_correction_enabled:
+            parts.append(
+                f"Bas-LWR ETA {eta_minutes:.1f} min, "
+                f"residualjustering {prediction.residual_correction_minutes:+.1f} min."
+            )
         if eta_lower_minutes is not None and eta_upper_minutes is not None:
             confidence_label = _swedish_confidence_label(
                 prediction.uncertainty_level
@@ -658,10 +733,10 @@ def _build_narrative(
         parts.append(f"Nuvarande VMS-status: {current_status_str}.")
 
     # 4. Recommendation
-    if eta_minutes <= 2.0:
+    if display_eta <= 2.0:
         parts.append("Rekommendation: Aktivera KÖVARNING 50 km/h OMEDELBART.")
-    elif eta_minutes <= 5.0:
-        lead_time = max(eta_minutes - 1.0, 0.5)
+    elif display_eta <= 5.0:
+        lead_time = max(display_eta - 1.0, 0.5)
         parts.append(
             f"Rekommendation: Aktivera 70 km/h varning om {lead_time:.0f} min."
         )

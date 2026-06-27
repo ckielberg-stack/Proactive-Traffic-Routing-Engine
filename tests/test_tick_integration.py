@@ -636,11 +636,24 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
     assert "uncertainty_reason" in queue_record
     assert "length_lower_at_minutes" in queue_record
     assert "length_upper_at_minutes" in queue_record
+    assert "residual_correction_enabled" in queue_record
+    assert "residual_correction_minutes" in queue_record
+    assert "residual_sample_count" in queue_record
+    assert "residual_confidence" in queue_record
+    assert "residual_disabled_reason" in queue_record
+    assert "base_eta_minutes_by_target" in queue_record
+    assert "corrected_eta_minutes_by_target" in queue_record
     vms_record = next(record for record in records if record["type"] == "vms_recommendation")
+    assert "base_eta_minutes" in vms_record
+    assert "corrected_eta_minutes" in vms_record
     assert "eta_lower_minutes" in vms_record
     assert "eta_upper_minutes" in vms_record
     assert "confidence" in vms_record
     assert "uncertainty_level" in vms_record
+    assert "residual_correction_enabled" in vms_record
+    assert "residual_correction_minutes" in vms_record
+    assert "residual_sample_count" in vms_record
+    assert "residual_confidence" in vms_record
     assert (tmp_path / "vision_state.json").exists()
     assert (tmp_path / "status.json").exists()
 

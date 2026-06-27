@@ -22,7 +22,7 @@ from config import (
     E4_NORTHBOUND_TRAVEL_TIME_ROUTE_IDS,
 )
 
-METRICS_VERSION = "replay-eval-v1"
+METRICS_VERSION = "replay-eval-v2"
 CONGESTED_STATUSES = {"slow", "heavy"}
 DEFAULT_PREDICTION_EXPIRY_MINUTES = 30.0
 DEFAULT_LATE_HIT_TOLERANCE_MINUTES = 5.0
@@ -47,6 +47,8 @@ class ReplayPrediction:
     origin_chainage_km: float
     growth_speed_kmh: float
     lengths_at_minutes: dict[float, float]
+    residual_correction_minutes: float
+    corrected_eta_minutes_by_target: dict[str, float]
 
 
 @dataclass(frozen=True)
@@ -119,6 +121,7 @@ def evaluate_replay_records(
     matches: list[dict[str, Any]] = []
     misses: list[dict[str, Any]] = []
     eta_errors: list[float] = []
+    corrected_eta_errors: list[float] = []
     distance_errors: list[float] = []
     lead_times: list[float] = []
     vms_lead_times: list[float] = []
@@ -161,6 +164,7 @@ def evaluate_replay_records(
         segment_eta_errors[congestion.route_id].append(best["eta_error_minutes"])
         segment_distance_errors[congestion.route_id].append(best["distance_error_km"])
         eta_errors.append(best["eta_error_minutes"])
+        corrected_eta_errors.append(best["corrected_eta_error_minutes"])
         distance_errors.append(best["distance_error_km"])
         lead_times.append(best["lead_time_minutes"])
 
@@ -232,6 +236,14 @@ def evaluate_replay_records(
             "false_positive_rate": _ratio(false_positive_count, prediction_count),
             "mean_eta_error_minutes": _rounded_mean(eta_errors),
             "mean_abs_eta_error_minutes": _rounded_abs_mean(eta_errors),
+            "mean_corrected_eta_error_minutes": _rounded_mean(corrected_eta_errors),
+            "mean_abs_corrected_eta_error_minutes": (
+                _rounded_abs_mean(corrected_eta_errors)
+            ),
+            "mean_abs_eta_error_delta_minutes": _eta_error_delta(
+                eta_errors,
+                corrected_eta_errors,
+            ),
             "mean_distance_error_km": _rounded_mean(distance_errors),
             "mean_lead_time_minutes": _rounded_mean(lead_times),
             "mean_vms_lead_time_minutes": _rounded_mean(vms_lead_times),
@@ -340,6 +352,9 @@ def _parse_predictions(records: list[dict[str, Any]]) -> list[ReplayPrediction]:
         try:
             origin_chainage = float(record.get("origin_chainage_km", 0.0))
             growth_speed = float(record.get("growth_speed_kmh", 0.0))
+            residual_correction = float(
+                record.get("residual_correction_minutes", 0.0) or 0.0
+            )
         except (TypeError, ValueError):
             continue
         if origin_chainage <= 0 or growth_speed <= 0:
@@ -351,6 +366,10 @@ def _parse_predictions(records: list[dict[str, Any]]) -> list[ReplayPrediction]:
             origin_chainage_km=origin_chainage,
             growth_speed_kmh=growth_speed,
             lengths_at_minutes=lengths,
+            residual_correction_minutes=residual_correction,
+            corrected_eta_minutes_by_target=_parse_target_etas(
+                record.get("corrected_eta_minutes_by_target")
+            ),
         ))
     return sorted(predictions, key=lambda prediction: prediction.timestamp)
 
@@ -368,6 +387,20 @@ def _parse_lengths(raw: Any) -> dict[float, float]:
         if minute >= 0 and distance >= 0:
             lengths[minute] = distance
     return lengths
+
+
+def _parse_target_etas(raw: Any) -> dict[str, float]:
+    if not isinstance(raw, dict):
+        return {}
+    etas: dict[str, float] = {}
+    for key, value in raw.items():
+        try:
+            eta = float(value)
+        except (TypeError, ValueError):
+            continue
+        if eta >= 0:
+            etas[str(key)] = eta
+    return etas
 
 
 def _parse_congestions(
@@ -480,6 +513,10 @@ def _score_prediction_for_congestion(
         if prediction.growth_speed_kmh > 0
         else 0.0
     )
+    corrected_eta_minutes = prediction.corrected_eta_minutes_by_target.get(
+        f"route:{congestion.route_id}",
+        max(predicted_eta_minutes + prediction.residual_correction_minutes, 0.0),
+    )
     queue_length_at_event = _queue_length_at_minutes(
         prediction,
         max(lead_time_minutes, 0.0),
@@ -499,6 +536,7 @@ def _score_prediction_for_congestion(
         return None
 
     eta_error = lead_time_minutes - predicted_eta_minutes
+    corrected_eta_error = lead_time_minutes - corrected_eta_minutes
     return {
         "event_id": congestion.event_id,
         "prediction_id": prediction.prediction_id,
@@ -509,7 +547,9 @@ def _score_prediction_for_congestion(
         "status": "late_hit" if lead_time_minutes < 0 else "hit",
         "lead_time_minutes": round(lead_time_minutes, 3),
         "predicted_eta_minutes": round(predicted_eta_minutes, 3),
+        "corrected_eta_minutes": round(corrected_eta_minutes, 3),
         "eta_error_minutes": round(eta_error, 3),
+        "corrected_eta_error_minutes": round(corrected_eta_error, 3),
         "distance_error_km": round(distance_error_km, 3),
         "predicted_tail_chainage_km": round(predicted_tail_km, 3),
         "segment_midpoint_km": round(span.midpoint_km, 3),
@@ -582,6 +622,17 @@ def _rounded_mean(values: list[float]) -> float | None:
 
 def _rounded_abs_mean(values: list[float]) -> float | None:
     return round(mean(abs(value) for value in values), 3) if values else None
+
+
+def _eta_error_delta(
+    base_errors: list[float],
+    corrected_errors: list[float],
+) -> float | None:
+    base_abs = _rounded_abs_mean(base_errors)
+    corrected_abs = _rounded_abs_mean(corrected_errors)
+    if base_abs is None or corrected_abs is None:
+        return None
+    return round(corrected_abs - base_abs, 3)
 
 
 if __name__ == "__main__":

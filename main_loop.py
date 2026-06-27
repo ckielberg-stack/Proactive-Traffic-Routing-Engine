@@ -2251,6 +2251,26 @@ def tick_once(camera_ids: list[str]) -> TickResult:
         now=now,
         node_traffic_states=node_traffic_states if node_traffic_states else None,
     )
+    if travel_time_readings:
+        calibrator.apply_residual_corrections(
+            readings=travel_time_readings,
+            predictions=queue_predictions,
+            now=now,
+        )
+        if calibration_snapshot:
+            residual_state = calibrator.get_state()
+            calibration_snapshot.residual_pending_count = int(
+                residual_state["residual_pending_count"]
+            )
+            calibration_snapshot.residual_bucket_count = int(
+                residual_state["residual_bucket_count"]
+            )
+            calibration_snapshot.residual_min_samples = int(
+                residual_state["residual_min_samples"]
+            )
+            calibration_snapshot.residual_max_correction_minutes = float(
+                residual_state["residual_max_correction_minutes"]
+            )
     if queue_predictions:
         local_segments = sum(p.local_data_segments for p in queue_predictions)
         fallback_segments = sum(p.fallback_data_segments for p in queue_predictions)
@@ -2407,6 +2427,20 @@ def _persist_tick(
             "uncertainty_reason": qp.uncertainty_reason,
             "length_lower_at_minutes": qp.length_lower_at_minutes,
             "length_upper_at_minutes": qp.length_upper_at_minutes,
+            "residual_correction_enabled": qp.residual_correction_enabled,
+            "residual_correction_minutes": qp.residual_correction_minutes,
+            "residual_sample_count": qp.residual_sample_count,
+            "residual_bucket": qp.residual_bucket,
+            "residual_confidence": qp.residual_confidence,
+            "residual_disabled_reason": qp.residual_disabled_reason,
+            "base_eta_minutes_by_target": qp.base_eta_minutes_by_target,
+            "corrected_eta_minutes_by_target": qp.corrected_eta_minutes_by_target,
+            "corrected_eta_lower_minutes_by_target": (
+                qp.corrected_eta_lower_minutes_by_target
+            ),
+            "corrected_eta_upper_minutes_by_target": (
+                qp.corrected_eta_upper_minutes_by_target
+            ),
         })
 
     # VMS recommendations
@@ -2418,10 +2452,18 @@ def _persist_tick(
             "urgency": rec.urgency,
             "recommended_message": rec.recommended_message,
             "eta_minutes": rec.estimated_activation_minutes,
+            "base_eta_minutes": rec.base_eta_minutes,
+            "corrected_eta_minutes": rec.corrected_eta_minutes,
             "eta_lower_minutes": rec.eta_lower_minutes,
             "eta_upper_minutes": rec.eta_upper_minutes,
             "confidence": rec.confidence,
             "uncertainty_level": rec.uncertainty_level,
+            "residual_correction_enabled": rec.residual_correction_enabled,
+            "residual_correction_minutes": rec.residual_correction_minutes,
+            "residual_sample_count": rec.residual_sample_count,
+            "residual_bucket": rec.residual_bucket,
+            "residual_confidence": rec.residual_confidence,
+            "residual_disabled_reason": rec.residual_disabled_reason,
             "current_vms_status": rec.current_vms_status,
             "summary": rec.summary,
         })
@@ -2470,6 +2512,10 @@ def _persist_tick(
             "congested_segment_count": cal.congested_segment_count,
             "accuracy_hit_rate": cal.accuracy_hit_rate,
             "confidence": cal.confidence,
+            "residual_pending_count": cal.residual_pending_count,
+            "residual_bucket_count": cal.residual_bucket_count,
+            "residual_min_samples": cal.residual_min_samples,
+            "residual_max_correction_minutes": cal.residual_max_correction_minutes,
         })
 
     if result.weather_adjustment:

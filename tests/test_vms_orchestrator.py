@@ -315,6 +315,31 @@ class TestRecommendationGeneration:
         assert "medel säkerhet" in recs[0].summary
         assert "Rekommendation:" in recs[0].summary
 
+    def test_residual_correction_preserves_base_eta(
+        self, orchestrator: VMSOrchestrator, mock_prediction: QueuePrediction
+    ) -> None:
+        mock_prediction.residual_correction_enabled = True
+        mock_prediction.residual_correction_minutes = -2.0
+        mock_prediction.residual_sample_count = 5
+        mock_prediction.residual_bucket = "CAM_TEST|R2|weekday|h12"
+        mock_prediction.residual_confidence = "medium"
+        mock_prediction.residual_disabled_reason = None
+
+        recs = orchestrator.generate_recommendations(mock_prediction)
+
+        assert recs
+        rec = recs[0]
+        assert rec.base_eta_minutes is not None
+        assert rec.corrected_eta_minutes == pytest.approx(rec.base_eta_minutes - 2.0)
+        assert rec.estimated_activation_minutes == rec.corrected_eta_minutes
+        assert rec.residual_correction_enabled is True
+        assert rec.residual_sample_count == 5
+        assert "Bas-LWR ETA" in rec.summary
+        assert mock_prediction.base_eta_minutes_by_target[f"vms:{rec.vms_id}"] == pytest.approx(
+            rec.base_eta_minutes,
+            abs=0.05,
+        )
+
 
 class TestWeatherRecommendations:
     def test_generates_standalone_halka_warning_by_chainage(

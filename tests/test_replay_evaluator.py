@@ -91,6 +91,33 @@ def test_successful_hit_reports_eta_and_distance_accuracy() -> None:
     assert metrics["segments"]["R2"]["hit_count"] == 1
 
 
+def test_replay_reports_corrected_eta_without_changing_false_positives() -> None:
+    start = datetime(2026, 6, 6, 12, 0, 0)
+    prediction = _prediction(
+        start,
+        "p1",
+        growth_speed_kmh=30.0,
+        lengths_at_minutes={1: 1.0, 5: 5.0, 10: 10.0},
+    )
+    prediction["residual_correction_minutes"] = -2.5
+    prediction["corrected_eta_minutes_by_target"] = {"route:R2": 2.5}
+    records = [
+        _travel_time(start, "R1", "freeflow"),
+        _travel_time(start, "R2", "freeflow"),
+        prediction,
+        _travel_time(start + timedelta(minutes=2, seconds=30), "R2", "slow"),
+    ]
+
+    metrics = evaluate_replay_records(records, route_ids=ROUTE_IDS, corridor_length_km=10.0)
+
+    assert metrics["corridor"]["false_positive_count"] == 0
+    assert metrics["corridor"]["mean_abs_eta_error_minutes"] == 2.5
+    assert metrics["corridor"]["mean_abs_corrected_eta_error_minutes"] == 0.0
+    assert metrics["corridor"]["mean_abs_eta_error_delta_minutes"] == -2.5
+    assert metrics["matches"][0]["predicted_eta_minutes"] == 5.0
+    assert metrics["matches"][0]["corrected_eta_minutes"] == 2.5
+
+
 def test_late_hit_has_negative_lead_time() -> None:
     start = datetime(2026, 6, 6, 12, 0, 0)
     records = [

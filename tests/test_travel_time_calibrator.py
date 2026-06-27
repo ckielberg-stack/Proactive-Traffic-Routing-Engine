@@ -5,17 +5,20 @@ Tests the EMA-smoothed free-flow speed adaptation, correction factor
 computation, accuracy scoring, and confidence classification.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
+from config import E4_NORTHBOUND_CORRIDOR_LENGTH_KM
 from src.models import CalibrationSnapshot, QueuePrediction, TravelTimeReading
 from src.travel_time_calibrator import (
     DEFAULT_FREE_FLOW_SPEED,
     EMA_ALPHA,
     MAX_CORRECTION_RATIO,
+    MAX_RESIDUAL_CORRECTION_MINUTES,
     MIN_CORRECTION_RATIO,
     MIN_FREEFLOW_SEGMENTS,
+    MIN_RESIDUAL_SAMPLES,
     TravelTimeCalibrator,
 )
 
@@ -29,12 +32,14 @@ def _make_reading(
     length_meters: float = 1000.0,
     traffic_status: str = "freeflow",
     delay: float = 0.0,
+    timestamp: datetime | None = None,
+    route_id: str = "test_route",
 ) -> TravelTimeReading:
     """Build a TravelTimeReading with sensible defaults."""
     ff_seconds = length_meters / (speed_kmh / 3.6) if speed_kmh > 0 else 60.0
     return TravelTimeReading(
-        timestamp=datetime.now(),
-        route_id="test_route",
+        timestamp=timestamp or datetime.now(),
+        route_id=route_id,
         name="E4/E20 N Test Segment",
         travel_time_seconds=ff_seconds + delay,
         free_flow_seconds=ff_seconds,
@@ -55,6 +60,37 @@ def _make_prediction() -> QueuePrediction:
         origin_chainage_km=5.0,
         growth_speed_kmh=15.0,
         lengths_at_minutes={1: 0.25, 5: 1.25},
+    )
+
+
+def _route_readings(timestamp: datetime, status: str = "freeflow") -> list[TravelTimeReading]:
+    return [
+        _make_reading(
+            timestamp=timestamp,
+            route_id="R1",
+            length_meters=5000.0,
+            traffic_status="freeflow",
+        ),
+        _make_reading(
+            timestamp=timestamp,
+            route_id="R2",
+            length_meters=5000.0,
+            traffic_status=status,
+            speed_kmh=30.0 if status in {"slow", "heavy"} else 90.0,
+            delay=60.0 if status in {"slow", "heavy"} else 0.0,
+        ),
+    ]
+
+
+def _residual_prediction(timestamp: datetime) -> QueuePrediction:
+    return QueuePrediction(
+        timestamp=timestamp,
+        camera_id="CAM_TEST",
+        origin_lat=59.3,
+        origin_lng=18.0,
+        origin_chainage_km=E4_NORTHBOUND_CORRIDOR_LENGTH_KM,
+        growth_speed_kmh=60.0,
+        lengths_at_minutes={1: 1.0, 5: 5.0},
     )
 
 
@@ -263,6 +299,65 @@ class TestAccuracyEvaluation:
 
         result = cal.evaluate_accuracy(readings, [], snap)
         assert result.accuracy_hit_rate == 0.0
+
+
+class TestResidualCorrection:
+    def test_residual_correction_disabled_with_insufficient_history(self):
+        cal = TravelTimeCalibrator()
+        now = datetime(2026, 6, 15, 9, 0, 0)
+        prediction = _residual_prediction(now)
+
+        cal.apply_residual_corrections(_route_readings(now), [prediction], now)
+
+        assert prediction.residual_correction_enabled is False
+        assert prediction.residual_correction_minutes == 0.0
+        assert prediction.residual_sample_count == 0
+        assert prediction.residual_disabled_reason == "insufficient history"
+
+    def test_residual_correction_learns_bucketed_eta_offset(self):
+        cal = TravelTimeCalibrator()
+        start = datetime(2026, 6, 15, 9, 0, 0)
+
+        for index in range(MIN_RESIDUAL_SAMPLES):
+            predicted_at = start.replace(minute=index)
+            prediction = _residual_prediction(predicted_at)
+            cal.apply_residual_corrections(
+                _route_readings(predicted_at),
+                [prediction],
+                predicted_at,
+            )
+            route_eta = prediction.base_eta_minutes_by_target["route:R2"]
+            congested_at = predicted_at + timedelta(minutes=route_eta + 2.0)
+            cal.apply_residual_corrections(
+                _route_readings(congested_at, status="slow"),
+                [],
+                congested_at,
+            )
+
+        next_prediction = _residual_prediction(start.replace(minute=30))
+        cal.apply_residual_corrections(
+            _route_readings(next_prediction.timestamp),
+            [next_prediction],
+            next_prediction.timestamp,
+        )
+
+        assert next_prediction.residual_correction_enabled is True
+        assert next_prediction.residual_sample_count == MIN_RESIDUAL_SAMPLES
+        assert next_prediction.residual_correction_minutes == pytest.approx(2.0)
+        assert next_prediction.residual_bucket is not None
+        assert next_prediction.residual_confidence == "medium"
+
+    def test_residual_correction_is_bounded(self):
+        cal = TravelTimeCalibrator()
+        start = datetime(2026, 6, 15, 9, 0, 0)
+        bucket = cal._residual_bucket("CAM_TEST", "R2", start)
+        cal._residuals_by_bucket[bucket] = [99.0] * MIN_RESIDUAL_SAMPLES
+        prediction = _residual_prediction(start)
+
+        cal.apply_residual_corrections(_route_readings(start), [prediction], start)
+
+        assert prediction.residual_correction_enabled is True
+        assert prediction.residual_correction_minutes == MAX_RESIDUAL_CORRECTION_MINUTES
 
 
 # ======================================================================

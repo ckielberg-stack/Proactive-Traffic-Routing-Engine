@@ -488,6 +488,10 @@ async def api_calibration_status() -> dict[str, Any]:
         "congested_segment_count": cal.congested_segment_count,
         "accuracy_hit_rate": cal.accuracy_hit_rate,
         "confidence": cal.confidence,
+        "residual_pending_count": cal.residual_pending_count,
+        "residual_bucket_count": cal.residual_bucket_count,
+        "residual_min_samples": cal.residual_min_samples,
+        "residual_max_correction_minutes": cal.residual_max_correction_minutes,
         "timestamp": _latest_timestamp,
     }
 
