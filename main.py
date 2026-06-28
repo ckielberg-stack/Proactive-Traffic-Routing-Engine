@@ -31,6 +31,7 @@ import logging
 import os
 import signal
 import sys
+import tempfile
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
@@ -79,6 +80,7 @@ _latest_timestamp: str | None = None
 # Jinja2 templates
 _TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=_TEMPLATE_DIR)
+EXCLUDED_CAMERAS_FILE = os.path.join(DATA_DIR, "excluded_cameras.json")
 
 
 # ---------------------------------------------------------------------------
@@ -89,14 +91,59 @@ templates = Jinja2Templates(directory=_TEMPLATE_DIR)
 def _resolve_camera_ids() -> list[str]:
     """Return active camera IDs, excluding any in excluded_cameras.json."""
     camera_ids = list(CAMERA_IDS)
-    excluded_file = os.path.join(DATA_DIR, "excluded_cameras.json")
+    excluded = set(_load_excluded_camera_ids())
+    return [camera_id for camera_id in camera_ids if camera_id not in excluded]
+
+
+def _load_excluded_camera_ids() -> list[str]:
     try:
-        with open(excluded_file, "r", encoding="utf-8") as f:
-            excluded = set(json.load(f))
-        camera_ids = [c for c in camera_ids if c not in excluded]
+        with open(EXCLUDED_CAMERAS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        pass
-    return camera_ids
+        return []
+    if not isinstance(data, list):
+        return []
+    return [camera_id for camera_id in data if isinstance(camera_id, str)]
+
+
+def _save_excluded_camera_ids(camera_ids: list[str]) -> None:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    unique_ids = sorted(set(camera_ids))
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=".excluded_cameras.",
+        suffix=".json",
+        dir=DATA_DIR,
+        text=True,
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(unique_ids, f, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, EXCLUDED_CAMERAS_FILE)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def _excluded_camera_payload(camera_id: str) -> dict[str, Any]:
+    coords = CAMERA_COORDS.get(camera_id)
+    return {
+        "id": camera_id,
+        "name": camera_id.split("_")[-1],
+        "lat": coords[0] if coords else None,
+        "lng": coords[1] if coords else None,
+    }
+
+
+def _ensure_configured_camera(camera_id: str) -> None:
+    if camera_id not in CAMERA_IDS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Camera {camera_id} not found in config",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -354,6 +401,40 @@ async def api_cameras() -> dict[str, Any]:
             return {"cameras": cameras, "timestamp": data.get("timestamp")}
         return {"cameras": [], "timestamp": None}
     return {"cameras": _latest_camera_states, "timestamp": _latest_timestamp}
+
+
+@operator_app.get("/api/cameras/excluded")
+async def get_excluded_cameras() -> dict[str, Any]:
+    """Return cameras excluded from collection."""
+    excluded = [
+        _excluded_camera_payload(camera_id)
+        for camera_id in _load_excluded_camera_ids()
+    ]
+    return {"excluded": excluded}
+
+
+@operator_app.delete("/api/cameras/{camera_id}")
+async def exclude_camera(camera_id: str) -> dict[str, Any]:
+    """Exclude a configured camera from collection."""
+    _ensure_configured_camera(camera_id)
+    excluded = _load_excluded_camera_ids()
+    if camera_id not in excluded:
+        excluded.append(camera_id)
+        _save_excluded_camera_ids(excluded)
+    return {"ok": True, "excluded_count": len(set(excluded))}
+
+
+@operator_app.post("/api/cameras/{camera_id}/restore")
+async def restore_camera(camera_id: str) -> dict[str, Any]:
+    """Restore a configured camera to collection."""
+    _ensure_configured_camera(camera_id)
+    excluded = [
+        excluded_id
+        for excluded_id in _load_excluded_camera_ids()
+        if excluded_id != camera_id
+    ]
+    _save_excluded_camera_ids(excluded)
+    return {"ok": True, "excluded_count": len(set(excluded))}
 
 
 @operator_app.get("/api/v1/sensors")

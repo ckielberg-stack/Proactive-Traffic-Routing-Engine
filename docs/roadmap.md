@@ -15,7 +15,7 @@ Build a **proactive** traffic routing engine that uses computer vision on live t
 | **2a — Spatial** | ROI Mapper: per-camera pixel → road segment classification | ✅ Complete |
 | **2b — Retention** | Smart image retention policy (anomaly + training samples only) | ✅ Complete |
 | **2c — Tooling** | Interactive ROI calibration helper + camera discovery script | ✅ Complete |
-| **2d — Deployment** | Docker Compose stack (collector + dashboard) | ✅ Complete |
+| **2d — Deployment** | Single-service Docker Compose stack (`main.py`) | ✅ Complete |
 | **3 — Physics** | Shockwave Prediction Engine (LWR model) | ⬜ Not started |
 | **5 — VMS** | VMS & Queue Tail Predictor for preemptive sign activation | ✅ Complete |
 | **6 — Operator** | Operator Decision Support API (incidents, VMS, DATEX II) | ⬜ Not started |
@@ -37,11 +37,10 @@ Live pipeline collecting from **53 Trafikverket cameras** on E4 Hallunda → Sto
 - **Road conditions** — surface state, friction data from RoadCondition API
 - **Traffic situations** — accidents, roadwork, closures from Situation API (ground truth)
 - **Dashboard** — real-time monitoring at `localhost:8080` with interactive Leaflet map, camera validation (remove/restore), weather table, road conditions, incident log
-- **Camera exclusion** — cameras can be removed from map and collection via `excluded_cameras.json`; collector re-reads exclusions each cycle (no restart needed)
+- **Camera exclusion** — cameras can be removed from collection via `excluded_cameras.json`; `main.py` re-reads exclusions each tick (no restart needed)
 - **Camera discovery** — `discover_cameras.py` auto-discovers cameras in the bounding box from the Trafikverket API, outputs to `discovered_cameras.json`
-- **Auto-discovery** — `collect.py` can dynamically discover nearby cameras at startup (fallback when `config.py` IDs are unavailable)
-- **Graceful shutdown** — SIGINT/SIGTERM handled for clean collector termination
-- **File logging** — structured log output to `data/collector.log` with rotation
+- **Graceful shutdown** — SIGINT/SIGTERM handled for clean runtime termination
+- **File logging** — structured tick-loop log output to `data/mainloop.log` with rotation
 
 ### Milestone 2: Vision & Capacity Engine ✅
 
@@ -80,16 +79,14 @@ Live pipeline collecting from **53 Trafikverket cameras** on E4 Hallunda → Sto
 
 ### Milestone 2d: Docker Deployment ✅
 
-- **Dockerfile** — Python 3.12-slim, health check verifying collector log freshness (<3 min)
-- **docker-compose.yml** — two-service stack:
-  - `trafik-collector` — continuous data collection with `restart: always`
-  - `trafik-dashboard` — FastAPI dashboard on port 8080, depends on collector
-- **Shared data volume** — `./data` mounted into both containers
+- **Dockerfile** — Python 3.12-slim, health check against `/health`
+- **docker-compose.yml** — single `trafik` service running `main.py` on port 8080
+- **Runtime data volume** — `./data` mounted into the service
 - **Log rotation** — JSON file driver with max-size limits
 
 ### Dashboard ✅
 
-Full-featured monitoring dashboard (`dashboard.py` + `static/`):
+Full-featured monitoring dashboard (`main.py` + `templates/` + `static/`):
 
 - **Interactive Leaflet map** — all 53 cameras plotted with clickable markers and photo popups
 - **Camera grid** — latest images from each camera with live updates
@@ -226,11 +223,11 @@ Physical `.jpg` files are saved **only** under two conditions:
 
 | File | Purpose |
 |---|---|
-| `collect.py` | Legacy collection loop — retained for standalone data capture |
+| `legacy/collect.py` | Historical collection loop reference; not part of default deployment |
 | `main_loop.py` | **Tick-based orchestrator** — 60s polling, concurrent fetch, physics → VMS pipeline |
-| `config.py` | Camera IDs, coordinates, API config (53 cameras) |
+| `config.py` | Camera IDs, coordinates, API config (46 cameras) |
 | `retention.py` | Smart image retention policy |
-| `dashboard.py` | FastAPI dashboard server |
+| `legacy/dashboard.py` | Historical dashboard server reference; superseded by `main.py` |
 | `src/vision_engine.py` | YOLO perception + capacity estimation (545 lines) |
 | `src/physics_engine.py` | **LWR shockwave model** — queue propagation speed and tail projection |
 | `src/models.py` | Pydantic domain models (incl. `TickResult`, `VMSStatusSnapshot`) |
@@ -243,7 +240,7 @@ Physical `.jpg` files are saved **only** under two conditions:
 | `camera_config.json` | Per-camera ROI polygon definitions |
 | `static/` | Dashboard frontend (HTML/CSS/JS + Leaflet) |
 | `Dockerfile` | Container image (Python 3.12-slim) |
-| `docker-compose.yml` | Two-service deployment (collector + dashboard) |
+| `docker-compose.yml` | Single-service deployment running `main.py` |
 | `tests/` | Unit tests (physics engine, vision engine, ROI mapper, VMS orchestrator, operator API) |
 
 ### ADR-005: Tick-Based Discrete Architecture

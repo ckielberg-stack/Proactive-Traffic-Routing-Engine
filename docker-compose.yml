@@ -1,20 +1,7 @@
 services:
-  collector:
+  trafik:
     build: .
-    container_name: trafik-collector
-    restart: "no"
-    env_file: .env
-    volumes:
-      - ./data:/app/data
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  dashboard:
-    build: .
-    container_name: trafik-dashboard
+    container_name: trafik
     restart: "no"
     env_file: .env
     ports:
@@ -24,10 +11,7 @@ services:
       - ./static:/app/static
       - ./templates:/app/templates
       - ./camera_config.json:/app/camera_config.json:ro
-    command: [ "python", "-u", "main.py", "--host", "0.0.0.0", "--port", "8080" ]
-    entrypoint: []
-    depends_on:
-      - collector
+      - ./vms_config.json:/app/vms_config.json:ro
     logging:
       driver: json-file
       options:

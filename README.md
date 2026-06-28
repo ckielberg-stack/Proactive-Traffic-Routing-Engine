@@ -79,7 +79,7 @@ curl http://localhost:8081/health
 open http://localhost:8081/        # TMC dashboard
 ```
 
-`main.py` is the unified entry point — it runs the tick loop in a background thread (`asyncio.to_thread`) while serving the FastAPI app, dashboard pages, and operator API on the same port. Override with `--port 8080` to match the Docker Compose `dashboard` service.
+`main.py` is the unified entry point — it runs the tick loop in a background thread (`asyncio.to_thread`) while serving the FastAPI app, dashboard pages, and operator API on the same port. Override with `--port 8080` to match the Docker Compose service.
 
 Validate ROI physical-length calibration before trusting density-driven predictions:
 
@@ -140,7 +140,7 @@ Once `python main.py` is running, the dashboard is at **http://localhost:8081/**
 | `/system` | System health | Last-tick timestamp, pipeline stats, calibration confidence |
 | `/logs` | Live logs | Tail of `data/mainloop.log` with level filtering |
 
-Operator camera exclusions (used to silence noisy or out-of-corridor cameras) are persisted to `data/excluded_cameras.json` and toggled via `DELETE /api/cameras/{id}` and `POST /api/cameras/{id}/restore` from the camera page.
+Operator camera exclusions (used to silence noisy or out-of-corridor cameras) are persisted to `data/excluded_cameras.json`. The canonical app exposes `GET /api/cameras/excluded`, `DELETE /api/cameras/{id}`, and `POST /api/cameras/{id}/restore`.
 
 ## Operator API
 
@@ -195,8 +195,8 @@ Helpers serving the dashboard pages. Defined in [main.py](main.py). Treat as int
 |---|---|
 | [main.py](main.py) | **Canonical entry point** — FastAPI + 60s tick loop + dashboard pages, single process |
 | [main_loop.py](main_loop.py) | Headless tick orchestrator (imported by `main.py`; can also run standalone) |
-| [collect.py](collect.py) | Legacy standalone data collector (run by the `collector` Docker container) |
-| [dashboard.py](dashboard.py) | Legacy dashboard server (superseded by `main.py`) |
+| [legacy/collect.py](legacy/collect.py) | Historical standalone data collector reference; not part of default deployment |
+| [legacy/dashboard.py](legacy/dashboard.py) | Historical dashboard server reference; superseded by `main.py` |
 | [config.py](config.py) | Centralized config — API URLs, camera IDs, sensor IDs, route IDs, thresholds |
 
 **Pipeline modules ([src/](src/)):**
@@ -226,7 +226,7 @@ Helpers serving the dashboard pages. Defined in [main.py](main.py). Treat as int
 | [config.py](config.py) | Camera IDs (46), sensor SiteIds (30), TravelTimeRoute IDs (21), bounding box, retry/backoff, anomaly thresholds |
 | [camera_config.json](camera_config.json) | Per-camera ROI polygons, exclusion zones, homography matrices |
 | [vms_config.json](vms_config.json) | 8 VMS gantries with `vms_id`, `lat`/`lng`, `chainage_km`, direction |
-| `data/excluded_cameras.json` | Runtime camera exclusions toggled from the dashboard |
+| `data/excluded_cameras.json` | Runtime camera exclusions consumed by `main.py` |
 
 ## Data Storage
 
@@ -235,7 +235,7 @@ data/
 ├── status.json               # Latest pipeline status (last tick, counts)
 ├── vision_state.json         # Latest capacity states (fallback for dashboard)
 ├── camera_info_cache.json    # Cached Trafikverket camera metadata (5-min TTL)
-├── excluded_cameras.json     # Operator-toggled exclusions
+├── excluded_cameras.json     # Operator exclusions consumed by main.py
 ├── mainloop.log              # Rotating tick log
 └── 2026-05-16/
     ├── sensor_data.jsonl     # All tick data (vision, sensors, VMS, predictions)
@@ -289,12 +289,11 @@ Run `pytest -v` for the current count. The 10 unit test modules under [tests/](t
 docker compose up -d
 ```
 
-[docker-compose.yml](docker-compose.yml) brings up two services:
+[docker-compose.yml](docker-compose.yml) brings up one service:
 
-- **`collector`** — runs [collect.py](collect.py) (legacy collection of weather/road/camera data into the shared `./data` volume).
-- **`dashboard`** — runs `python main.py --host 0.0.0.0 --port 8080`, serving the unified API + dashboard at **http://localhost:8080**. Mounts `static/`, `templates/`, and `camera_config.json`.
+- **`trafik`** — runs `python -u main.py --host 0.0.0.0 --port 8080`, serving the unified API + dashboard at **http://localhost:8080**. The same process runs the 60s tick loop, including camera, sensor, VMS, weather, road-condition, Situation, and SMHI forecast fetches.
 
-Both containers share `./data` via volume mount. The collector's health check fails if `data/collector.log` is older than 3 minutes.
+The service mounts `./data` for runtime state and checks `/health` for container health.
 
 ## Contributing
 

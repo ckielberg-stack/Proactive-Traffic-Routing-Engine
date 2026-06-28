@@ -2382,7 +2382,7 @@ def _persist_tick(
     # Vision records
     all_records.extend(vision_records)
 
-    # Weather and road-condition records keep the legacy JSONL shape used by dashboard.py.
+    # Weather and road-condition records keep the JSONL shape used by dashboard/API consumers.
     all_records.extend(result.weather_records)
     all_records.extend(result.road_condition_records)
 

@@ -33,7 +33,7 @@
 
 | Phase | Component | Status |
 |---|---|---|
-| 1 | Data Ingestion (`collect.py`, `config.py`) | ✅ Complete |
+| 1 | Data Ingestion (`main_loop.py`, `config.py`) | ✅ Complete |
 | 2 | Vision Engine (`vision_engine.py`, `roi_mapper.py`) | ✅ Complete |
 | 3 | Physics Engine (`physics_engine.py`) | ✅ Complete |
 | — | Tick Architecture (`main_loop.py`) | ✅ Complete |
@@ -104,7 +104,7 @@ Four critical theoretical and geometric flaws were identified by an expert audit
 
 - [ ] Run BEV calibration (`roi_helper.py` → `b` key) on all configured cameras
 - [ ] Wire `main_loop.py` tick output into `operator_api.py` state setters (live integration)
-- [ ] Deploy on VPS with Docker Compose (`collector` + `dashboard` + `operator-api`)
+- [ ] Deploy on VPS with Docker Compose (`main.py` single-service runtime)
 - [ ] Fine-tune YOLO on Swedish camera images (night, winter, sun glare)
 - [ ] Build control room dashboard frontend consuming the Operator API
 - [ ] Formal DATEX II XSD validation against Trafikverket's NTS schemas
