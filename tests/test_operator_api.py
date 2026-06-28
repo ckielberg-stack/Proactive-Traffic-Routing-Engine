@@ -16,12 +16,14 @@ from fastapi.testclient import TestClient
 from src.models import (
     IncidentReport,
     QueuePrediction,
+    SituationDeviation,
     VMSRecommendation,
     VMSStatusSnapshot,
 )
 from src.operator_api import (
     API_TOKEN_COOKIE_NAME,
     app,
+    set_safety_context,
     set_pipeline_snapshot,
     set_active_incidents,
     set_active_predictions,
@@ -31,6 +33,8 @@ from src.operator_api import (
     set_vms_orchestrator,
     _match_proxy_ground_truth,
 )
+from src.smhi_forecast import WeatherForecast
+from src.weather_adapter import WeatherAdjustment
 from src.vms_orchestrator import VMSOrchestrator
 
 
@@ -46,6 +50,7 @@ def _reset_state() -> None:
     set_active_predictions([])
     set_active_vms_statuses([])
     set_active_recommendations([])
+    set_safety_context()
     set_vms_orchestrator(VMSOrchestrator())  # default config
     set_last_tick_time(None)
 
@@ -127,6 +132,77 @@ def inactive_proxy_status() -> VMSStatusSnapshot:
         is_active=False,
         displayed_message=None,
         speed_limit=None,
+    )
+
+
+@pytest.fixture
+def ice_weather_adjustment() -> WeatherAdjustment:
+    return WeatherAdjustment(
+        surface_state="ice",
+        free_flow_factor=0.7,
+        capacity_factor=0.65,
+        confidence="high",
+        reason="RoadCondition warning: ice near E4",
+        warning_records=[{"id": "RC-1", "warning": True}],
+        forecast_state="dry",
+    )
+
+
+@pytest.fixture
+def proactive_weather_adjustment() -> WeatherAdjustment:
+    return WeatherAdjustment(
+        surface_state="snow",
+        free_flow_factor=0.85,
+        capacity_factor=0.8,
+        confidence="medium",
+        reason="snow forecast within 60 min",
+        forecast_state="snow",
+        forecast_lead_minutes=25.0,
+        forecast_reason="snow forecast within 60 min",
+        proactive_halka=True,
+    )
+
+
+@pytest.fixture
+def dry_weather_adjustment() -> WeatherAdjustment:
+    return WeatherAdjustment(
+        surface_state="dry",
+        free_flow_factor=1.0,
+        capacity_factor=1.0,
+        confidence="low",
+        reason="missing weather/road-condition data",
+    )
+
+
+@pytest.fixture
+def snow_forecast() -> WeatherForecast:
+    return WeatherForecast(
+        surface_state="snow",
+        onset_minutes=25.0,
+        confidence="medium",
+        reason="snow forecast within 60 min",
+        lookahead_minutes=60,
+        sample_count=3,
+    )
+
+
+@pytest.fixture
+def accident_deviation() -> SituationDeviation:
+    return SituationDeviation(
+        timestamp=datetime(2026, 2, 16, 14, 5, 0),
+        deviation_id="ACC&<1>",
+        deviation_type="accident",
+        message_type="Olycka & hinder",
+        message_code="Accident",
+        severity_code="high",
+        number_of_lanes_restricted=1,
+        road_number="E4",
+        location="Kungens & Kurva <E4>",
+        lat=59.272,
+        lng=17.914,
+        chainage_km=5.1,
+        nearest_camera_id="CAM_TEST_01",
+        capacity_factor=0.45,
     )
 
 
@@ -424,10 +500,13 @@ class TestProxyGroundTruthMatching:
 
 class TestDatex2Export:
     def test_empty_returns_valid_xml(self, client: TestClient) -> None:
+        import xml.etree.ElementTree as ET
+
         resp = client.get("/api/v1/export/datex2")
         assert resp.status_code == 200
         assert resp.headers["content-type"] == "application/xml"
         content = resp.text
+        ET.fromstring(content)
         assert '<?xml version="1.0"' in content
         assert "d2LogicalModel" in content
         assert "datex2.eu" in content
@@ -518,6 +597,91 @@ class TestDatex2Export:
         assert "&amp;" in content
         assert "&lt;" in content
 
+    def test_xml_contains_weather_safety_situation(
+        self,
+        client: TestClient,
+        ice_weather_adjustment: WeatherAdjustment,
+    ) -> None:
+        import xml.etree.ElementTree as ET
+
+        set_safety_context(
+            road_condition_records=[{"id": "RC-1", "warning": True}],
+            weather_adjustment=ice_weather_adjustment,
+        )
+
+        resp = client.get("/api/v1/export/datex2")
+        content = resp.text
+
+        ET.fromstring(content)
+        assert "weatherSafetySituation" in content
+        assert "<roadSurfaceCondition>ice</roadSurfaceCondition>" in content
+        assert "<roadConditionType>ice</roadConditionType>" in content
+        assert "<roadConditionWarningCount>1</roadConditionWarningCount>" in content
+        assert "RoadCondition warning: ice near E4" in content
+
+    def test_xml_contains_proactive_forecast_weather_situation(
+        self,
+        client: TestClient,
+        proactive_weather_adjustment: WeatherAdjustment,
+        snow_forecast: WeatherForecast,
+    ) -> None:
+        set_safety_context(
+            weather_adjustment=proactive_weather_adjustment,
+            weather_forecast=snow_forecast,
+        )
+
+        resp = client.get("/api/v1/export/datex2")
+        content = resp.text
+
+        assert "weatherSafetySituation" in content
+        assert "<roadSurfaceCondition>snow</roadSurfaceCondition>" in content
+        assert "<roadConditionType>slipperyRoad</roadConditionType>" in content
+        assert "<proactiveHalka>true</proactiveHalka>" in content
+        assert "<forecastState>snow</forecastState>" in content
+        assert "<forecastOnsetMinutes>25.0</forecastOnsetMinutes>" in content
+        assert "<roadConditionWarningCount>0</roadConditionWarningCount>" in content
+
+    def test_xml_omits_dry_weather_safety_situation(
+        self,
+        client: TestClient,
+        dry_weather_adjustment: WeatherAdjustment,
+    ) -> None:
+        set_safety_context(weather_adjustment=dry_weather_adjustment)
+
+        resp = client.get("/api/v1/export/datex2")
+
+        assert "weatherSafetySituation" not in resp.text
+
+    def test_xml_contains_authoritative_situation_deviation(
+        self,
+        client: TestClient,
+        accident_deviation: SituationDeviation,
+    ) -> None:
+        import xml.etree.ElementTree as ET
+
+        set_safety_context(situation_deviations=[accident_deviation])
+
+        resp = client.get("/api/v1/export/datex2")
+        content = resp.text
+
+        ET.fromstring(content)
+        assert "safetySituation" in content
+        assert "PTRE-SIT-ACC&amp;&lt;1&gt;-0000" in content
+        assert "<deviationId>ACC&amp;&lt;1&gt;</deviationId>" in content
+        assert "<situationType>accident</situationType>" in content
+        assert "<location>Kungens &amp; Kurva &lt;E4&gt;</location>" in content
+        assert "<numberOfLanesRestricted>1</numberOfLanesRestricted>" in content
+        assert "<capacityFactor>0.45</capacityFactor>" in content
+        assert "<latitude>59.272000</latitude>" in content
+        assert "<longitude>17.914000</longitude>" in content
+
+    def test_safety_context_is_cleared_between_tests(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/export/datex2")
+        content = resp.text
+
+        assert "weatherSafetySituation" not in content
+        assert "safetySituation" not in content
+
 
 # ======================================================================
 # Health check
@@ -551,6 +715,8 @@ class TestHealthCheck:
         sample_prediction: QueuePrediction,
         sample_vms_recommendation: VMSRecommendation,
         active_proxy_status: VMSStatusSnapshot,
+        ice_weather_adjustment: WeatherAdjustment,
+        accident_deviation: SituationDeviation,
     ) -> None:
         now = datetime(2026, 2, 16, 15, 0, 0)
         incidents = [sample_incident]
@@ -564,6 +730,9 @@ class TestHealthCheck:
             vms_statuses=statuses,
             recommendations=recommendations,
             last_tick_time=now,
+            road_condition_records=[{"id": "RC-1", "warning": True}],
+            weather_adjustment=ice_weather_adjustment,
+            situation_deviations=[accident_deviation],
         )
 
         incidents.clear()
@@ -573,10 +742,12 @@ class TestHealthCheck:
 
         incidents_resp = client.get("/api/v1/operator/active-incidents")
         recs_resp = client.get("/api/v1/operator/vms-recommendations")
+        datex_resp = client.get("/api/v1/export/datex2")
         health_resp = client.get("/health")
 
         assert incidents_resp.status_code == 200
         assert recs_resp.status_code == 200
+        assert datex_resp.status_code == 200
         assert health_resp.status_code == 200
 
         assert incidents_resp.json()["count"] == 1
@@ -585,6 +756,8 @@ class TestHealthCheck:
         assert health_resp.json()["active_incidents"] == 1
         assert health_resp.json()["active_recommendations"] == 1
         assert health_resp.json()["proxy_statuses_polled"] == 1
+        assert "weatherSafetySituation" in datex_resp.text
+        assert "safetySituation" in datex_resp.text
 
 
 # ======================================================================

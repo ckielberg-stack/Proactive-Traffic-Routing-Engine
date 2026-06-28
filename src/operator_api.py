@@ -43,9 +43,12 @@ from pydantic import BaseModel, Field
 from src.models import (
     IncidentReport,
     QueuePrediction,
+    SituationDeviation,
     VMSRecommendation,
     VMSStatusSnapshot,
 )
+from src.smhi_forecast import WeatherForecast
+from src.weather_adapter import WeatherAdjustment
 from src.vms_orchestrator import VMSOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -138,6 +141,10 @@ class _PipelineState:
     predictions: list[QueuePrediction] = field(default_factory=list)
     vms_statuses: list[VMSStatusSnapshot] = field(default_factory=list)
     recommendations: list[VMSRecommendation] = field(default_factory=list)
+    road_condition_records: list[dict[str, Any]] = field(default_factory=list)
+    weather_adjustment: WeatherAdjustment | None = None
+    weather_forecast: WeatherForecast | None = None
+    situation_deviations: list[SituationDeviation] = field(default_factory=list)
     last_tick_time: datetime | None = None
 
 
@@ -152,6 +159,10 @@ def _get_state_snapshot() -> _PipelineState:
             predictions=list(_pipeline_state.predictions),
             vms_statuses=list(_pipeline_state.vms_statuses),
             recommendations=list(_pipeline_state.recommendations),
+            road_condition_records=list(_pipeline_state.road_condition_records),
+            weather_adjustment=_pipeline_state.weather_adjustment,
+            weather_forecast=_pipeline_state.weather_forecast,
+            situation_deviations=list(_pipeline_state.situation_deviations),
             last_tick_time=_pipeline_state.last_tick_time,
         )
 
@@ -222,6 +233,36 @@ def set_active_recommendations(recommendations: list[VMSRecommendation]) -> None
         _pipeline_state.recommendations = list(recommendations)
 
 
+def _replace_safety_context_unlocked(
+    *,
+    road_condition_records: list[dict[str, Any]] | None,
+    weather_adjustment: WeatherAdjustment | None,
+    weather_forecast: WeatherForecast | None,
+    situation_deviations: list[SituationDeviation] | None,
+) -> None:
+    _pipeline_state.road_condition_records = list(road_condition_records or [])
+    _pipeline_state.weather_adjustment = weather_adjustment
+    _pipeline_state.weather_forecast = weather_forecast
+    _pipeline_state.situation_deviations = list(situation_deviations or [])
+
+
+def set_safety_context(
+    *,
+    road_condition_records: list[dict[str, Any]] | None = None,
+    weather_adjustment: WeatherAdjustment | None = None,
+    weather_forecast: WeatherForecast | None = None,
+    situation_deviations: list[SituationDeviation] | None = None,
+) -> None:
+    """Inject weather and authoritative Situation context for DATEX export."""
+    with _state_lock:
+        _replace_safety_context_unlocked(
+            road_condition_records=road_condition_records,
+            weather_adjustment=weather_adjustment,
+            weather_forecast=weather_forecast,
+            situation_deviations=situation_deviations,
+        )
+
+
 def set_pipeline_snapshot(
     *,
     incidents: list[IncidentReport],
@@ -229,6 +270,10 @@ def set_pipeline_snapshot(
     vms_statuses: list[VMSStatusSnapshot],
     recommendations: list[VMSRecommendation],
     last_tick_time: datetime | None,
+    road_condition_records: list[dict[str, Any]] | None = None,
+    weather_adjustment: WeatherAdjustment | None = None,
+    weather_forecast: WeatherForecast | None = None,
+    situation_deviations: list[SituationDeviation] | None = None,
 ) -> None:
     """Atomically replace all live pipeline fields for one tick."""
     with _state_lock:
@@ -236,6 +281,12 @@ def set_pipeline_snapshot(
         _pipeline_state.predictions = list(predictions)
         _pipeline_state.vms_statuses = list(vms_statuses)
         _pipeline_state.recommendations = list(recommendations)
+        _replace_safety_context_unlocked(
+            road_condition_records=road_condition_records,
+            weather_adjustment=weather_adjustment,
+            weather_forecast=weather_forecast,
+            situation_deviations=situation_deviations,
+        )
         _pipeline_state.last_tick_time = last_tick_time
 
 
@@ -398,6 +449,11 @@ async def export_datex2() -> Response:
         incidents=state.incidents,
         recommendations=state.recommendations or [],
         vms_statuses=state.vms_statuses,
+        road_condition_records=state.road_condition_records,
+        weather_adjustment=state.weather_adjustment,
+        weather_forecast=state.weather_forecast,
+        situation_deviations=state.situation_deviations,
+        last_tick_time=state.last_tick_time,
     )
     return Response(
         content=xml_content,
@@ -449,34 +505,60 @@ def _xml_optional_float(value: float | None) -> str:
     return "" if value is None else f"{value:.1f}"
 
 
+def _xml_optional_text(value: Any | None) -> str:
+    return "" if value is None else _xml_text(value)
+
+
+def _location_block(lat: float | None, lng: float | None) -> str:
+    if lat is None or lng is None:
+        return ""
+    return f"""
+        <locationReference>
+          <pointByCoordinates>
+            <latitude>{lat:.6f}</latitude>
+            <longitude>{lng:.6f}</longitude>
+          </pointByCoordinates>
+        </locationReference>"""
+
+
+def _weather_condition_type(surface_state: str) -> str:
+    return {
+        "wet": "surfaceWater",
+        "snow": "slipperyRoad",
+        "ice": "ice",
+    }.get(surface_state, "slipperyRoad")
+
+
 def _build_datex2_xml(
     incidents: list[IncidentReport],
     recommendations: list[VMSRecommendation],
     vms_statuses: list[VMSStatusSnapshot],
+    road_condition_records: list[dict[str, Any]] | None = None,
+    weather_adjustment: WeatherAdjustment | None = None,
+    weather_forecast: WeatherForecast | None = None,
+    situation_deviations: list[SituationDeviation] | None = None,
+    last_tick_time: datetime | None = None,
 ) -> str:
-    """Build a DATEX II compliant XML document.
+    """Build a DATEX II-style XML document for PTRE operator exchange.
 
-    Includes two record types:
+    Includes four record types:
     1. ``situationRecord`` for each AI-verified incident
     2. ``speedManagement`` for each VMS recommendation (PTRE extension)
+    3. ``weatherSafetySituation`` for corridor-level road-surface risk
+    4. ``safetySituation`` for authoritative Situation accident/roadwork inputs
 
-    Uses string templating for the MVP.  A production version would
-    use the full DATEX II XSD schemas with lxml.
+    Uses string templating for the prototype. Full NTS/XSD conformance needs
+    the downstream schema bundle and is intentionally out of scope here.
     """
     situations = []
+    road_condition_records = road_condition_records or []
+    situation_deviations = situation_deviations or []
+    snapshot_time = last_tick_time or datetime.now(tz=timezone.utc)
 
     # --- AI-verified incidents ---
     for i, inc in enumerate(incidents):
         situation_id = f"PTRE-INC-{inc.camera_id}-{i:04d}"
-        lat_block = ""
-        if inc.lat is not None and inc.lng is not None:
-            lat_block = f"""
-        <locationReference>
-          <pointByCoordinates>
-            <latitude>{inc.lat:.6f}</latitude>
-            <longitude>{inc.lng:.6f}</longitude>
-          </pointByCoordinates>
-        </locationReference>"""
+        lat_block = _location_block(inc.lat, inc.lng)
 
         situations.append(
             f"""    <situation id="{_xml_attr(situation_id)}">
@@ -537,6 +619,73 @@ def _build_datex2_xml(
         <triggeringCamera>{_xml_text(rec.triggering_camera_id)}</triggeringCamera>
         <narrative>{_xml_text(rec.summary)}</narrative>
       </speedManagement>
+    </situation>"""
+        )
+
+    # --- Corridor weather / road-surface safety situation (PTRE extension) ---
+    if weather_adjustment is not None and (
+        weather_adjustment.surface_state != "dry" or weather_adjustment.proactive_halka
+    ):
+        warning_count = len(weather_adjustment.warning_records)
+        if warning_count == 0:
+            warning_count = sum(
+                1 for record in road_condition_records
+                if record.get("warning") is True
+            )
+        forecast_state = (
+            weather_forecast.surface_state if weather_forecast is not None
+            else weather_adjustment.forecast_state
+        )
+        forecast_onset = (
+            weather_forecast.onset_minutes if weather_forecast is not None
+            else weather_adjustment.forecast_lead_minutes
+        )
+        situations.append(
+            f"""    <situation id="PTRE-WEATHER-CORRIDOR-0000">
+      <headerInformation>
+        <areaOfInterest>national</areaOfInterest>
+        <confidentiality>restrictedToAuthoritiesTrafficOperatorsAndPublishers</confidentiality>
+        <informationStatus>real</informationStatus>
+      </headerInformation>
+      <weatherSafetySituation>
+        <creationTime>{_xml_text(snapshot_time.isoformat())}</creationTime>
+        <roadSurfaceCondition>{_xml_text(weather_adjustment.surface_state)}</roadSurfaceCondition>
+        <roadConditionType>{_xml_text(_weather_condition_type(weather_adjustment.surface_state))}</roadConditionType>
+        <confidence>{_xml_text(weather_adjustment.confidence)}</confidence>
+        <reason>{_xml_text(weather_adjustment.reason)}</reason>
+        <proactiveHalka>{str(weather_adjustment.proactive_halka).lower()}</proactiveHalka>
+        <forecastState>{_xml_optional_text(forecast_state)}</forecastState>
+        <forecastOnsetMinutes>{_xml_optional_float(forecast_onset)}</forecastOnsetMinutes>
+        <roadConditionWarningCount>{warning_count}</roadConditionWarningCount>
+      </weatherSafetySituation>
+    </situation>"""
+        )
+
+    # --- Authoritative accident/roadwork Situation inputs (PTRE extension) ---
+    for k, deviation in enumerate(situation_deviations):
+        deviation_id = deviation.deviation_id or f"{k:04d}"
+        lat_block = _location_block(deviation.lat, deviation.lng)
+        situations.append(
+            f"""    <situation id="{_xml_attr(f"PTRE-SIT-{deviation_id}-{k:04d}")}">
+      <headerInformation>
+        <areaOfInterest>national</areaOfInterest>
+        <confidentiality>restrictedToAuthoritiesTrafficOperatorsAndPublishers</confidentiality>
+        <informationStatus>real</informationStatus>
+      </headerInformation>
+      <safetySituation>
+        <creationTime>{_xml_text(deviation.timestamp.isoformat())}</creationTime>
+        <deviationId>{_xml_text(deviation.deviation_id)}</deviationId>
+        <situationType>{_xml_text(deviation.deviation_type)}</situationType>
+        <messageType>{_xml_optional_text(deviation.message_type)}</messageType>
+        <messageCode>{_xml_optional_text(deviation.message_code)}</messageCode>
+        <severityCode>{_xml_optional_text(deviation.severity_code)}</severityCode>
+        <roadNumber>{_xml_optional_text(deviation.road_number)}</roadNumber>
+        <location>{_xml_optional_text(deviation.location)}</location>
+        <numberOfLanesRestricted>{_xml_optional_text(deviation.number_of_lanes_restricted)}</numberOfLanesRestricted>
+        <capacityFactor>{deviation.capacity_factor:.2f}</capacityFactor>
+        <chainageKm>{_xml_optional_float(deviation.chainage_km)}</chainageKm>
+        <nearestCameraId>{_xml_optional_text(deviation.nearest_camera_id)}</nearestCameraId>{lat_block}
+      </safetySituation>
     </situation>"""
         )
 

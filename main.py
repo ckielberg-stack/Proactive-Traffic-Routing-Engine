@@ -138,6 +138,10 @@ async def _tick_loop_background(
                 vms_statuses=result.vms_statuses,
                 recommendations=result.vms_recommendations,
                 last_tick_time=result.timestamp,
+                road_condition_records=result.road_condition_records,
+                weather_adjustment=result.weather_adjustment,
+                weather_forecast=result.weather_forecast,
+                situation_deviations=result.situation_deviations,
             )
 
             # --- Store state for dashboard pages ---
