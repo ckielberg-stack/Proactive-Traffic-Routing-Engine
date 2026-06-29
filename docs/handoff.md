@@ -1,12 +1,12 @@
 # Handoff Document — PTRE (Proactive Traffic Routing Engine)
 
-> **Last updated:** 2026-02-18
+> **Last updated:** 2026-06-29
 
 ---
 
 ## What Is This App?
 
-PTRE is a **B2G traffic management copilot** built for Trafikverket / Trafik Stockholm. It monitors 53 live traffic cameras along the **E4 motorway (Södertälje → Stockholm)** and does something human operators cannot: it uses physics to **predict where a traffic queue will be in the future** and recommends preemptive VMS (Variable Message Sign) activations before the queue reaches upstream gantries.
+PTRE is a **B2G traffic management copilot** built for Trafikverket / Trafik Stockholm. It monitors 46 configured live traffic cameras along the **E4 motorway (Södertälje → Stockholm)** and does something human operators cannot: it uses physics to **predict where a traffic queue will be in the future** and recommends preemptive VMS (Variable Message Sign) activations before the queue reaches upstream gantries.
 
 ### The Core Value Proposition
 
@@ -86,7 +86,7 @@ The tick is orchestrated by `tick_once()` in `main_loop.py` and driven by `_tick
 
 ### 1. Data Ingestion (`main_loop.py`, `config.py`)
 
-- **Camera API:** Fetches 53 cameras from the Trafikverket Camera API. Images are decoded in RAM (`cv2.imdecode(np.frombuffer(...))`), processed, and immediately discarded. No disk write unless the retention policy triggers.
+- **Camera API:** Fetches 46 configured cameras from the Trafikverket Camera API. Images are decoded in RAM (`cv2.imdecode(np.frombuffer(...))`), processed, and immediately discarded. No disk write unless the retention policy triggers.
 - **Sensor API:** Polls `TrafficFlow` for upstream radar/loop-detector data (vehicles per hour + average speed). Data is mapped to route-linear camera nodes as `SegmentTrafficState`; an aggregate `SensorReading` remains only as fallback.
 - **Situation API (VMS proxy):** Polls `Situation.Deviation` records filtered by `MessageCode = 'Hastighetsbegränsning gäller'` and `SPEEDMANAGEMENTID` IDs. This is the **closest available proxy** for when a human operator activates a VMS sign. In production, this would be replaced by a direct TMC feed.
 - **Camera exclusion:** Cameras can be excluded via `data/excluded_cameras.json`. The main loop re-reads this file every tick (no restart needed).
@@ -373,7 +373,7 @@ Prophecy                               # Evaluation Logger
 
 ```mermaid
 flowchart TD
-    A[Trafikverket Camera API<br/>53 cameras] -->|JPEG bytes| B[fetch_image_bytes]
+    A[Trafikverket Camera API<br/>46 cameras] -->|JPEG bytes| B[fetch_image_bytes]
     B --> C[cv2.imdecode<br/>in-memory]
     C --> D[VisionEngine<br/>YOLOv8n]
     D --> E{Has ROI config?}

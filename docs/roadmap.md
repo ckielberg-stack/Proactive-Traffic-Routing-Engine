@@ -10,15 +10,15 @@ Build a **proactive** traffic routing engine that uses computer vision on live t
 
 | Milestone | Description | Status |
 |---|---|---|
-| **1 — Data** | Live data ingestion pipeline (53 cameras, weather, road conditions, incidents) | ✅ Complete |
+| **1 — Data** | Live data ingestion pipeline (46 configured cameras, weather, road conditions, incidents) | ✅ Complete |
 | **2 — Perception** | Vision Engine: YOLO-based capacity estimation + anomaly detection | ✅ Complete |
 | **2a — Spatial** | ROI Mapper: per-camera pixel → road segment classification | ✅ Complete |
 | **2b — Retention** | Smart image retention policy (anomaly + training samples only) | ✅ Complete |
 | **2c — Tooling** | Interactive ROI calibration helper + camera discovery script | ✅ Complete |
 | **2d — Deployment** | Single-service Docker Compose stack (`main.py`) | ✅ Complete |
-| **3 — Physics** | Shockwave Prediction Engine (LWR model) | ⬜ Not started |
+| **3 — Physics** | Shockwave Prediction Engine (LWR model) | ✅ Complete |
 | **5 — VMS** | VMS & Queue Tail Predictor for preemptive sign activation | ✅ Complete |
-| **6 — Operator** | Operator Decision Support API (incidents, VMS, DATEX II) | ⬜ Not started |
+| **6 — Operator** | Operator Decision Support API (incidents, VMS, DATEX II) | ✅ Complete |
 
 > **Note:** Phases 4–5 from the original B2C roadmap (Geospatial Routing Integrator, routing penalty API) have been **removed** per ADR-004.
 
@@ -30,7 +30,7 @@ Build a **proactive** traffic routing engine that uses computer vision on live t
 
 ### Milestone 1: Data Ingestion Pipeline ✅
 
-Live pipeline collecting from **53 Trafikverket cameras** on E4 Hallunda → Stockholm every 60 seconds:
+Live pipeline collecting from **46 configured Trafikverket cameras** on E4 Hallunda → Stockholm every 60 seconds:
 
 - **Camera images** — fetched from Trafikverket Camera API (full-size 1280×720)
 - **Weather data** — temperature, wind, visibility, precipitation from WeatherMeasurepoint API
@@ -88,7 +88,7 @@ Live pipeline collecting from **53 Trafikverket cameras** on E4 Hallunda → Sto
 
 Full-featured monitoring dashboard (`main.py` + `templates/` + `static/`):
 
-- **Interactive Leaflet map** — all 53 cameras plotted with clickable markers and photo popups
+- **Interactive Leaflet map** — all 46 configured cameras plotted with clickable markers and photo popups
 - **Camera grid** — latest images from each camera with live updates
 - **Weather table** — air/road temperature, wind, visibility, humidity, precipitation
 - **Road conditions table** — surface state, warnings, friction data
@@ -99,11 +99,18 @@ Full-featured monitoring dashboard (`main.py` + `templates/` + `static/`):
 
 ### Test Suite ✅
 
-**32 unit tests** across 2 test modules:
+Current default pytest collection: **330 tests**, with **1 live smoke test
+deselected** by the pytest configuration.
 
-- `tests/test_vision_engine.py` — 16 tests (models, black image handling, capacity estimation, anomaly detection)
-- `tests/test_roi_mapper.py` — 16 tests (polygon loading, point-in-polygon classification, batch classification, edge cases)
-- `tests/smoke_test.py` — integration smoke test for live API connectivity
+Verified on 2026-06-29 with:
+
+```bash
+.venv/bin/python -m pytest --collect-only -q
+```
+
+Coverage spans vision, ROI mapping, physics, VMS orchestration, operator API,
+deployment shape, retention, replay evaluation, shipped config integration,
+route-linear mapping, weather/SMHI inputs, and the live Trafikverket smoke test.
 
 ### Pydantic Domain Models ✅
 
@@ -125,7 +132,7 @@ Full-featured monitoring dashboard (`main.py` + `templates/` + `static/`):
 
 ### ADR-001: In-Memory Image Processing (No Standard Disk Writes)
 
-**Context:** 53 cameras × 1440 cycles/day = ~76,000 HD images/day (~860 MB). Saving all to disk causes I/O bottlenecks and storage bloat.
+**Context:** 46 configured cameras × 1440 cycles/day = ~66,000 HD images/day. Saving all to disk causes I/O bottlenecks and storage bloat.
 
 **Decision:** Images are processed **entirely in RAM**:
 ```

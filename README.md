@@ -275,7 +275,9 @@ The `proxy_ground_truth_active` flag on every `/api/v1/operator/vms-recommendati
 pytest tests/ -v --ignore=tests/smoke_test.py
 ```
 
-Run `pytest -v` for the current count. The 10 unit test modules under [tests/](tests/) cover:
+Run `pytest --collect-only -q` for the current count. As of 2026-06-29,
+the default collection is 330 tests, with one live smoke test deselected by
+the pytest configuration. The suite under [tests/](tests/) covers:
 
 - [test_physics_engine.py](tests/test_physics_engine.py) — LWR kinematic wave model
 - [test_vision_engine.py](tests/test_vision_engine.py) — YOLO + capacity estimation

@@ -1,6 +1,6 @@
 # Project State — PTRE (Proactive Traffic Routing Engine)
 
-> Last updated: 2026-02-18
+> Last updated: 2026-06-29
 
 ## System Identity
 
@@ -70,14 +70,19 @@ Four critical theoretical and geometric flaws were identified by an expert audit
 
 ## Test Coverage
 
-**150 tests passing** (0 failures):
-- Physics Engine: 30 (including density-based triggering)
-- Vision Engine: 22 (including density estimation, model validation)
-- ROI Mapper: 28 (including BEV homography)
-- Density Smoother: 16 (EMA math, transient dampening, multi-camera)
-- VMS Orchestrator: 18
-- Operator API: 21
-- Other: 15 (evaluation logger, incident builder, etc.)
+Current default pytest collection: **330 tests**, with **1 live smoke test
+deselected** by the pytest configuration.
+
+Verified on 2026-06-29 with:
+
+```bash
+.venv/bin/python -m pytest --collect-only -q
+```
+
+The suite covers the tick pipeline, shipped config integration, deployment
+shape, FastAPI/operator surfaces, DATEX export, VMS orchestration, physics,
+vision, ROI mapping, retention, replay evaluation, route-linear mapping,
+situation/weather/SMHI inputs, and live Trafikverket smoke coverage.
 
 ## Key Design Decisions (ADRs)
 
@@ -103,7 +108,6 @@ Four critical theoretical and geometric flaws were identified by an expert audit
 ## What's Next
 
 - [ ] Run BEV calibration (`roi_helper.py` → `b` key) on all configured cameras
-- [ ] Wire `main_loop.py` tick output into `operator_api.py` state setters (live integration)
 - [ ] Deploy on VPS with Docker Compose (`main.py` single-service runtime)
 - [ ] Fine-tune YOLO on Swedish camera images (night, winter, sun glare)
 - [ ] Build control room dashboard frontend consuming the Operator API

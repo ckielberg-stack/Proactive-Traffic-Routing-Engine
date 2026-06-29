@@ -22,7 +22,7 @@ BBOX = {
 }
 
 # --- Kamera-IDs att övervaka ---
-# Alla 53 E4/E20 trafikflödeskameror Hallunda → Stockholm
+# Alla 46 E4/E20 trafikflödeskameror Hallunda → Stockholm
 # Sorterade syd → nord efter latitud
 CAMERA_IDS: list[str] = [
     # — Hallunda / Fittja / Vårby —
