@@ -1,8 +1,10 @@
 .env
 .ai/
 .DS_Store
+discovered_cameras.json
 data/
 storage/
+static/*.bak
 *.pt
 __pycache__/
 *.pyc

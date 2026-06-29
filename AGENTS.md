@@ -1,6 +1,6 @@
 # Repo Agent Instructions
 
-This repository follows the global agent policy at `/Users/chips/.codex/agents.md`.
+This repository follows the global agent policy supplied by the active local agent environment.
 
 ## Autonomous Learning Loop
 

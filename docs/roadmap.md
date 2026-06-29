@@ -38,7 +38,7 @@ Live pipeline collecting from **46 configured Trafikverket cameras** on E4 Hallu
 - **Traffic situations** — accidents, roadwork, closures from Situation API (ground truth)
 - **Dashboard** — real-time monitoring at `localhost:8080` with interactive Leaflet map, camera validation (remove/restore), weather table, road conditions, incident log
 - **Camera exclusion** — cameras can be removed from collection via `excluded_cameras.json`; `main.py` re-reads exclusions each tick (no restart needed)
-- **Camera discovery** — `discover_cameras.py` auto-discovers cameras in the bounding box from the Trafikverket API, outputs to `discovered_cameras.json`
+- **Camera discovery** — `discover_cameras.py` auto-discovers cameras in the bounding box from the Trafikverket API, outputting local ignored `discovered_cameras.json`
 - **Graceful shutdown** — SIGINT/SIGTERM handled for clean runtime termination
 - **File logging** — structured tick-loop log output to `data/mainloop.log` with rotation
 
