@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from main_loop import _aggregate_multi_roi_capacity
+from src.fusion_pipeline import _aggregate_multi_roi_capacity
 from src.models import CameraMetadata, MultiSegmentCapacity, RoadSegmentState
 from src.physics_engine import PhysicsEngine
 

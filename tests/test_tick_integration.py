@@ -656,6 +656,9 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
     assert "residual_confidence" in vms_record
     assert (tmp_path / "vision_state.json").exists()
     assert (tmp_path / "status.json").exists()
+    status = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    assert status["tick_count"] == result.tick_number
+    assert status["start_time"] == result.timestamp.isoformat()
 
 
 def test_tick_once_promotes_persistent_vehicle_to_stopped_anomaly(

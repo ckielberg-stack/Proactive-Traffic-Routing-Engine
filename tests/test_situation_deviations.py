@@ -6,8 +6,10 @@ from datetime import datetime
 
 import pytest
 
-import main_loop
+from src import trafikverket_sources
+from src.fusion_pipeline import apply_situation_capacity_impacts
 from src.models import CapacityState, SituationDeviation
+from src.trafikverket_sources import _situation_capacity_factor, fetch_situation_deviations
 
 NOW = datetime(2026, 6, 13, 12, 0, 0)
 
@@ -66,14 +68,14 @@ def test_fetch_situation_deviations_filters_accidents_and_roadwork(
             }
         }
 
-    monkeypatch.setattr(main_loop, "api_request", fake_api_request)
+    monkeypatch.setattr(trafikverket_sources, "api_request", fake_api_request)
     monkeypatch.setattr(
-        main_loop,
+        trafikverket_sources,
         "_find_nearest_camera",
         lambda _lat, _lng: "CAM_NEAREST",
     )
 
-    deviations = main_loop.fetch_situation_deviations(NOW)
+    deviations = fetch_situation_deviations(NOW)
 
     assert [d.deviation_id for d in deviations] == ["ACC-1", "RW-1"]
     assert [d.deviation_type for d in deviations] == ["accident", "roadwork"]
@@ -108,9 +110,9 @@ def test_fetch_situation_deviations_persists_raw_record_without_corridor_chainag
             }
         }
 
-    monkeypatch.setattr(main_loop, "api_request", fake_api_request)
+    monkeypatch.setattr(trafikverket_sources, "api_request", fake_api_request)
 
-    deviations = main_loop.fetch_situation_deviations(NOW)
+    deviations = fetch_situation_deviations(NOW)
 
     assert len(deviations) == 1
     assert deviations[0].deviation_id == "ACC-OUT"
@@ -119,11 +121,11 @@ def test_fetch_situation_deviations_persists_raw_record_without_corridor_chainag
 
 
 def test_situation_capacity_factor_uses_type_severity_and_lanes() -> None:
-    assert main_loop._situation_capacity_factor("accident", None) == 0.45
-    assert main_loop._situation_capacity_factor("roadwork", None) == 0.65
-    assert main_loop._situation_capacity_factor("accident", 1, total_lanes=2) == 0.45
-    assert main_loop._situation_capacity_factor("accident", 1, "high", total_lanes=2) == 0.35
-    assert main_loop._situation_capacity_factor("roadwork", 2, total_lanes=2) == 0.25
+    assert _situation_capacity_factor("accident", None) == 0.45
+    assert _situation_capacity_factor("roadwork", None) == 0.65
+    assert _situation_capacity_factor("accident", 1, total_lanes=2) == 0.45
+    assert _situation_capacity_factor("accident", 1, "high", total_lanes=2) == 0.35
+    assert _situation_capacity_factor("roadwork", 2, total_lanes=2) == 0.25
 
 
 def test_apply_situation_impact_corrobates_existing_state() -> None:
@@ -149,7 +151,7 @@ def test_apply_situation_impact_corrobates_existing_state() -> None:
         number_of_lanes_restricted=1,
     )
 
-    count = main_loop.apply_situation_capacity_impacts(
+    count = apply_situation_capacity_impacts(
         [state],
         [deviation],
         now=NOW,
@@ -179,7 +181,7 @@ def test_apply_situation_impact_creates_synthetic_state() -> None:
     )
     states: list[CapacityState] = []
 
-    count = main_loop.apply_situation_capacity_impacts(
+    count = apply_situation_capacity_impacts(
         states,
         [deviation],
         now=NOW,

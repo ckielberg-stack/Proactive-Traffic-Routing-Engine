@@ -48,18 +48,17 @@ from config import (
     API_KEY, API_URL, CAMERA_COORDS, CAMERA_IDS, DATA_DIR,
     INTERVAL_SECONDS, SENSOR_COORDS,
 )
-from main_loop import (
-    build_camera_chainage_map, build_node_inflows,
-    setup_file_logger, tick_once,
-)
+from main_loop import setup_file_logger
 from src.evaluation_logger import EvaluationLogger
 from src.incident_builder import build_incident_reports
 from src.anomaly_store import get_anomalies, get_total_count
+from src.fusion_pipeline import build_camera_chainage_map, build_node_inflows
 from src.models import CalibrationSnapshot, SensorReading, TravelTimeReading
 from src.operator_api import (
     app as operator_app,
     set_pipeline_snapshot,
 )
+from src.tick_orchestrator import tick_once
 
 logger = logging.getLogger("ptre.main")
 

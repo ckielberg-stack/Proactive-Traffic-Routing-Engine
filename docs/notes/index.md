@@ -14,6 +14,7 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 - SMHI forecasts are an escalation-only, UTC-normalized, poll-throttled input that pre-degrades physics and pre-stages HALKA before friction drops. Open when changing `SMHIForecastSource`, `WeatherAdapter.compute(forecast=...)`, `proactive_halka`, forecast persistence, or SMHI tick wiring/stubbing: [2026-06-23 - SMHI Forecast Proactive Weather Adjustment](2026-06-23-smhi-forecast-proactive-weather.md).
 - DATEX safety exports should use derived weather context and keep accident/roadwork Situation records separate from VMS proxy ground truth. Open when changing `_build_datex2_xml`, `set_pipeline_snapshot`, weather/situation DATEX records, or XML validation: [2026-06-28 - DATEX Safety Context Source Boundary](2026-06-28-datex-safety-context-source-boundary.md).
 - Default deployment boundaries should exclude quarantined legacy entry points structurally and be regression-tested. Open when changing `Dockerfile`, `docker-compose.yml`, `legacy/`, healthchecks, or default runtime entrypoints: [2026-06-28 - Default Deployment Boundary](2026-06-28-default-deployment-boundary.md).
+- Hot-path extractions need an explicit transitional facade when old tests or scripts patch `main_loop` globals. Open when moving tick orchestration, source fetchers, camera workers, fusion helpers, or persistence out of an entrypoint: [2026-06-29 - Hot-Path Extraction Facade](2026-06-29-hot-path-extraction-facade.md).
 - Stopped-vehicle persistence must be applied after density smoothing and before fused capacity/physics, with local-speed gating and northbound ROI filtering. Open when changing `TrackPersistence`, `fetch_cameras`, `VisionEngine` detection metadata, stopped-vehicle anomalies, or multi-ROI direction filtering: [2026-06-17 - Stopped Vehicle Cross-Tick Persistence](2026-06-17-stopped-vehicle-cross-tick-persistence.md).
 - Parallel camera workers need isolated inference state and locked persistence state. Open when changing `fetch_cameras`, `VisionEngine` lifetime, `RetentionPolicy`, camera worker pools, or tick duration behavior: [2026-06-10 - Camera Worker Concurrency State](2026-06-10-camera-worker-concurrency-state.md).
 - Replay metrics must pair precision/recall with ETA, distance, expiry, and VMS lead-time checks. Open when changing `QueuePrediction`, TravelTimeRoute matching, replay fixtures, or model comparison workflows: [2026-06-06 - Replay Evaluation Metrics](2026-06-06-replay-evaluation-metrics.md).
@@ -22,6 +23,10 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 ## Execution State
 
 - 2026-06-10 - [AI Queue Triage Synchronization](2026-06-10-ai-queue-triage-synchronization.md) - Keywords: `.ai/state.json`, `.ai/tasks.json`, `ledger.jsonl`, triage, audit plan, proposal docs, duplicate tasks, queue order. Open when converting planning docs into executable queue state or resolving stale `next` pointers.
+
+## Architecture
+
+- 2026-06-29 - [Hot-Path Extraction Facade](2026-06-29-hot-path-extraction-facade.md) - Keywords: `main_loop.py`, `tick_once`, compatibility shims, monkeypatch sync, hot-path extraction, facade tests. Open when extracting orchestration or migrating callers from an entrypoint to focused `src/` modules.
 
 ## Deployment
 
@@ -52,6 +57,7 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 
 | Date | Title | Retrieval cues |
 |---|---|---|
+| 2026-06-29 | [Hot-Path Extraction Facade](2026-06-29-hot-path-extraction-facade.md) | `main_loop.py` facade, tick orchestration extraction, monkeypatch sync, direct owner tests plus compatibility integration |
 | 2026-06-28 | [Default Deployment Boundary](2026-06-28-default-deployment-boundary.md) | Dockerfile explicit COPY, Compose single-service runtime, legacy quarantine, healthcheck targets, deployment-shape regression tests |
 | 2026-06-28 | [DATEX Safety Context Source Boundary](2026-06-28-datex-safety-context-source-boundary.md) | DATEX weather safety export, derived WeatherAdjustment source, Situation accident/roadwork export, VMS proxy separation, XML well-formedness |
 | 2026-06-27 | [ETA Residual Correction Boundary](2026-06-27-eta-residual-correction-boundary.md) | ETA-only learned residuals, base vs corrected ETA, residual buckets, preserve LWR geometry, replay ETA delta without false-positive change |

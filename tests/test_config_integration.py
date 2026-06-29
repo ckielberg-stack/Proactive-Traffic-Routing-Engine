@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-import main_loop
-from main_loop import _aggregate_multi_roi_capacity, fetch_vms_status
+from src import trafikverket_sources
+from src.fusion_pipeline import _aggregate_multi_roi_capacity
 from src.models import (
     CameraMetadata,
     MultiSegmentCapacity,
@@ -18,6 +18,7 @@ from src.models import (
 from src.operator_api import _match_proxy_ground_truth
 from src.physics_engine import PhysicsEngine
 from src.roi_mapper import ROIMapper
+from src.trafikverket_sources import fetch_vms_status
 from src.vms_orchestrator import VMSOrchestrator
 
 
@@ -129,7 +130,7 @@ def test_fetch_vms_status_carries_situation_road_and_chainage(
             }
         }
 
-    monkeypatch.setattr(main_loop, "api_request", fake_api_request)
+    monkeypatch.setattr(trafikverket_sources, "api_request", fake_api_request)
 
     statuses = fetch_vms_status(NOW)
 
@@ -173,7 +174,7 @@ def test_fetch_vms_status_rejects_out_of_corridor_e4_chainage(
             }
         }
 
-    monkeypatch.setattr(main_loop, "api_request", fake_api_request)
+    monkeypatch.setattr(trafikverket_sources, "api_request", fake_api_request)
 
     statuses = fetch_vms_status(NOW)
 

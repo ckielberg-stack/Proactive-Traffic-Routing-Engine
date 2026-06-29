@@ -18,6 +18,7 @@ from config import (
     SENSOR_SEVERE_DROP_RATIO,
     SENSOR_SPEED_DROP_RATIO,
 )
+from src.fusion_pipeline import detect_sensor_anomalies
 from src.models import SensorAnomaly, SensorReading, VMSGantry, VMSRecommendation
 from src.vms_orchestrator import VMSOrchestrator
 
@@ -119,14 +120,12 @@ def orchestrator(vms_config_path: Path) -> VMSOrchestrator:
 
 
 class TestDetectSensorAnomalies:
-    """Tests for the detect_sensor_anomalies function in main_loop."""
+    """Tests for the detect_sensor_anomalies fusion helper."""
 
     def test_no_anomaly_above_threshold(
         self, normal_reading: SensorReading, now: datetime
     ) -> None:
         """Speed 60 on a 70 road → no anomaly (86% of limit)."""
-        from main_loop import detect_sensor_anomalies
-
         anomalies = detect_sensor_anomalies([normal_reading], now)
         assert len(anomalies) == 0
 
@@ -134,8 +133,6 @@ class TestDetectSensorAnomalies:
         self, warning_reading: SensorReading, now: datetime
     ) -> None:
         """Speed 30 on a 70 road → anomaly with severity 'warning'."""
-        from main_loop import detect_sensor_anomalies
-
         anomalies = detect_sensor_anomalies([warning_reading], now)
         assert len(anomalies) == 1
         assert anomalies[0].severity == "warning"
@@ -147,8 +144,6 @@ class TestDetectSensorAnomalies:
         self, severe_reading: SensorReading, now: datetime
     ) -> None:
         """Speed 20 on a 70 road → anomaly with severity 'severe'."""
-        from main_loop import detect_sensor_anomalies
-
         anomalies = detect_sensor_anomalies([severe_reading], now)
         assert len(anomalies) == 1
         assert anomalies[0].severity == "severe"
@@ -158,8 +153,6 @@ class TestDetectSensorAnomalies:
         self, borderline_reading: SensorReading, now: datetime
     ) -> None:
         """Speed exactly at 50% threshold → no anomaly (>= check)."""
-        from main_loop import detect_sensor_anomalies
-
         anomalies = detect_sensor_anomalies([borderline_reading], now)
         assert len(anomalies) == 0
 
@@ -167,8 +160,6 @@ class TestDetectSensorAnomalies:
         self, warning_reading: SensorReading, now: datetime
     ) -> None:
         """Anomaly lat/lng populated from SENSOR_COORDS."""
-        from main_loop import detect_sensor_anomalies
-
         anomalies = detect_sensor_anomalies([warning_reading], now)
         assert len(anomalies) == 1
         # Station 2790 should have coordinates from SENSOR_COORDS
@@ -181,8 +172,6 @@ class TestDetectSensorAnomalies:
         self, warning_reading: SensorReading, now: datetime
     ) -> None:
         """Speed ratio is correctly calculated as measured/limit."""
-        from main_loop import detect_sensor_anomalies
-
         anomalies = detect_sensor_anomalies([warning_reading], now)
         assert len(anomalies) == 1
         # 30 / 70 ≈ 0.429
@@ -190,8 +179,6 @@ class TestDetectSensorAnomalies:
 
     def test_uses_station_specific_limit(self, now: datetime) -> None:
         """Station with a specific speed limit uses that limit."""
-        from main_loop import detect_sensor_anomalies
-
         # Create a reading for a station we know is in the config
         reading = SensorReading(
             timestamp=now,
@@ -205,8 +192,6 @@ class TestDetectSensorAnomalies:
 
     def test_unknown_station_uses_default(self, now: datetime) -> None:
         """Unknown station falls back to DEFAULT_ROAD_SPEED_LIMIT."""
-        from main_loop import detect_sensor_anomalies
-
         reading = SensorReading(
             timestamp=now,
             site_id=99999,  # Not in SENSOR_ROAD_SPEED_LIMITS
@@ -219,8 +204,6 @@ class TestDetectSensorAnomalies:
 
     def test_multiple_readings_mixed(self, now: datetime) -> None:
         """Multiple readings: one normal, one warning, one severe."""
-        from main_loop import detect_sensor_anomalies
-
         readings = [
             SensorReading(
                 timestamp=now, site_id=2790,
@@ -243,8 +226,6 @@ class TestDetectSensorAnomalies:
 
     def test_skip_reading_without_site_id(self, now: datetime) -> None:
         """Readings without a site_id are silently skipped."""
-        from main_loop import detect_sensor_anomalies
-
         reading = SensorReading(
             timestamp=now,
             site_id=None,

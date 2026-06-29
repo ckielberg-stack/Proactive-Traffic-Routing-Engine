@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from main_loop import (
+from src.fusion_pipeline import (
     build_camera_chainage_map,
     build_node_inflows,
     build_node_traffic_states,
