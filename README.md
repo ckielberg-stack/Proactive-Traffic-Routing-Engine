@@ -222,6 +222,8 @@ Helpers serving the dashboard pages. Defined in [main.py](main.py). Treat as int
 |---|---|
 | `.env` (env var `TRAFIKVERKET_API_KEY`) | **Required** — Trafikverket Datex API key |
 | `.env` (optional `DATA_DIR`) | Override the default `./data` output directory |
+| `.env` (optional `JSONL_RETENTION_DAYS`) | Days of JSONL runtime history to keep; defaults to `30` |
+| `.env` (optional `JSONL_RETENTION_ENABLED`) | Set to `false`, `0`, or `no` to disable JSONL pruning |
 | local YOLO `.pt` weights | Downloaded/cached locally by Ultralytics; not committed to Git |
 | [config.py](config.py) | Camera IDs (46), sensor SiteIds (30), TravelTimeRoute IDs (21), bounding box, retry/backoff, anomaly thresholds |
 | [camera_config.json](camera_config.json) | Per-camera ROI polygons, exclusion zones, homography matrices |
@@ -247,6 +249,12 @@ storage/
 ```
 
 Most processing happens in memory — only metadata, predictions, and anomaly frames persist.
+
+JSONL runtime history is pruned after each tick by default. Dated
+`sensor_data.jsonl` files older than `JSONL_RETENTION_DAYS` are removed, while
+root append-only `anomaly_log.jsonl` and `evaluation_metrics.jsonl` are compacted
+by record timestamp. Malformed or undated JSONL lines are preserved so manual
+recovery remains possible.
 
 `data/` and `storage/` are local runtime directories and are ignored by Git. They may contain captured traffic-camera frames, logs, generated annotations, and other environment-specific artifacts. The public repository should not depend on those files being present.
 

@@ -15,6 +15,7 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 - DATEX safety exports should use derived weather context and keep accident/roadwork Situation records separate from VMS proxy ground truth. Open when changing `_build_datex2_xml`, `set_pipeline_snapshot`, weather/situation DATEX records, or XML validation: [2026-06-28 - DATEX Safety Context Source Boundary](2026-06-28-datex-safety-context-source-boundary.md).
 - Default deployment boundaries should exclude quarantined legacy entry points structurally and be regression-tested. Open when changing `Dockerfile`, `docker-compose.yml`, `legacy/`, healthchecks, or default runtime entrypoints: [2026-06-28 - Default Deployment Boundary](2026-06-28-default-deployment-boundary.md).
 - Hot-path extractions need an explicit transitional facade when old tests or scripts patch `main_loop` globals. Open when moving tick orchestration, source fetchers, camera workers, fusion helpers, or persistence out of an entrypoint: [2026-06-29 - Hot-Path Extraction Facade](2026-06-29-hot-path-extraction-facade.md).
+- JSONL retention must refresh any cached counters derived from compacted logs. Open when changing `src.jsonl_retention`, `src.anomaly_store`, replay/evaluation JSONL, `status.json`, or runtime data pruning: [2026-06-29 - JSONL Retention State Sync](2026-06-29-jsonl-retention-state-sync.md).
 - Stopped-vehicle persistence must be applied after density smoothing and before fused capacity/physics, with local-speed gating and northbound ROI filtering. Open when changing `TrackPersistence`, `fetch_cameras`, `VisionEngine` detection metadata, stopped-vehicle anomalies, or multi-ROI direction filtering: [2026-06-17 - Stopped Vehicle Cross-Tick Persistence](2026-06-17-stopped-vehicle-cross-tick-persistence.md).
 - Parallel camera workers need isolated inference state and locked persistence state. Open when changing `fetch_cameras`, `VisionEngine` lifetime, `RetentionPolicy`, camera worker pools, or tick duration behavior: [2026-06-10 - Camera Worker Concurrency State](2026-06-10-camera-worker-concurrency-state.md).
 - Replay metrics must pair precision/recall with ETA, distance, expiry, and VMS lead-time checks. Open when changing `QueuePrediction`, TravelTimeRoute matching, replay fixtures, or model comparison workflows: [2026-06-06 - Replay Evaluation Metrics](2026-06-06-replay-evaluation-metrics.md).
@@ -50,6 +51,7 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 
 ## Performance
 
+- 2026-06-29 - [JSONL Retention State Sync](2026-06-29-jsonl-retention-state-sync.md) - Keywords: `src.jsonl_retention`, JSONL pruning, `anomaly_log.jsonl`, `evaluation_metrics.jsonl`, cached anomaly totals, `status.json`. Open when changing runtime data retention, replay/evaluation logs, or dashboard counters derived from append-only files.
 - 2026-06-17 - [Stopped Vehicle Cross-Tick Persistence](2026-06-17-stopped-vehicle-cross-tick-persistence.md) - Keywords: `TrackPersistence`, `vehicle_stopped`, IoU, cross-tick state, local speed gate, `_vehicle_detections`, northbound ROI filtering, density smoothing order. Open when changing stopped-vehicle detection or adding new temporal perception state.
 - 2026-06-10 - [Camera Worker Concurrency State](2026-06-10-camera-worker-concurrency-state.md) - Keywords: `fetch_cameras`, bounded worker pool, thread-local `VisionEngine`, YOLO predictor lock, `RetentionPolicy`, training schedule persistence, deterministic future ordering. Open when parallelizing camera work or changing tick duration behavior.
 
@@ -57,6 +59,7 @@ Use `docs/notes/_template-learning-note.md` for new notes.
 
 | Date | Title | Retrieval cues |
 |---|---|---|
+| 2026-06-29 | [JSONL Retention State Sync](2026-06-29-jsonl-retention-state-sync.md) | JSONL retention, root log compaction, anomaly count cache refresh, status after pruning |
 | 2026-06-29 | [Hot-Path Extraction Facade](2026-06-29-hot-path-extraction-facade.md) | `main_loop.py` facade, tick orchestration extraction, monkeypatch sync, direct owner tests plus compatibility integration |
 | 2026-06-28 | [Default Deployment Boundary](2026-06-28-default-deployment-boundary.md) | Dockerfile explicit COPY, Compose single-service runtime, legacy quarantine, healthcheck targets, deployment-shape regression tests |
 | 2026-06-28 | [DATEX Safety Context Source Boundary](2026-06-28-datex-safety-context-source-boundary.md) | DATEX weather safety export, derived WeatherAdjustment source, Situation accident/roadwork export, VMS proxy separation, XML well-formedness |

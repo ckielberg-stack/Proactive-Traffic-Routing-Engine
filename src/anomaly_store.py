@@ -104,7 +104,15 @@ def get_total_count(data_dir: str) -> int:
     if _total_anomalies > 0:
         return _total_anomalies
 
+    return refresh_total_count(data_dir)
+
+
+def refresh_total_count(data_dir: str) -> int:
+    """Recompute the anomaly count from disk after log compaction."""
+    global _total_anomalies
+
     # On first call after restart, count lines in file
+    _total_anomalies = 0
     path = _log_path(data_dir)
     if os.path.exists(path):
         try:

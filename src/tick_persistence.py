@@ -8,8 +8,14 @@ import logging
 import os
 from datetime import datetime
 
-from config import DATA_DIR, INTERVAL_SECONDS
-from src.anomaly_store import get_total_count
+from config import (
+    DATA_DIR,
+    INTERVAL_SECONDS,
+    JSONL_RETENTION_DAYS,
+    JSONL_RETENTION_ENABLED,
+)
+from src.anomaly_store import get_total_count, refresh_total_count
+from src.jsonl_retention import prune_jsonl_retention
 from src.models import TickResult
 
 logger = logging.getLogger("mainloop")
@@ -230,6 +236,8 @@ def _persist_tick(
     except Exception as e:
         logger.error(f"Could not write vision_state.json: {e}")
 
+    _run_jsonl_retention(now)
+
     # Write status.json for dashboard
     _update_status(result, vision_records, now)
 
@@ -298,3 +306,17 @@ def _update_status(
             json.dump(status, f, ensure_ascii=False, default=str, indent=2)
     except Exception as e:
         logger.error(f"Could not write status.json: {e}")
+
+
+def _run_jsonl_retention(now: datetime) -> None:
+    try:
+        result = prune_jsonl_retention(
+            DATA_DIR,
+            now=now,
+            retention_days=JSONL_RETENTION_DAYS,
+            enabled=JSONL_RETENTION_ENABLED,
+        )
+        if result.changed:
+            refresh_total_count(DATA_DIR)
+    except Exception as e:
+        logger.error("Could not run JSONL retention: %s", e, exc_info=True)

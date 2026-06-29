@@ -146,7 +146,11 @@ E4_NORTHBOUND_ROUTE_POINTS: list[tuple[float, float]] = [
 
 # --- Insamling ---
 INTERVAL_SECONDS = 60  # Hur ofta bilder och sensordata hämtas
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
+JSONL_RETENTION_DAYS = int(os.getenv("JSONL_RETENTION_DAYS", "30"))
+JSONL_RETENTION_ENABLED = (
+    os.getenv("JSONL_RETENTION_ENABLED", "true").lower() not in {"0", "false", "no"}
+)
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2  # Sekunder, multipliceras exponentiellt
 

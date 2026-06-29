@@ -532,6 +532,12 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
         return b"offline-jpeg"
 
     monkeypatch.setattr(main_loop, "DATA_DIR", str(tmp_path))
+    old_day_dir = tmp_path / "2000-01-01"
+    old_day_dir.mkdir()
+    (old_day_dir / "sensor_data.jsonl").write_text(
+        '{"timestamp":"2000-01-01T00:00:00"}\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(main_loop, "api_request", fake_api_request)
     monkeypatch.setattr(main_loop, "fetch_image_bytes", fake_fetch_image_bytes)
     monkeypatch.setattr(
@@ -612,6 +618,7 @@ def test_tick_once_runs_offline_through_camera_sensor_travel_time_vms_paths(
     day_dir = tmp_path / result.timestamp.strftime("%Y-%m-%d")
     jsonl_path = day_dir / "sensor_data.jsonl"
     assert jsonl_path.exists()
+    assert not old_day_dir.exists()
     records = [
         json.loads(line)
         for line in jsonl_path.read_text(encoding="utf-8").splitlines()
